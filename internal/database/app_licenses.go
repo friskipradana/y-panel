@@ -320,19 +320,19 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 		      WHEN slug = 'pro-monthly' THEN 'Untuk tim CS kecil: 2 Sesi WA, 3 CS, 3.000 kontak, 5.000 siaran/bln, Live Chat & CSAT, omnichannel & jadwal konten.'
 		      WHEN slug = 'pro-annual' THEN 'Paket tahunan hemat 2 bln: 2 Sesi WA, 3 CS, 3.000 kontak, 5.000 siaran/bln, Live Chat & omnichannel.'
 		      WHEN slug = 'business-monthly' THEN 'Skala bisnis berkembang: 5 Sesi WA, 7 CS, 10.000 kontak, 15.000 siaran/bln, AI Agent & MCP Tools.'
-		      WHEN slug = 'business-annual' THEN 'Paket tahunan hemat 2 bln: 5 Sesi WA, 7 CS, 12.000 kontak, 15.000 siaran & AI Agent.'
+		      WHEN slug = 'business-annual' THEN 'Paket tahunan hemat 2 bln: 5 Sesi WA, 7 CS, 10.000 kontak, 15.000 siaran/bln & AI Agent.'
 		      WHEN slug = 'enterprise-monthly' THEN 'Skala korporasi: 10 Sesi WA Dedicated, 15 CS, 25.000 kontak, 35.000 siaran, AI Agent & VIP.'
-		      WHEN slug = 'enterprise-annual' THEN 'Paket korporasi hemat 2 bln: 12 Sesi WA Dedicated, 18 CS, 35.000 kontak, 45.000 siaran & VIP.'
+		      WHEN slug = 'enterprise-annual' THEN 'Paket korporasi hemat 2 bln: 10 Sesi WA Dedicated, 15 CS, 25.000 kontak, 35.000 siaran & VIP.'
 		      ELSE tagline
 		    END,
 		    features = CASE
 		      WHEN slug = 'starter-monthly' THEN '{"unlimitedBroadcast":false,"maxBroadcastPerMonth":2000,"unlimitedContacts":false,"maxContacts":1000,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"maxSessionIdentitySwitches":2,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":15,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":250,"maxAttachmentSizeMb":10}'::jsonb
 		      WHEN slug = 'pro-monthly' THEN '{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":3000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1024,"maxAttachmentSizeMb":15}'::jsonb
-		      WHEN slug = 'pro-annual' THEN '{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":3000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1536,"maxAttachmentSizeMb":15}'::jsonb
+		      WHEN slug = 'pro-annual' THEN '{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":3000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1024,"maxAttachmentSizeMb":15}'::jsonb
 		      WHEN slug = 'business-monthly' THEN '{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":2560,"maxAttachmentSizeMb":25}'::jsonb
-		      WHEN slug = 'business-annual' THEN '{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":12000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":4096,"maxAttachmentSizeMb":25}'::jsonb
+		      WHEN slug = 'business-annual' THEN '{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":2560,"maxAttachmentSizeMb":25}'::jsonb
 		      WHEN slug = 'enterprise-monthly' THEN '{"unlimitedBroadcast":false,"maxBroadcastPerMonth":35000,"unlimitedContacts":false,"maxContacts":25000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":20,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":6144,"maxAttachmentSizeMb":40}'::jsonb
-		      WHEN slug = 'enterprise-annual' THEN '{"unlimitedBroadcast":false,"maxBroadcastPerMonth":45000,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":12,"maxSessionIdentitySwitches":25,"multiAgent":true,"maxAgents":18,"maxUsers":18,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":10240,"maxAttachmentSizeMb":50}'::jsonb
+		      WHEN slug = 'enterprise-annual' THEN '{"unlimitedBroadcast":false,"maxBroadcastPerMonth":35000,"unlimitedContacts":false,"maxContacts":25000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":20,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":6144,"maxAttachmentSizeMb":40}'::jsonb
 		      ELSE features
 		    END
 		WHERE catalog_id = 'reneo-crm';
@@ -392,7 +392,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 			promoValidUntil: "30 November 2026",
 			highlighted:     false,
 			sortOrder:       3,
-			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":3000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1536,"maxAttachmentSizeMb":15}`,
+			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":3000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1024,"maxAttachmentSizeMb":15}`,
 		},
 		{
 			slug:            "business-monthly",
@@ -411,7 +411,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 		{
 			slug:            "business-annual",
 			name:            "Business AI Tahunan",
-			tagline:         "Paket tahunan hemat 2 bln: 5 Sesi WA, 7 CS, 12.000 kontak, 15.000 siaran & AI Agent.",
+			tagline:         "Paket tahunan hemat 2 bln: 5 Sesi WA, 7 CS, 10.000 kontak, 15.000 siaran/bln & AI Agent.",
 			period:          "annual",
 			months:          12,
 			price:           1990000,
@@ -420,7 +420,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 			promoValidUntil: "30 November 2026",
 			highlighted:     false,
 			sortOrder:       5,
-			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":12000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":4096,"maxAttachmentSizeMb":25}`,
+			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":2560,"maxAttachmentSizeMb":25}`,
 		},
 		{
 			slug:            "enterprise-monthly",
@@ -439,7 +439,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 		{
 			slug:            "enterprise-annual",
 			name:            "Enterprise AI Tahunan",
-			tagline:         "Paket korporasi hemat 2 bln: 12 Sesi WA Dedicated, 18 CS, 35.000 kontak, 45.000 siaran & VIP.",
+			tagline:         "Paket korporasi hemat 2 bln: 10 Sesi WA Dedicated, 15 CS, 25.000 kontak, 35.000 siaran & VIP.",
 			period:          "annual",
 			months:          12,
 			price:           3990000,
@@ -448,7 +448,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 			promoValidUntil: "30 November 2026",
 			highlighted:     false,
 			sortOrder:       7,
-			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":45000,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":12,"maxSessionIdentitySwitches":25,"multiAgent":true,"maxAgents":18,"maxUsers":18,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":10240,"maxAttachmentSizeMb":50}`,
+			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":35000,"unlimitedContacts":false,"maxContacts":25000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":20,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":6144,"maxAttachmentSizeMb":40}`,
 		},
 	}
 
@@ -494,7 +494,7 @@ func (m *Manager) ListAppLicensePlans(catalogID string) ([]AppLicensePlan, error
 			{
 				ID: 3, CatalogID: catalogID, Slug: "pro-annual", Name: "Growth Pro Tahunan",
 				Tagline: "Paket tahunan hemat 2 bln: 2 Sesi WA, 3 CS, 3.000 kontak, 5.000 siaran/bln, Live Chat & omnichannel.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 990000, OriginalPriceAmount: 2388000, DiscountPercent: 59, PromoValidUntil: "30 November 2026",
-				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":3000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1536,"maxAttachmentSizeMb":15}`),
+				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":3000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1024,"maxAttachmentSizeMb":15}`),
 				Highlighted: false, IsActive: true, SortOrder: 3,
 			},
 			{
@@ -505,8 +505,8 @@ func (m *Manager) ListAppLicensePlans(catalogID string) ([]AppLicensePlan, error
 			},
 			{
 				ID: 5, CatalogID: catalogID, Slug: "business-annual", Name: "Business AI Tahunan",
-				Tagline: "Paket tahunan hemat 2 bln: 5 Sesi WA, 7 CS, 12.000 kontak, 15.000 siaran & AI Agent.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 1990000, OriginalPriceAmount: 4788000, DiscountPercent: 58, PromoValidUntil: "30 November 2026",
-				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":12000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":4096,"maxAttachmentSizeMb":25}`),
+				Tagline: "Paket tahunan hemat 2 bln: 5 Sesi WA, 7 CS, 10.000 kontak, 15.000 siaran/bln & AI Agent.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 1990000, OriginalPriceAmount: 4788000, DiscountPercent: 58, PromoValidUntil: "30 November 2026",
+				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":2560,"maxAttachmentSizeMb":25}`),
 				Highlighted: false, IsActive: true, SortOrder: 5,
 			},
 			{
@@ -517,8 +517,8 @@ func (m *Manager) ListAppLicensePlans(catalogID string) ([]AppLicensePlan, error
 			},
 			{
 				ID: 7, CatalogID: catalogID, Slug: "enterprise-annual", Name: "Enterprise AI Tahunan",
-				Tagline: "Paket korporasi hemat 2 bln: 12 Sesi WA Dedicated, 18 CS, 35.000 kontak, 45.000 siaran & VIP.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 3990000, OriginalPriceAmount: 9588000, DiscountPercent: 58, PromoValidUntil: "30 November 2026",
-				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":45000,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":12,"maxSessionIdentitySwitches":25,"multiAgent":true,"maxAgents":18,"maxUsers":18,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":10240,"maxAttachmentSizeMb":50}`),
+				Tagline: "Paket korporasi hemat 2 bln: 10 Sesi WA Dedicated, 15 CS, 25.000 kontak, 35.000 siaran & VIP.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 3990000, OriginalPriceAmount: 9588000, DiscountPercent: 58, PromoValidUntil: "30 November 2026",
+				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":35000,"unlimitedContacts":false,"maxContacts":25000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":20,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":6144,"maxAttachmentSizeMb":40}`),
 				Highlighted: false, IsActive: true, SortOrder: 7,
 			},
 		}, nil
