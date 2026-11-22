@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.52] - 2026-11-22
+
+Fix nil-pointer panic in `orderBaseURL` when background app license expiry reminders run without an HTTP request.
+
+### Perbaikan
+- **httpserver:** Guard `nil *http.Request` in `orderBaseURL` and `publicBaseURL` to prevent startup crash loop in `runPlanExpiryLoop`
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.51...v1.88.52
+
 ## [1.88.51] - 2026-11-22
 
 Support monthly+annual bundled creation with annual discount and auto-sync paired plan features.

@@ -61,3 +61,18 @@ func TestInjectSEOEscapesAndAddsStructuredData(t *testing.T) {
 		t.Fatalf("JSON-LD must not be able to close the script early:\n%s", out)
 	}
 }
+
+func TestOrderBaseURLHandlesNilRequest(t *testing.T) {
+	t.Setenv("RENEO_PUBLIC_URL", "")
+	if got := publicBaseURL(nil); got != "" {
+		t.Fatalf("expected empty publicBaseURL for nil request, got %q", got)
+	}
+	s := &Server{}
+	if got := s.orderBaseURL(nil); got != "" {
+		t.Fatalf("expected empty orderBaseURL for nil request without db/env, got %q", got)
+	}
+	t.Setenv("RENEO_PUBLIC_URL", "https://panel.example.com/")
+	if got := s.orderBaseURL(nil); got != "https://panel.example.com" {
+		t.Fatalf("expected configured PUBLIC_URL for nil request, got %q", got)
+	}
+}
