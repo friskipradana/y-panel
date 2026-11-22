@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="ypanel"
-SERVICE_FILE="/etc/systemd/system/ypanel.service"
-BIN_PATH="/usr/local/bin/ypanel-agent"
-CLI_PATH="/usr/local/bin/ypanel"
-INSTALL_ROOT="/opt/ypanel"
-CONFIG_DIR="/etc/ypanel"
-STATE_DIR="/var/lib/ypanel"
-PORTAINER_CONTAINER="ypanel-portainer"
+APP_NAME="reneo"
+SERVICE_FILE="/etc/systemd/system/reneo.service"
+BIN_PATH="/usr/local/bin/reneo-agent"
+CLI_PATH="/usr/local/bin/reneo"
+INSTALL_ROOT="/opt/reneo"
+CONFIG_DIR="/etc/reneo"
+STATE_DIR="/var/lib/reneo"
+PORTAINER_CONTAINERS=("reneo-portainer" "ypanel-portainer")
 PORTAINER_VOLUME="portainer_data"
 PG_DB_NAME="serverpanel"
 PG_DB_USER="panel_user"
@@ -46,11 +46,14 @@ ask_remove_everything() {
 }
 
 remove_service() {
-  if systemctl list-unit-files | grep -q '^ypanel.service'; then
-    log "menghapus service ypanel"
-    systemctl stop ypanel.service || true
-    systemctl disable ypanel.service || true
-  fi
+  local unit
+  for unit in reneo ypanel; do
+    if systemctl list-unit-files | grep -q "^${unit}.service"; then
+      log "menghapus service ${unit}"
+      systemctl stop "${unit}.service" || true
+      systemctl disable "${unit}.service" || true
+    fi
+  done
   if systemctl list-unit-files | grep -q '^ui-panel.service'; then
     log "menghapus service legacy ui-panel"
     systemctl stop ui-panel.service || true
@@ -58,7 +61,7 @@ remove_service() {
     rm -f /etc/systemd/system/ui-panel.service
   fi
 
-  rm -f "$SERVICE_FILE"
+  rm -f "$SERVICE_FILE" /etc/systemd/system/ypanel.service
   systemctl daemon-reload
 }
 
@@ -71,15 +74,16 @@ remove_binary_and_data() {
   if [[ -L /etc/ui-panel/agent.env ]]; then
     rm -f /etc/ui-panel/agent.env
   fi
-  rm -rf "$CONFIG_DIR"
-  rm -rf "$STATE_DIR"
-  rm -rf "$INSTALL_ROOT"
+  # Names used before the rename: compatibility symlinks on migrated hosts, real files otherwise
+  rm -f /usr/local/bin/ypanel-agent /usr/local/bin/ypanel
+  rm -rf "$CONFIG_DIR" "$STATE_DIR" "$INSTALL_ROOT"
+  rm -rf /etc/ypanel /var/lib/ypanel /opt/ypanel
 }
 
 remove_portainer() {
   if command -v docker >/dev/null 2>&1; then
     log "menghapus container Portainer yang dikelola installer"
-    docker rm -f "$PORTAINER_CONTAINER" >/dev/null 2>&1 || true
+    docker rm -f "${PORTAINER_CONTAINERS[@]}" >/dev/null 2>&1 || true
     docker volume rm "$PORTAINER_VOLUME" >/dev/null 2>&1 || true
   fi
 }

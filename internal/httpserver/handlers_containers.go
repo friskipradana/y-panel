@@ -12,8 +12,8 @@ import (
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
-	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
 	"github.com/friskipradana/panel-desktop-ui/internal/docker"
+	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
 )
 
 // ─── Docker Container Handlers ──────────────────────────────────────────────
@@ -58,13 +58,17 @@ func validateRegistryAuthPayload(auth *docker.RegistryAuth) error {
 	return nil
 }
 
-func filterContainersForUser(actor *database.User, containers []docker.Container) []docker.Container {
-	if actor == nil || auth.IsAdmin(actor.Role) {
+func (s *Server) filterContainersForUser(actor *database.User, containers []docker.Container) []docker.Container {
+	if actor == nil {
+		return containers
+	}
+	scope := s.ownerScopeFor(actor)
+	if scope.all {
 		return containers
 	}
 	filtered := make([]docker.Container, 0, len(containers))
 	for _, container := range containers {
-		if container.OwnerUserID == actor.ID {
+		if scope.has(container.OwnerUserID) {
 			filtered = append(filtered, container)
 		}
 	}
@@ -76,7 +80,8 @@ func (s *Server) ensureContainerAccess(r *http.Request, id string) (*database.Us
 	if actor == nil {
 		return nil, errors.New("unauthorized")
 	}
-	if auth.IsAdmin(actor.Role) {
+	scope := s.ownerScopeFor(actor)
+	if scope.all {
 		return actor, nil
 	}
 	containers, err := docker.ListContainers()
@@ -84,7 +89,7 @@ func (s *Server) ensureContainerAccess(r *http.Request, id string) (*database.Us
 		return nil, err
 	}
 	for _, container := range containers {
-		if (container.ID == id || strings.HasPrefix(container.ID, id)) && container.OwnerUserID == actor.ID {
+		if (container.ID == id || strings.HasPrefix(container.ID, id) || strings.HasPrefix(id, container.ID)) && scope.has(container.OwnerUserID) {
 			return actor, nil
 		}
 	}
@@ -99,14 +104,64 @@ func (s *Server) handleContainersList(w http.ResponseWriter, r *http.Request) {
 	}
 	containers, err := docker.ListContainers()
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, []docker.Container{})
+		// an empty list would pass for "no containers"; the window shows the real reason instead
+		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	containers = filterContainersForUser(actor, containers)
+	containers = s.filterContainersForUser(actor, containers)
 	if containers == nil {
 		containers = []docker.Container{}
 	}
 	s.writeJSON(w, http.StatusOK, containers)
+}
+
+// handleContainersTable is the container list as a table: the search, the column filters and the order applied
+// to the whole list, with what each column can be narrowed to
+func (s *Server) handleContainersTable(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+	containers, err := docker.ListContainers()
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	visible := s.filterContainersForUser(actor, containers)
+	s.writeJSON(w, http.StatusOK, tableResponse(visible, containerSpec(), r.URL.Query()))
+}
+
+// handleDockerVolumes lists what the running containers of the caller have mounted
+func (s *Server) handleDockerVolumes(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+	containers, err := docker.ListContainers()
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	mounts, err := docker.ListRunningMounts(s.filterContainersForUser(actor, containers))
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	// the folder behind a named volume sits in Docker's own directory, which only the superadmin needs to see
+	if !auth.IsSuperAdmin(actor.Role) {
+		for i := range mounts {
+			if mounts[i].Type == "volume" {
+				mounts[i].Source = ""
+			}
+		}
+	}
+	s.writeJSON(w, http.StatusOK, tableResponse(mounts, mountSpec(), r.URL.Query()))
+}
+
+func (s *Server) handleDockerVersion(w http.ResponseWriter, r *http.Request) {
+	s.writeJSON(w, http.StatusOK, docker.GetDockerVersions())
 }
 
 func (s *Server) handleContainerStart(w http.ResponseWriter, r *http.Request) {
@@ -171,6 +226,18 @@ func (s *Server) handleContainerDelete(w http.ResponseWriter, r *http.Request) {
 	if _, err := s.ensureContainerAccess(r, id); err != nil {
 		s.writeError(w, http.StatusForbidden, err)
 		return
+	}
+	if containers, err := docker.ListContainers(); err == nil {
+		for _, c := range containers {
+			if kind := docker.ManagedKind(c); (c.ID == id || strings.HasPrefix(c.ID, id)) && kind != "" {
+				where := "the Database window"
+				if kind == docker.KindWAHA {
+					where = "Settings > Notifications"
+				}
+				s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this container belongs to " + where + ": manage or delete it there"})
+				return
+			}
+		}
 	}
 	if err := docker.DeleteContainer(id, removeVolumes, removeImage); err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
@@ -258,11 +325,25 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	wants, err := docker.HostPortsOf(req.Ports)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 	if req.ReplaceContainerID != "" {
 		if _, err := s.ensureContainerAccess(r, req.ReplaceContainerID); err != nil {
 			s.writeError(w, http.StatusForbidden, err)
 			return
 		}
+	}
+	if err := s.ensurePortsFree(wants, portIgnore{containerID: req.ReplaceContainerID, composeName: docker.ProjectSlug(req.Name)}); err != nil {
+		s.writePortError(w, actor, err)
+		return
+	}
+	// what the container was, kept so it can be put back when the new one cannot be made
+	var previous *docker.ContainerConfig
+	if req.ReplaceContainerID != "" {
+		previous, _ = docker.InspectContainerConfig(req.ReplaceContainerID)
 		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
 	}
 
@@ -278,7 +359,7 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		Volumes:      req.Volumes,
 	})
 	if err != nil {
-		s.writeError(w, http.StatusUnprocessableEntity, err)
+		s.writeError(w, http.StatusUnprocessableEntity, restoreAfterFailedReplace(owner, previous, err))
 		return
 	}
 	s.writeJSON(w, http.StatusCreated, jsonResponse{
@@ -326,6 +407,14 @@ func (s *Server) handleContainerDeployCompose(w http.ResponseWriter, r *http.Req
 			s.writeError(w, http.StatusForbidden, err)
 			return
 		}
+	}
+	if err := s.ensurePortsFree(docker.ComposeHostPorts(req.ComposeYAML), portIgnore{containerID: req.ReplaceContainerID, composeName: docker.ProjectSlug(req.Name)}); err != nil {
+		s.writePortError(w, actor, err)
+		return
+	}
+	var previous *docker.ContainerConfig
+	if req.ReplaceContainerID != "" {
+		previous, _ = docker.InspectContainerConfig(req.ReplaceContainerID)
 		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
 	}
 
@@ -335,7 +424,7 @@ func (s *Server) handleContainerDeployCompose(w http.ResponseWriter, r *http.Req
 		RegistryAuth: req.RegistryAuth,
 	})
 	if err != nil {
-		s.writeError(w, http.StatusUnprocessableEntity, err)
+		s.writeError(w, http.StatusUnprocessableEntity, restoreAfterFailedReplace(owner, previous, err))
 		return
 	}
 	s.writeJSON(w, http.StatusCreated, jsonResponse{
@@ -368,7 +457,15 @@ func (s *Server) handleContainerOwners(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, http.StatusBadRequest, err)
 			return
 		}
-		users, total, err := s.database.ListUsersFiltered(querySearch(r), limit, offset)
+		var (
+			users []database.User
+			total int64
+		)
+		if scope := s.ownerScopeFor(actor); scope.all {
+			users, total, err = s.database.ListUsersFiltered(querySearch(r), limit, offset)
+		} else {
+			users, total, err = s.database.ListUsersByIDs(scope.list(), querySearch(r), limit, offset)
+		}
 		if err != nil {
 			s.writeError(w, http.StatusInternalServerError, err)
 			return
@@ -427,7 +524,7 @@ func (s *Server) resolveDockerOwnerContext(actor *database.User, ownerUserID int
 	if ownerID <= 0 {
 		ownerID = actor.ID
 	}
-	if !auth.IsAdmin(actor.Role) && ownerID != actor.ID {
+	if !s.ownerScopeFor(actor).has(ownerID) {
 		return docker.OwnerContext{}, errors.New("forbidden: owner user is not allowed")
 	}
 	owner, err := s.database.GetUserByID(ownerID)
@@ -455,4 +552,20 @@ func (s *Server) resolveDockerOwnerContext(actor *database.User, ownerUserID int
 		CPULimitPct:   quota.CPULimitPct,
 		MemoryLimitMB: quota.MemoryLimitMB,
 	}, nil
+}
+
+// restoreAfterFailedReplace puts the container that was removed for an edit back, from what it was, when the new one could not
+// be made, and says so in the error: an edit that fails must not leave the account without its container.
+func restoreAfterFailedReplace(owner docker.OwnerContext, previous *docker.ContainerConfig, deployErr error) error {
+	if previous == nil || strings.TrimSpace(previous.Image) == "" || strings.TrimSpace(previous.Name) == "" {
+		return deployErr
+	}
+	_, restoreErr := docker.DeployFromImage(owner, docker.DeployImageRequest{
+		Name: previous.Name, Image: previous.Image, Network: previous.Network, Ports: previous.Ports,
+		Env: previous.Env, EnvMode: previous.EnvMode, EnvRaw: previous.EnvRaw, Volumes: previous.Volumes,
+	})
+	if restoreErr != nil {
+		return fmt.Errorf("%w; the previous container could not be put back either: %v", deployErr, restoreErr)
+	}
+	return fmt.Errorf("%w; the previous container was put back as it was", deployErr)
 }

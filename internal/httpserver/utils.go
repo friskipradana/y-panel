@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -8,8 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
@@ -53,15 +52,7 @@ func rewriteEnvValue(path, key, value string) error {
 }
 
 func runtimeEnvPath() string {
-	newPath := filepath.Join("/etc", "ypanel", "agent.env")
-	if _, err := os.Stat(newPath); err == nil {
-		return newPath
-	}
-	legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
-	if _, err := os.Stat(legacyPath); err == nil {
-		return legacyPath
-	}
-	return newPath
+	return runtimepath.EnvFile()
 }
 
 func firstNonEmpty(values ...string) string {
@@ -121,32 +112,6 @@ func rotateDatabasePassword(cfg config.Config, password string) error {
 	}
 
 	return nil
-}
-
-func runDatabaseSQL(statement string) error {
-	clients := []string{"mariadb", "mysql"}
-	var lastErr error
-	for _, client := range clients {
-		path, err := exec.LookPath(client)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		cmd := exec.Command(path, "-u", "root", "-e", statement)
-		output, err := cmd.CombinedOutput()
-		if err == nil {
-			return nil
-		}
-		lastErr = fmt.Errorf("%s failed: %s", client, strings.TrimSpace(string(output)))
-	}
-	if lastErr == nil {
-		lastErr = fmt.Errorf("MariaDB/MySQL client tidak tersedia")
-	}
-	return lastErr
-}
-
-func escapeSQLString(value string) string {
-	return strings.ReplaceAll(value, "'", "''")
 }
 
 // ─── HTTP Request Utilities ──────────────────────────────────────────────────

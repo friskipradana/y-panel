@@ -8,7 +8,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
@@ -60,17 +63,31 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	startResult, err := s.terminalManager.Start(terminal.StartRequest{
+	startReq := terminal.StartRequest{
+		OwnerID:       currentUser.ID,
 		PanelUsername: currentUser.Username,
 		DisplayName:   currentUser.DisplayName,
 		Role:          currentUser.Role,
 		Target:        target,
 		Cwd:           cwd,
-	})
+	}
+	if !auth.IsSuperAdmin(currentUser.Role) {
+		if quota, qerr := s.database.GetUserQuota(currentUser.ID); qerr == nil && quota != nil {
+			startReq.CPULimitPct, startReq.MemoryLimitMB = quota.CPULimitPct, quota.MemoryLimitMB
+		}
+	}
+	startResult, err := s.terminalManager.Start(startReq)
 	if err != nil {
 		log.Printf("[terminal] start failed remote=%s err=%v", remoteAddr(r), err)
 		s.auditSensitiveAction(r, currentUser, "terminal.start", "failed", map[string]any{"target": target, "cwd": cwd, "error": err.Error()})
-		s.writeError(w, http.StatusBadGateway, err)
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, terminal.ErrTooManySessions):
+			status = http.StatusTooManyRequests
+		case errors.Is(err, terminal.ErrInvalid):
+			status = http.StatusBadRequest
+		}
+		s.writeError(w, status, err)
 		return
 	}
 
@@ -80,10 +97,24 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 	s.writeJSON(w, http.StatusOK, jsonResponse{"sessionId": startResult.SessionID})
 }
 
+const (
+	terminalWriteWait  = 3 * time.Second
+	terminalPongWait   = 75 * time.Second
+	terminalPingPeriod = 25 * time.Second
+	terminalReadLimit  = 64 * 1024
+)
+
 func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "missing session id"})
+		return
+	}
+
+	// only the account that started a session may attach to it; a foreign id looks like an unknown one
+	owner := s.currentUserRecord(r)
+	if owner == nil || s.terminalManager.Authorize(id, owner.ID) != nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "terminal session not found"})
 		return
 	}
 
@@ -95,38 +126,108 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 	}
 
 	log.Printf("[terminal] ws attached id=%s user=%q remote=%s", id, username, remoteAddr(r))
-	writeMu := syncWriter{}
-	closed := make(chan struct{})
 
-	safeWrite := func(payload terminalSocketMessage) error {
-		writeMu.Lock()
-		defer writeMu.Unlock()
+	var closeOnce sync.Once
+	closed := make(chan struct{})
+	markClosed := func() { closeOnce.Do(func() { close(closed) }) }
+
+	// A write deadline keeps one half-open client from stalling the writer goroutine
+	// while StreamWriter coalesces PTY bursts and bounds outbound memory.
+	writeJSON := func(payload terminalSocketMessage) error {
+		_ = conn.SetWriteDeadline(time.Now().Add(terminalWriteWait))
 		return conn.WriteJSON(payload)
 	}
 
-	if err := s.terminalManager.Attach(
+	writer := terminal.NewStreamWriter(
+		128,
+		1024*1024,
+		func(chunk string) error {
+			return writeJSON(terminalSocketMessage{Type: "output", Data: chunk, Session: id})
+		},
+		func(kind terminal.ControlKind, payload any) error {
+			switch kind {
+			case terminal.ControlPing:
+				return conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(terminalWriteWait))
+			default:
+				if msg, ok := payload.(terminalSocketMessage); ok {
+					return writeJSON(msg)
+				}
+				return nil
+			}
+		},
+		func(err error) {
+			log.Printf("[terminal] stream backpressure/write failed id=%s user=%q err=%v", id, username, err)
+			markClosed()
+			_ = conn.Close()
+		},
+	)
+
+	conn.SetReadLimit(terminalReadLimit)
+	_ = conn.SetReadDeadline(time.Now().Add(terminalPongWait))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(terminalPongWait))
+	})
+
+	replay := r.URL.Query().Get("replay") == "1" || r.URL.Query().Get("replay") == "true"
+	gen, err := s.terminalManager.Attach(
 		id,
-		func(chunk string) {
-			_ = safeWrite(terminalSocketMessage{Type: "output", Data: chunk, Session: id})
+		replay,
+		func(chunk string) error {
+			return writer.EnqueueChunk(chunk)
 		},
 		func() {
 			log.Printf("[terminal] session closed id=%s user=%q", id, username)
-			_ = safeWrite(terminalSocketMessage{Type: "closed", Closed: true, Session: id})
-			closeChannel(closed)
+			if writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "closed", Closed: true, Session: id}) {
+				writer.CloseWait(terminalWriteWait)
+			} else {
+				writer.Close(false)
+			}
+			markClosed()
+			_ = conn.Close()
 		},
-	); err != nil {
+		func() {
+			log.Printf("[terminal] ws replaced by newer connection id=%s user=%q", id, username)
+			writer.Close(false)
+			markClosed()
+			_ = conn.Close()
+		},
+	)
+	if err != nil {
 		log.Printf("[terminal] attach failed id=%s user=%q remote=%s err=%v", id, username, remoteAddr(r), err)
-		_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
+		writer.Close(true)
+		_ = writeJSON(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
 		_ = conn.Close()
 		return
 	}
+
+	pingDone := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(terminalPingPeriod)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-pingDone:
+				return
+			case <-closed:
+				return
+			case <-ticker.C:
+				if !writer.EnqueueControl(terminal.ControlPing, nil) {
+					return
+				}
+			}
+		}
+	}()
+
 	defer func() {
+		close(pingDone)
+		markClosed()
+		writer.Close(false)
 		log.Printf("[terminal] ws detached id=%s user=%q remote=%s", id, username, remoteAddr(r))
-		_ = s.terminalManager.Detach(id)
+		_ = s.terminalManager.Detach(id, gen)
 		_ = conn.Close()
 	}()
 
-	_ = safeWrite(terminalSocketMessage{Type: "ready", Session: id})
+	writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "ready", Session: id})
 
 	for {
 		select {
@@ -139,26 +240,32 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 		if err := conn.ReadJSON(&msg); err != nil {
 			return
 		}
+		_ = conn.SetReadDeadline(time.Now().Add(terminalPongWait))
 
 		switch msg.Type {
+		case "ping":
+			writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "pong", Session: id})
 		case "input":
 			if err := s.terminalManager.Write(id, msg.Data); err != nil {
 				log.Printf("[terminal] input failed id=%s user=%q err=%v", id, username, err)
-				_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
+				if writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "error", Error: err.Error(), Session: id}) {
+					writer.CloseWait(terminalWriteWait)
+				}
 				return
 			}
 		case "resize":
 			if err := s.terminalManager.Resize(id, msg.Cols, msg.Rows); err != nil {
+				// A bad size must not tear down a healthy shell; report and continue.
 				log.Printf("[terminal] resize failed id=%s user=%q cols=%d rows=%d err=%v", id, username, msg.Cols, msg.Rows, err)
-				_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
-				return
+				writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
 			}
 		case "close":
 			log.Printf("[terminal] close requested id=%s user=%q", id, username)
+			writer.Close(false)
 			_ = s.terminalManager.Close(id)
 			return
 		default:
-			_ = safeWrite(terminalSocketMessage{Type: "error", Error: "unknown websocket message type", Session: id})
+			writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "error", Error: "unknown websocket message type", Session: id})
 		}
 	}
 }
@@ -170,16 +277,31 @@ func (s *Server) handleTerminalSessionClose(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	currentUser := s.currentUserRecord(r)
+	if currentUser == nil || s.terminalManager.Authorize(id, currentUser.ID) != nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "terminal session not found"})
+		return
+	}
 	meta, _ := s.terminalManager.SessionMeta(id)
 	if err := s.terminalManager.Close(id); err != nil {
 		s.writeError(w, http.StatusNotFound, err)
 		return
 	}
-	if currentUser := s.currentUserRecord(r); currentUser != nil {
-		s.auditSensitiveAction(r, currentUser, "terminal.close", "success", map[string]any{"sessionId": id, "mode": meta.Mode, "target": meta.Target, "cwd": meta.Cwd})
-	}
-
+	s.auditSensitiveAction(r, currentUser, "terminal.close", "success", map[string]any{"sessionId": id, "mode": meta.Mode, "target": meta.Target, "cwd": meta.Cwd})
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
+}
+
+func (s *Server) handleListTerminalSessions(w http.ResponseWriter, r *http.Request) {
+	currentUser := s.currentUserRecord(r)
+	if currentUser == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+	sessions := s.terminalManager.ListOwned(currentUser.ID)
+	if sessions == nil {
+		sessions = []terminal.SessionInfo{}
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"sessions": sessions})
 }
 
 // ─── System Stats WebSocket ─────────────────────────────────────────────────
@@ -205,7 +327,8 @@ func (s *Server) handleSystemStatsWebSocket(w http.ResponseWriter, r *http.Reque
 		case <-stop:
 			return
 		case <-ticker.C:
-			summary := system.Inspect(s.cfg.PortainerURL, s.cfg.StateDir)
+			summary := system.Inspect(s.cfg.StateDir)
+			_ = conn.SetWriteDeadline(time.Now().Add(terminalWriteWait))
 			if err := conn.WriteJSON(summary); err != nil {
 				return
 			}
@@ -249,7 +372,7 @@ func (s *Server) handleCreateTerminalPreset(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	s.notifyCurrentServerUser(r, "Preset terminal dibuat 💻", fmt.Sprintf("Preset command '%s' berhasil ditambahkan.", preset.Command), "success")
+	s.notifyCurrentServerUser(r, "Preset terminal ditambah", fmt.Sprintf("Preset '%s' ditambahkan.", preset.Command), "success")
 	s.writeJSON(w, http.StatusCreated, jsonResponse{"preset": preset})
 }
 
@@ -269,7 +392,7 @@ func (s *Server) handleDeleteTerminalPreset(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusNotFound, err)
 		return
 	}
-	s.notifyCurrentServerUser(r, "Preset terminal dihapus 🗑️", "Preset terminal berhasil dihapus.", "warning")
+	s.notifyCurrentServerUser(r, "Preset terminal dihapus", "Satu preset terminal dihapus.", "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -284,6 +407,6 @@ func (s *Server) handleResetTerminalPresets(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	presets, _ := s.database.ListTerminalPresets(userID)
-	s.notifyCurrentServerUser(r, "Preset terminal direset ♻️", fmt.Sprintf("Preset terminal berhasil direset. Total preset aktif: %d.", len(presets)), "info")
+	s.notifyCurrentServerUser(r, "Preset terminal dikembalikan ke bawaan", fmt.Sprintf("Preset buatan Anda dihapus. Sekarang ada %d preset bawaan.", len(presets)), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "presets": presets})
 }

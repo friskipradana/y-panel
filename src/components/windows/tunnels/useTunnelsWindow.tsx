@@ -1,0 +1,469 @@
+import { useEffect, useMemo, useState } from 'react'
+import { type WindowState } from '@/types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  createCloudflareDNSRecord,
+  createCloudflareDomain,
+  createCloudflareTunnelProfile,
+  createTunnel,
+  deleteCloudflareDNSRecord,
+  deleteCloudflareDomain,
+  deleteCloudflareTunnelProfile,
+  deleteTunnel,
+  getCFConfig,
+  getCloudflareDomain,
+  getCloudflareZoneSecurity,
+  listProjects,
+  listCloudflareDNSRecords,
+  listCloudflareDomains,
+  listCloudflareTunnelProfileRoutes,
+  listCloudflareTunnelProfiles,
+  updateCloudflareDNSRecord,
+  updateTunnel,
+  type CloudflareDNSRecord,
+  type CloudflareDNSRecordPayload,
+  type CloudflareDomain,
+  type CloudflareTunnelProfile,
+  type Tunnel,
+} from '@/api/agent'
+import { getAppCatalog } from '@/api/appCatalog'
+import { listContainers } from '@/api/docker'
+import { alertLib } from '@/lib/alert'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
+import { useListQuery } from '@/hooks/useListQuery'
+import { listQueryKey, type TableResult } from '@/lib/listQuery'
+import { toast } from 'sonner'
+import { useI18n } from '@/lib/i18n'
+import {
+  emptyDnsForm,
+  emptyTunnelForm,
+  emptyDomainForm,
+  emptyProfileForm,
+  type DnsForm,
+  type TunnelForm,
+  type TunnelTargetPreset,
+  type DomainForm,
+  type ProfileForm,
+  buildTunnelFormFromTunnel,
+  slugifyRoutePart,
+  tunnelPayload,
+} from './tunnelForms'
+
+const errDesc = (e: unknown) => {
+  const ax = e as { response?: { data?: { error?: string } }; message?: string }
+  return ax?.response?.data?.error ?? ax?.message
+}
+
+export function useTunnelsWindow({ win }: { win?: WindowState }) {
+  const pollingActive = useWindowPollingActive(win)
+  const { t } = useI18n()
+  const qc = useQueryClient()
+  const [tab, setTab] = useState<'domains' | 'tunnels' | 'security'>('domains')
+  const [selectedDomainId, setSelectedDomainId] = useState('')
+  const [selectedProfileId, setSelectedProfileId] = useState('')
+  const [securitySearch, setSecuritySearch] = useState('')
+  const [showWafRuleModal, setShowWafRuleModal] = useState(false)
+  const lists = { dns: useListQuery(), routes: useListQuery() }
+  const [showDnsModal, setShowDnsModal] = useState(false)
+  const [showDomainModal, setShowDomainModal] = useState(false)
+  const [createdDomain, setCreatedDomain] = useState<CloudflareDomain | null>(null)
+  const [editingDns, setEditingDns] = useState<CloudflareDNSRecord | null>(null)
+  const [dnsForm, setDnsForm] = useState<DnsForm>(emptyDnsForm)
+  const [domainForm, setDomainForm] = useState<DomainForm>(emptyDomainForm)
+  const [showTunnelModal, setShowTunnelModal] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [editingTunnelId, setEditingTunnelId] = useState<number | null>(null)
+  const [tunnelForm, setTunnelForm] = useState<TunnelForm>(emptyTunnelForm)
+  const [profileForm, setProfileForm] = useState<ProfileForm>(emptyProfileForm)
+
+  const { data: cfConfig } = useQuery({ queryKey: ['cf-config'], queryFn: getCFConfig })
+  const cfNotConfigured = !cfConfig?.configured || cfConfig?.status !== 'active'
+  const { data: domains = [], isLoading: domainsLoading, isError: domainsError, refetch: refetchDomains, isFetching: domainsFetching } = useQuery({ queryKey: ['cloudflare-domains'], queryFn: listCloudflareDomains, enabled: !cfNotConfigured })
+  const { data: selectedDomainDetail } = useQuery({ queryKey: ['cloudflare-domain', selectedDomainId], queryFn: () => getCloudflareDomain(selectedDomainId), enabled: !cfNotConfigured && tab === 'domains' && !!selectedDomainId })
+  const { data: dnsData, isLoading: dnsLoading, isError: dnsError } = useQuery({
+    queryKey: ['cloudflare-dns', selectedDomainId, listQueryKey(lists.dns.query)],
+    queryFn: () => listCloudflareDNSRecords(selectedDomainId, lists.dns.query),
+    enabled: !cfNotConfigured && tab === 'domains' && !!selectedDomainId,
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === selectedDomainId ? previous : undefined),
+  })
+  const { data: profiles = [], isLoading: profilesLoading, isError: profilesError, refetch: refetchProfiles, isFetching: profilesFetching } = useQuery({
+    queryKey: ['cloudflare-tunnel-profiles'],
+    queryFn: listCloudflareTunnelProfiles,
+    enabled: !cfNotConfigured && (tab === 'tunnels' || showTunnelModal),
+    refetchInterval: pollingActive && tab === 'tunnels' ? 8_000 : false,
+  })
+  const { data: routesData, isLoading: routesLoading, isError: routesError } = useQuery({
+    queryKey: ['cloudflare-profile-routes', selectedProfileId, listQueryKey(lists.routes.query)],
+    queryFn: () => listCloudflareTunnelProfileRoutes(selectedProfileId, lists.routes.query),
+    enabled: !cfNotConfigured && tab === 'tunnels' && !!selectedProfileId,
+    refetchInterval: pollingActive && tab === 'tunnels' ? 8_000 : false,
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === selectedProfileId ? previous : undefined),
+  })
+  const { data: projectData } = useQuery({ queryKey: ['projects', { tunnelTargets: true }], queryFn: () => listProjects({ all: true, limit: 100, offset: 0 }), enabled: !cfNotConfigured && (tab === 'tunnels' || showTunnelModal) })
+  const { data: appCatalogData } = useQuery({ queryKey: ['app-catalog', { tunnelTargets: true }], queryFn: () => getAppCatalog(false), enabled: !cfNotConfigured && (tab === 'tunnels' || showTunnelModal) })
+  const { data: containerData } = useQuery({ queryKey: ['containers', { tunnelTargets: true }], queryFn: listContainers, enabled: !cfNotConfigured && (tab === 'tunnels' || showTunnelModal) })
+  const securityQuery = useQuery({
+    queryKey: ['cloudflare-zone-security', selectedDomainId],
+    queryFn: () => getCloudflareZoneSecurity(selectedDomainId),
+    enabled: !cfNotConfigured && tab === 'security' && !!selectedDomainId,
+  })
+
+  const safeDomains = useMemo(() => (Array.isArray(domains) ? domains : []), [domains])
+  const cfZones = safeDomains
+  const safeCfZones = safeDomains
+  const safeProfiles = useMemo(() => (Array.isArray(profiles) ? profiles : []), [profiles])
+  const safeProjects = useMemo(() => (Array.isArray(projectData?.items) ? projectData.items : []), [projectData?.items])
+
+  useEffect(() => {
+    if (!win?.params) return
+    if (win.params.tab === 'tunnels' || win.params.tab === 'security') setTab(win.params.tab)
+    if (win.params.action === 'createTunnel') {
+      setEditingTunnelId(null)
+      const projectId = Number(win.params.projectId ?? 0) || 0
+      const projectName = typeof win.params.projectName === 'string' ? win.params.projectName : ''
+      const projectSlug = typeof win.params.projectSlug === 'string' ? win.params.projectSlug : slugifyRoutePart(projectName)
+      const projectPort = Number(win.params.projectPort ?? 0) || 0
+      const routeName = projectName ? `${projectName} tunnel` : ''
+      setTunnelForm({
+        ...emptyTunnelForm,
+        name: routeName,
+        subdomain: slugifyRoutePart(projectSlug || projectName),
+        profileId: selectedProfileId || '',
+        protocol: 'http',
+        ip: 'localhost',
+        port: projectPort > 0 ? String(projectPort) : emptyTunnelForm.port,
+        projectId: projectId > 0 ? String(projectId) : '',
+      })
+      setShowTunnelModal(true)
+    }
+  }, [selectedProfileId, win?.params])
+
+  useEffect(() => {
+    if (!selectedDomainId && safeDomains.length) setSelectedDomainId(safeDomains[0].id)
+  }, [safeDomains, selectedDomainId])
+
+  useEffect(() => {
+    if (!selectedProfileId && safeProfiles.length) setSelectedProfileId(safeProfiles[0].id)
+  }, [safeProfiles, selectedProfileId])
+
+  const selectedDomain = selectedDomainDetail ?? safeDomains.find((d) => d.id === selectedDomainId)
+  const selectedProfile = safeProfiles.find((p) => p.id === selectedProfileId)
+  const filteredDns = dnsData?.items ?? []
+  const filteredRoutes = routesData?.items ?? []
+  const zoneOptions = useMemo(() => safeCfZones.map((zone) => ({ value: zone.id, label: zone.name })), [safeCfZones])
+  const protocolOptions = useMemo(() => [{ value: 'http', label: 'http://' }, { value: 'https', label: 'https://' }], [])
+  const profileOptions = useMemo(() => safeProfiles.map((p) => ({ value: p.id, label: p.name || p.id })), [safeProfiles])
+  const tunnelProjects = useMemo(() => safeProjects.filter((project) => project.assignedPort > 0), [safeProjects])
+  const tunnelTargets = useMemo<TunnelTargetPreset[]>(() => {
+    const items: TunnelTargetPreset[] = []
+    for (const project of tunnelProjects) {
+      items.push({
+        value: String(project.id),
+        label: `${project.name} :${project.assignedPort}`,
+        description: `Project \u00b7 ${project.projectType}${project.running ? ` \u00b7 ${t('tunnels.projectRunning')}` : ''}`,
+        name: project.name,
+        subdomain: slugifyRoutePart(project.slug || project.name),
+        protocol: 'http',
+        ip: 'localhost',
+        port: String(project.assignedPort),
+      })
+    }
+
+    const installedApps = Array.isArray(appCatalogData?.installed) ? appCatalogData.installed : []
+    const appContainerKeys = new Set<string>()
+    for (const app of installedApps) {
+      if (app.containerName) appContainerKeys.add(app.containerName.toLowerCase())
+      if (app.containerId) appContainerKeys.add(app.containerId.toLowerCase())
+
+      let protocol = 'http'
+      let ip = 'localhost'
+      let port = app.hostPort > 0 ? String(app.hostPort) : ''
+      if (!port && app.targetUrl) {
+        try {
+          const parsed = new URL(app.targetUrl)
+          protocol = parsed.protocol.replace(':', '') || 'http'
+          ip = parsed.hostname || 'localhost'
+          port = parsed.port || (protocol === 'https' ? '443' : '80')
+        } catch {
+          // skip malformed targetUrl
+        }
+      }
+      if (!port) continue
+      const running = app.containerState === 'running'
+      items.push({
+        value: `app:${app.id}`,
+        label: `${app.name} :${port}`,
+        description: `${t('window.app-catalog')}${running ? ` \u00b7 ${t('tunnels.projectRunning')}` : ''}`,
+        name: app.name,
+        subdomain: slugifyRoutePart(app.slug || app.name),
+        protocol,
+        ip,
+        port,
+      })
+    }
+
+    const containers = Array.isArray(containerData) ? containerData : []
+    for (const c of containers) {
+      const rawName = (c.Names?.[0] || '').replace(/^\//, '').trim() || c.Id.slice(0, 12)
+      if (
+        appContainerKeys.has(rawName.toLowerCase()) ||
+        appContainerKeys.has(c.Id.toLowerCase()) ||
+        (c.ProjectName && appContainerKeys.has(c.ProjectName.toLowerCase()))
+      ) {
+        continue
+      }
+      const seenPorts = new Set<number>()
+      for (const p of c.Ports || []) {
+        const pub = p.PublicPort ?? 0
+        if (pub <= 0 || seenPorts.has(pub)) continue
+        seenPorts.add(pub)
+        const displayName = c.ProjectName ? `${c.ProjectName} (${rawName})` : rawName
+        items.push({
+          value: `docker:${c.Id}:${pub}`,
+          label: `${displayName} :${pub}`,
+          description: `Docker${c.State === 'running' ? ` \u00b7 ${t('tunnels.projectRunning')}` : ''}`,
+          name: displayName,
+          subdomain: slugifyRoutePart(c.ProjectName || rawName),
+          protocol: 'http',
+          ip: 'localhost',
+          port: String(pub),
+        })
+      }
+    }
+    return items
+  }, [appCatalogData?.installed, containerData, t, tunnelProjects])
+
+  const projectOptions = useMemo(
+    () => [
+      { value: '', label: t('tunnels.manualTarget') },
+      ...tunnelTargets.map((target) => ({
+        value: target.value,
+        label: target.label,
+        description: target.description,
+      })),
+    ],
+    [t, tunnelTargets],
+  )
+
+  const dnsPayload = (): CloudflareDNSRecordPayload => ({
+    type: dnsForm.type,
+    name: dnsForm.name,
+    content: dnsForm.content,
+    ttl: Number(dnsForm.ttl) || 1,
+    proxied: dnsForm.proxied,
+    priority: dnsForm.priority === '' ? undefined : Number(dnsForm.priority),
+    comment: dnsForm.comment || undefined,
+  })
+
+  const createDomainMut = useMutation({
+    mutationFn: () => createCloudflareDomain(domainForm.name),
+    onSuccess: (zone) => {
+      toast.success(t('tunnels.domainAdded'))
+      setCreatedDomain(zone)
+      setSelectedDomainId(zone.id)
+      qc.invalidateQueries({ queryKey: ['cloudflare-domains'] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.addDomainFailed'), { description: errDesc(e) }),
+  })
+
+  const checkCreatedDomainMut = useMutation({
+    mutationFn: async (zoneId?: string) => {
+      const targetZoneId = zoneId || createdDomain?.id
+      if (!targetZoneId) throw new Error(t('tunnels.noDomainSelected'))
+      return getCloudflareDomain(targetZoneId)
+    },
+    onSuccess: (zone) => {
+      setCreatedDomain(zone)
+      setSelectedDomainId(zone.id)
+      qc.invalidateQueries({ queryKey: ['cloudflare-domains'] })
+      qc.invalidateQueries({ queryKey: ['cloudflare-domain', zone.id] })
+      if (zone.status === 'active') toast.success(t('tunnels.domainActive'))
+      else toast.info(t('tunnels.domainStillStatus', { status: zone.status || 'pending' }))
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.checkDomainFailed'), { description: errDesc(e) }),
+  })
+
+  const createDnsMut = useMutation({
+    mutationFn: () => createCloudflareDNSRecord(selectedDomainId, dnsPayload()),
+    onSuccess: () => {
+      toast.success(t('tunnels.dnsCreated'))
+      setShowDnsModal(false)
+      qc.invalidateQueries({ queryKey: ['cloudflare-dns', selectedDomainId] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.createDnsFailed'), { description: errDesc(e) }),
+  })
+
+  const updateDnsMut = useMutation({
+    mutationFn: () => updateCloudflareDNSRecord(selectedDomainId, editingDns!.id, dnsPayload()),
+    onSuccess: () => {
+      toast.success(t('tunnels.dnsUpdated'))
+      setShowDnsModal(false)
+      setEditingDns(null)
+      qc.invalidateQueries({ queryKey: ['cloudflare-dns', selectedDomainId] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.updateDnsFailed'), { description: errDesc(e) }),
+  })
+
+  const deleteDnsMut = useMutation({
+    mutationFn: (recordId: string) => deleteCloudflareDNSRecord(selectedDomainId, recordId),
+    onSuccess: () => {
+      toast.success(t('tunnels.dnsDeleted'))
+      qc.invalidateQueries({ queryKey: ['cloudflare-dns', selectedDomainId] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.deleteDnsFailed'), { description: errDesc(e) }),
+  })
+
+  const deleteDomainMut = useMutation({
+    mutationFn: (zoneId: string) => deleteCloudflareDomain(zoneId),
+    onSuccess: () => {
+      toast.success(t('tunnels.domainDeleted'))
+      setSelectedDomainId('')
+      qc.invalidateQueries({ queryKey: ['cloudflare-domains'] })
+      qc.invalidateQueries({ queryKey: ['cf-zones'] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.deleteDomainFailed'), { description: errDesc(e) }),
+  })
+
+  const createProfileMut = useMutation({
+    mutationFn: () => createCloudflareTunnelProfile(profileForm),
+    onSuccess: (profile) => {
+      toast.success(t('tunnels.profileCreated'))
+      setSelectedProfileId(profile.id)
+      setShowProfileModal(false)
+      setProfileForm(emptyProfileForm)
+      qc.setQueryData<CloudflareTunnelProfile[]>(['cloudflare-tunnel-profiles'], (current = []) => {
+        if (current.some((item) => item.id === profile.id)) return current
+        return [profile, ...current]
+      })
+      qc.invalidateQueries({ queryKey: ['cloudflare-tunnel-profiles'] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.createProfileFailed'), { description: errDesc(e) }),
+  })
+
+  const deleteProfileMut = useMutation({
+    mutationFn: deleteCloudflareTunnelProfile,
+    onSuccess: (_, profileId) => {
+      toast.success(t('tunnels.profileDeleted'))
+      if (selectedProfileId === profileId) setSelectedProfileId('')
+      qc.invalidateQueries({ queryKey: ['cloudflare-tunnel-profiles'] })
+      qc.invalidateQueries({ queryKey: ['cloudflare-profile-routes', profileId] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.deleteProfileFailed'), { description: errDesc(e) }),
+  })
+
+  const createTunnelMut = useMutation({
+    mutationFn: createTunnel,
+    onSuccess: (res, variables) => {
+      const profileId = variables.profileId || selectedProfileId
+      const hostname = variables.subdomain && variables.subdomain !== '@'
+        ? `${variables.subdomain}.${variables.domain}`
+        : variables.domain
+      const targetPath = variables.path?.startsWith('/') ? variables.path : variables.path ? `/${variables.path}` : ''
+      const optimisticRoute: Tunnel = {
+        id: res.id,
+        userId: 0,
+        projectId: variables.projectId ?? null,
+        name: variables.name,
+        targetUrl: `${variables.protocol}://${variables.ip}:${variables.port}${targetPath}`,
+        status: 'creating',
+        cfTunnelId: profileId || 'pending',
+        cfHostname: hostname,
+        daemonRunning: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      alertLib.fire(t('tunnels.routeProcessing'), res.message ?? t('tunnels.routeProcessingMessage'), 'info', 'tunnels')
+      setTab('tunnels')
+      lists.routes.setText('')
+      if (profileId) {
+        setSelectedProfileId(profileId)
+        qc.setQueriesData<TableResult<Tunnel>>({ queryKey: ['cloudflare-profile-routes', profileId] }, (current) => {
+          if (!current || current.items.some((route) => route.id === res.id)) return current
+          return { ...current, items: [optimisticRoute, ...current.items], total: current.total + 1, all: current.all + 1 }
+        })
+      }
+      closeTunnelModal()
+      qc.invalidateQueries({ queryKey: ['cloudflare-tunnel-profiles'] })
+      if (profileId) qc.invalidateQueries({ queryKey: ['cloudflare-profile-routes', profileId] })
+      else qc.invalidateQueries({ queryKey: ['cloudflare-profile-routes'] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.createRouteFailed'), { description: errDesc(e) }),
+  })
+
+  const updateTunnelMut = useMutation({
+    mutationFn: (payload: TunnelForm) => updateTunnel(editingTunnelId!, tunnelPayload(payload)),
+    onSuccess: () => {
+      toast.success(t('tunnels.routeUpdated'))
+      closeTunnelModal()
+      qc.invalidateQueries({ queryKey: ['cloudflare-tunnel-profiles'] })
+      qc.invalidateQueries({ queryKey: ['cloudflare-profile-routes'] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.updateRouteFailed'), { description: errDesc(e) }),
+  })
+
+  const deleteTunnelMut = useMutation({
+    mutationFn: deleteTunnel,
+    onSuccess: () => {
+      toast.success(t('tunnels.routeDeleted'))
+      qc.invalidateQueries({ queryKey: ['cloudflare-tunnel-profiles'] })
+      qc.invalidateQueries({ queryKey: ['cloudflare-profile-routes'] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.deleteRouteFailed'), { description: errDesc(e) }),
+  })
+
+  const syncMut = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof updateTunnel>[1] }) => updateTunnel(id, payload),
+    onSuccess: () => {
+      toast.success(t('tunnels.synced'))
+      qc.invalidateQueries({ queryKey: ['cloudflare-profile-routes'] })
+    },
+    onError: (e: unknown) => toast.error(t('tunnels.syncFailed'), { description: errDesc(e) }),
+  })
+
+  const openDnsModal = (record?: CloudflareDNSRecord) => {
+    setEditingDns(record ?? null)
+    setDnsForm(record ? {
+      type: record.type, name: record.name, content: record.content, ttl: record.ttl || 1,
+      proxied: record.proxied, priority: record.priority?.toString() ?? '', comment: record.comment ?? '',
+    } : emptyDnsForm)
+    setShowDnsModal(true)
+  }
+
+  const closeTunnelModal = () => {
+    setShowTunnelModal(false)
+    setEditingTunnelId(null)
+    setTunnelForm(emptyTunnelForm)
+  }
+
+  const closeDomainModal = () => {
+    setShowDomainModal(false)
+    setCreatedDomain(null)
+    setDomainForm(emptyDomainForm)
+  }
+
+  const openTunnelModal = (route?: Tunnel) => {
+    setEditingTunnelId(route?.id ?? null)
+    setTunnelForm(route ? buildTunnelFormFromTunnel(route, safeCfZones) : { ...emptyTunnelForm, profileId: selectedProfileId || '' })
+    setShowTunnelModal(true)
+  }
+
+  const handleSync = (route: Tunnel) => syncMut.mutate({ id: route.id, payload: tunnelPayload(buildTunnelFormFromTunnel(route, safeCfZones)) })
+
+  return {
+    t, tab, setTab, selectedDomainId, setSelectedDomainId, selectedProfileId, setSelectedProfileId,
+    showDnsModal, setShowDnsModal, showDomainModal, setShowDomainModal, createdDomain, editingDns,
+    dnsForm, setDnsForm, domainForm, setDomainForm, showTunnelModal, showProfileModal, setShowProfileModal,
+    editingTunnelId, tunnelForm, setTunnelForm, profileForm, setProfileForm, cfNotConfigured, cfZones,
+    domainsLoading, domainsError, dnsError, profilesError, routesError, refetchDomains, domainsFetching,
+    dnsLoading, profilesLoading, refetchProfiles, profilesFetching, routesLoading, safeCfZones, safeDomains,
+    safeProfiles, selectedDomain, selectedProfile, lists, dnsData, routesData, filteredDns, filteredRoutes,
+    zoneOptions, protocolOptions, profileOptions, tunnelProjects, tunnelTargets, projectOptions, createDomainMut,
+    checkCreatedDomainMut, createDnsMut, updateDnsMut, deleteDnsMut, deleteDomainMut, createProfileMut,
+    deleteProfileMut, createTunnelMut, updateTunnelMut, deleteTunnelMut, syncMut, openDnsModal,
+    closeTunnelModal, closeDomainModal, openTunnelModal, handleSync,
+    securityQuery, securitySearch, setSecuritySearch, showWafRuleModal, setShowWafRuleModal,
+  }
+}
+
+export type TunnelsWindowState = ReturnType<typeof useTunnelsWindow>

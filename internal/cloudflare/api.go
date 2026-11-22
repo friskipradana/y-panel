@@ -11,11 +11,26 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const baseURL = "https://api.cloudflare.com/client/v4"
+
+var sharedHTTPClient = &http.Client{
+	Timeout: 15 * time.Second,
+	Transport: &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		MaxIdleConns:          32,
+		MaxIdleConnsPerHost:   16,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	},
+}
 
 // Client is an authenticated Cloudflare API client for a specific user.
 type Client struct {
@@ -23,6 +38,7 @@ type Client struct {
 	accountID string
 	zoneID    string
 	http      *http.Client
+	base      string
 }
 
 // NewClient creates a new Client with the given credentials.
@@ -31,8 +47,23 @@ func NewClient(apiToken, accountID, zoneID string) *Client {
 		apiToken:  apiToken,
 		accountID: accountID,
 		zoneID:    zoneID,
-		http:      &http.Client{Timeout: 15 * time.Second},
+		http:      sharedHTTPClient,
+		base:      baseURL,
 	}
+}
+
+// WithBaseURL points the client at another API address; tests use it to talk to a fake Cloudflare
+func (c *Client) WithBaseURL(base string) *Client {
+	c.base = strings.TrimRight(base, "/")
+	return c
+}
+
+// WithHTTPClient replaces the underlying HTTP client; tests use it for in-memory transports without binding TCP sockets.
+func (c *Client) WithHTTPClient(hc *http.Client) *Client {
+	if hc != nil {
+		c.http = hc
+	}
+	return c
 }
 
 // VerifyToken validates the API token against the Cloudflare /user/tokens/verify endpoint.
@@ -45,6 +76,194 @@ func (c *Client) VerifyToken() error {
 		return fmt.Errorf("token verification failed: %v", resp.Errors)
 	}
 	return nil
+}
+
+// TokenPermissions holds detailed capability test results for a Cloudflare API token.
+type TokenPermissions struct {
+	Valid          bool   `json:"valid"`
+	Status         string `json:"status"`
+	CanReadZones   bool   `json:"canReadZones"`
+	CanManageDNS   bool   `json:"canManageDNS"`
+	CanEditTunnels bool   `json:"canEditTunnels"`
+	// CanManageRedirects reports access to Single Redirect rules (Rulesets) on the first zone
+	CanManageRedirects bool `json:"canManageRedirects"`
+	// CanManageBotManagement reports access to zone Bot Management & AI Bot controls.
+	CanManageBotManagement bool `json:"canManageBotManagement"`
+	// CanManageWAF reports access to zone custom WAF rules (http_request_firewall_custom).
+	CanManageWAF bool `json:"canManageWAF"`
+	// CanManageCustomHostnames reports that the zone answers for custom hostnames: the SSL and Certificates permission
+	// is on the token and Custom Hostnames (Cloudflare for SaaS) is switched on. Only the seller of hosting needs it.
+	CanManageCustomHostnames bool `json:"canManageCustomHostnames"`
+	// CustomHostnamesError is what Cloudflare answered when no zone could list custom hostnames
+	CustomHostnamesError string `json:"customHostnamesError,omitempty"`
+	// CustomHostnamesReason tells why: "quota" = the token reaches the feature but the account has no Cloudflare for SaaS quota
+	// (error 1404), "permission" = the token is refused, "error" = anything else
+	CustomHostnamesReason string `json:"customHostnamesReason,omitempty"`
+	AccountID          string   `json:"accountId,omitempty"`
+	MissingScopes      []string `json:"missingScopes,omitempty"`
+	Summary            string   `json:"summary"`
+}
+
+// VerifyTokenPermissions checks token validity and inspects required scopes (Zones, DNS, Tunnels).
+func (c *Client) VerifyTokenPermissions() TokenPermissions {
+	perm := TokenPermissions{
+		AccountID: c.accountID,
+	}
+
+	// 1. Basic token status check
+	if err := c.VerifyToken(); err != nil {
+		perm.Valid = false
+		perm.Status = "invalid"
+		perm.Summary = fmt.Sprintf("Token tidak valid: %v", err)
+		perm.MissingScopes = append(perm.MissingScopes, "Invalid Token")
+		return perm
+	}
+	perm.Valid = true
+	perm.Status = "active"
+
+	// 2. Test Zone:Read & Account:Cloudflare Tunnel:Edit concurrently
+	var zones []ZoneInfo
+	var zonesErr error
+	var tunnelErr error
+
+	var topWG sync.WaitGroup
+	topWG.Add(1)
+	go func() {
+		defer topWG.Done()
+		zones, zonesErr = c.ListZones()
+	}()
+	if c.accountID != "" {
+		topWG.Add(1)
+		go func() {
+			defer topWG.Done()
+			_, tunnelErr = c.ListTunnels()
+		}()
+	}
+	topWG.Wait()
+
+	if zonesErr == nil {
+		perm.CanReadZones = true
+		// 3. Probe zone-level capabilities with bounded concurrency
+		if len(zones) > 0 {
+			var dnsOK atomic.Bool
+			var redirOK atomic.Bool
+			var botOK atomic.Bool
+			var wafOK atomic.Bool
+			var chOK atomic.Bool
+
+			secLimit := min(len(zones), 10)
+			chLimit := min(len(zones), 20)
+			type chProbeResult struct {
+				zoneName string
+				err      error
+			}
+			chErrors := make([]chProbeResult, chLimit)
+
+			sem := make(chan struct{}, 6)
+			var probeWG sync.WaitGroup
+			runProbe := func(fn func()) {
+				probeWG.Add(1)
+				go func() {
+					defer probeWG.Done()
+					sem <- struct{}{}
+					defer func() { <-sem }()
+					fn()
+				}()
+			}
+
+			runProbe(func() {
+				if _, err := c.ListDNSRecords(zones[0].ID); err == nil {
+					dnsOK.Store(true)
+				}
+			})
+			runProbe(func() {
+				if _, err := c.ListRedirectRules(zones[0].ID); err == nil {
+					redirOK.Store(true)
+				}
+			})
+			for i := 0; i < secLimit; i++ {
+				zone := zones[i]
+				runProbe(func() {
+					if botOK.Load() {
+						return
+					}
+					if _, err := c.GetBotManagement(zone.ID); err == nil {
+						botOK.Store(true)
+					}
+				})
+				runProbe(func() {
+					if wafOK.Load() {
+						return
+					}
+					if _, err := c.ListFirewallCustomRules(zone.ID); err == nil {
+						wafOK.Store(true)
+					}
+				})
+			}
+			for i := 0; i < chLimit; i++ {
+				idx := i
+				zone := zones[i]
+				runProbe(func() {
+					if chOK.Load() {
+						return
+					}
+					if probe := c.ProbeCustomHostnames(zone.ID); probe == nil {
+						chOK.Store(true)
+					} else {
+						chErrors[idx] = chProbeResult{zoneName: zone.Name, err: probe}
+					}
+				})
+			}
+			probeWG.Wait()
+
+			perm.CanManageDNS = dnsOK.Load()
+			if !perm.CanManageDNS {
+				perm.MissingScopes = append(perm.MissingScopes, "Zone:DNS:Edit")
+			}
+			perm.CanManageRedirects = redirOK.Load()
+			perm.CanManageBotManagement = botOK.Load()
+			perm.CanManageWAF = wafOK.Load()
+			if chOK.Load() {
+				perm.CanManageCustomHostnames = true
+			} else {
+				for _, item := range chErrors {
+					if item.err == nil {
+						continue
+					}
+					reason := customHostnamesReason(item.err)
+					// reaching the feature means the permission is there, so "quota" wins over what the first zone said
+					if perm.CustomHostnamesError == "" || (reason == "quota" && perm.CustomHostnamesReason != "quota") {
+						perm.CustomHostnamesError = item.zoneName + ": " + item.err.Error()
+						perm.CustomHostnamesReason = reason
+					}
+				}
+			}
+		} else {
+			perm.CanManageDNS = true
+		}
+	} else {
+		perm.MissingScopes = append(perm.MissingScopes, "Zone:Zone:Read")
+	}
+
+	// 4. Record Cloudflare Tunnel access result
+	if c.accountID != "" {
+		if tunnelErr == nil {
+			perm.CanEditTunnels = true
+		} else {
+			perm.MissingScopes = append(perm.MissingScopes, "Account:Cloudflare Tunnel:Edit")
+		}
+	}
+
+	if len(perm.MissingScopes) == 0 {
+		perm.Summary = "Token Cloudflare aktif dengan hak akses lengkap (Zone:Read, DNS:Edit, Cloudflare Tunnel:Edit)."
+		if !perm.CanManageRedirects && perm.CanReadZones {
+			perm.Summary += " Izin Single Redirect (Zone:Single Redirect:Edit) belum ada, jadi tool redirect rule tidak dapat dipakai."
+		}
+	} else {
+		perm.Summary = fmt.Sprintf("Token aktif, namun kekurangan izin: %s. Buat token baru di Cloudflare Dashboard dengan template 'Cloudflare Tunnel' & 'Edit zone DNS'.", strings.Join(perm.MissingScopes, ", "))
+	}
+
+	return perm
 }
 
 // ZoneInfo represents a Cloudflare Zone (Domain).
@@ -250,6 +469,23 @@ func (c *Client) ListDNSRecords(zoneID string) ([]DNSRecord, error) {
 	return records, nil
 }
 
+// DNSRecordsByName lists every record, of any type, with exactly this name. A name that already
+// holds a record (an A, MX or TXT as well as a CNAME) is not free to give away.
+func (c *Client) DNSRecordsByName(zoneID, hostname string) ([]DNSRecord, error) {
+	resp, err := c.get(fmt.Sprintf("/zones/%s/dns_records?name=%s&per_page=100", zoneID, url.QueryEscape(hostname)))
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("list DNS records failed: %v", resp.Errors)
+	}
+	var records []DNSRecord
+	if err := mapResult(resp.Result, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
 func (c *Client) CreateDNSRecord(zoneID string, payload DNSRecordPayload) (*DNSRecord, error) {
 	resp, err := c.post(fmt.Sprintf("/zones/%s/dns_records", zoneID), payload)
 	if err != nil {
@@ -418,7 +654,7 @@ func (c *Client) request(method, path string, body any) (*apiResponse, error) {
 		bodyReader = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, baseURL+path, bodyReader)
+	req, err := http.NewRequest(method, c.base+path, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -459,4 +695,66 @@ func generateSecret() (string, error) {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(buf), nil
+}
+
+// ─── Redirect rules (Single Redirects via the Rulesets API) ───────────────────
+
+const redirectPhase = "http_request_dynamic_redirect"
+
+// RedirectRule is one rule of a zone's dynamic redirect ruleset.
+type RedirectRule struct {
+	ID               string         `json:"id,omitempty"`
+	Ref              string         `json:"ref,omitempty"`
+	Action           string         `json:"action"`
+	Expression       string         `json:"expression"`
+	Description      string         `json:"description,omitempty"`
+	Enabled          bool           `json:"enabled"`
+	ActionParameters map[string]any `json:"action_parameters,omitempty"`
+}
+
+func redirectEntrypoint(zoneID string) string {
+	return fmt.Sprintf("/zones/%s/rulesets/phases/%s/entrypoint", zoneID, redirectPhase)
+}
+
+// ListRedirectRules returns the zone's redirect rules (empty when none exist yet).
+func (c *Client) ListRedirectRules(zoneID string) ([]RedirectRule, error) {
+	resp, err := c.get(redirectEntrypoint(zoneID))
+	if err != nil {
+		// No entrypoint ruleset yet: Cloudflare answers 404 until the first rule is created
+		if resp != nil && strings.Contains(err.Error(), "status 404") {
+			return []RedirectRule{}, nil
+		}
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("list redirect rules failed: %v", resp.Errors)
+	}
+	var ruleset struct {
+		Rules []RedirectRule `json:"rules"`
+	}
+	if err := mapResult(resp.Result, &ruleset); err != nil {
+		return nil, err
+	}
+	if ruleset.Rules == nil {
+		ruleset.Rules = []RedirectRule{}
+	}
+	return ruleset.Rules, nil
+}
+
+// SetRedirectRules replaces the zone's redirect ruleset with the given rules.
+func (c *Client) SetRedirectRules(zoneID string, rules []RedirectRule) ([]RedirectRule, error) {
+	resp, err := c.put(redirectEntrypoint(zoneID), map[string]any{"rules": rules})
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("update redirect rules failed: %v", resp.Errors)
+	}
+	var ruleset struct {
+		Rules []RedirectRule `json:"rules"`
+	}
+	if err := mapResult(resp.Result, &ruleset); err != nil {
+		return nil, err
+	}
+	return ruleset.Rules, nil
 }

@@ -1,0 +1,293 @@
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Loader2 } from 'lucide-react'
+import { Taskbar } from '@/components/taskbar/Taskbar'
+import { MobileShell } from '@/components/mobile/MobileShell'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { Dock } from '@/components/dock/Dock'
+import { WINDOW_CONTENT, WindowFallback, DESKTOP_SHORTCUTS, canAccessWindow } from '@/components/desktop/windowRegistry'
+import { Window } from '@/components/desktop/Window'
+import { WindowErrorBoundary } from '@/components/system/WindowErrorBoundary'
+import { useWindowStore } from '@/store/windowStore'
+import { useThemeStore } from '@/store/themeStore'
+import { useAuthStore } from '@/store/authStore'
+import type { AppShortcut, WidgetType } from '@/types'
+import { useI18n, windowTitleKey } from '@/lib/i18n'
+import { installedAppWindowParams, sharedCrmWindowParams, sharedSidesaWindowParams } from '@/api/appCatalog'
+import { useInstalledApps } from '@/hooks/useAppCatalog'
+import { WindowPollingProvider } from '@/hooks/useWindowPollingActive'
+
+import { DesktopWidgetLayer } from '@/components/widgets/DesktopWidgetLayer'
+import { WIDGET_TOP, useWidgetStore, widgetsAreFree } from '@/store/widgetStore'
+import { LockScreen } from '@/components/desktop/LockScreen'
+import { CommandPalette } from '@/components/common/CommandPalette'
+import { DesktopIconLayer } from '@/components/desktop/DesktopIconLayer'
+import { DesktopContextMenu } from '@/components/desktop/DesktopContextMenu'
+
+export { canAccessWindow }
+
+interface DesktopProps {
+  onLogout: () => void
+  authenticated: boolean
+}
+
+export function Desktop({ onLogout, authenticated }: DesktopProps) {
+  const { t, language } = useI18n()
+  const { windows } = useWindowStore()
+  const {
+    getBackgroundStyle,
+    syncCustomImage,
+    wallpaperLoading,
+    isLocked,
+    setIsLocked,
+    autoLockTimeout,
+    lockScreenEnabled,
+  } = useThemeStore()
+  const rootRef = useRef<HTMLDivElement>(null)
+  const isMobile = useIsMobileLayout()
+  const user = useAuthStore((s) => s.user)
+  const userRole = user?.role ?? null
+  const { installedApps, sharedCrm, sharedSidesa } = useInstalledApps()
+  const visibleWindows = useMemo(
+    () => windows.filter((win) => canAccessWindow(win.kind, userRole)).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    [userRole, windows],
+  )
+  const desktopShortcuts = useMemo<AppShortcut[]>(() => {
+    void language
+    const base = DESKTOP_SHORTCUTS.filter((s) => canAccessWindow(s.windowId, userRole)).map((s) => {
+      const desktopKey = `desktop.app.${s.windowId}`
+      const localized = t(desktopKey)
+      const label = localized !== desktopKey ? localized : (t(windowTitleKey(s.windowId)) || s.label)
+      return {
+        ...s,
+        label,
+      }
+    })
+    const hasInstalledCrm = installedApps.some((app) => app.catalogId === 'reneo-crm')
+    const hasInstalledSidesa = installedApps.some((app) => app.catalogId === 'reneo-sidesa')
+    const dynamicApps: AppShortcut[] = canAccessWindow('installed-app', userRole)
+      ? [
+          ...installedApps.map((app) => ({
+            id: `installed-app-${app.id}`,
+            label: app.name,
+            iconKey: app.iconKey,
+            iconColor: app.iconColor,
+            windowId: 'installed-app' as const,
+            params: installedAppWindowParams(app),
+          })),
+          ...(!hasInstalledCrm && sharedCrm
+            ? [
+                {
+                  id: 'shared-reneo-crm',
+                  label: sharedCrm.name || 'Reneo CRM',
+                  iconKey: sharedCrm.iconKey || 'reneo-crm',
+                  iconColor: sharedCrm.iconColor || 'emerald',
+                  windowId: 'installed-app' as const,
+                  params: sharedCrmWindowParams(sharedCrm),
+                },
+              ]
+            : []),
+          ...(!hasInstalledSidesa && sharedSidesa
+            ? [
+                {
+                  id: 'shared-reneo-sidesa',
+                  label: sharedSidesa.name || 'Reneo SIDesa',
+                  iconKey: sharedSidesa.iconKey || 'reneo-sidesa',
+                  iconColor: sharedSidesa.iconColor || 'emerald',
+                  windowId: 'installed-app' as const,
+                  params: sharedSidesaWindowParams(sharedSidesa),
+                },
+              ]
+            : []),
+        ]
+      : []
+    return [...base, ...dynamicApps]
+  }, [installedApps, sharedCrm, sharedSidesa, userRole, t, language])
+
+  useEffect(() => {
+    if (!authenticated || !user?.username) return
+    useThemeStore.getState().switchUserScope(user)
+    void syncCustomImage()
+  }, [authenticated, user, syncCustomImage])
+
+  useEffect(() => {
+    const clamp = () => useWindowStore.getState().clampWindowsToViewport()
+    clamp()
+    let frame = 0
+    const onResize = () => {
+      if (frame) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        clamp()
+      })
+    }
+    window.addEventListener('resize', onResize)
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [isMobile])
+
+  useEffect(() => {
+    if (!authenticated || !lockScreenEnabled || !autoLockTimeout || autoLockTimeout <= 0 || isLocked) return
+
+    let timer: number
+    const resetTimer = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        setIsLocked(true)
+      }, autoLockTimeout * 60 * 1000)
+    }
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart']
+    events.forEach((ev) => window.addEventListener(ev, resetTimer, { passive: true }))
+    resetTimer()
+
+    return () => {
+      window.clearTimeout(timer)
+      events.forEach((ev) => window.removeEventListener(ev, resetTimer))
+    }
+  }, [authenticated, lockScreenEnabled, autoLockTimeout, isLocked, setIsLocked])
+
+  const backgroundStyle = getBackgroundStyle()
+
+  const [dropGhost, setDropGhost] = useState<{ x: number; y: number } | null>(null)
+
+  const dropPosition = (clientX: number, clientY: number) => {
+    const minSafeX = window.innerWidth >= 640 && !widgetsAreFree() ? 200 : 0
+    return {
+      x: Math.max(minSafeX, Math.min(window.innerWidth - 292, clientX - 140)),
+      y: Math.max(WIDGET_TOP, Math.min(window.innerHeight - 120, clientY - 30)),
+    }
+  }
+
+  const handleDesktopDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (e.dataTransfer.types.includes('application/x-reneo-widget') || e.dataTransfer.types.includes('text/plain')) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+      setDropGhost(dropPosition(e.clientX, e.clientY))
+    }
+  }
+
+  const handleDesktopDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (e.currentTarget === e.target) setDropGhost(null)
+  }
+
+  const handleDesktopDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    const rawType = e.dataTransfer.getData('application/x-reneo-widget') || e.dataTransfer.getData('text/plain')
+    if (rawType && ['clock-uptime', 'system-vital', 'network-traffic', 'quick-note', 'cpu-graph', 'ping'].includes(rawType)) {
+      e.preventDefault()
+      const drop = dropPosition(e.clientX, e.clientY)
+      useWidgetStore.getState().addWidget(rawType as WidgetType, drop)
+    }
+    setDropGhost(null)
+  }
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+
+  const handleDesktopContextMenu = (e: React.MouseEvent) => {
+    if (isMobile) return
+    const target = e.target as HTMLElement
+    if (
+      target.closest(
+        '.window-frame, .panel-window, [data-widget-card], .layout-mobile, #desktop-dock, .taskbar, [role="dialog"], #command-palette',
+      )
+    ) {
+      return
+    }
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  return (
+    <div
+      ref={rootRef}
+      className="desktop-root"
+      style={backgroundStyle}
+      onDragOver={handleDesktopDragOver}
+      onDragLeave={handleDesktopDragLeave}
+      onDrop={handleDesktopDrop}
+      onContextMenu={handleDesktopContextMenu}
+    >
+      {dropGhost ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute z-[11] rounded-xl border-2 border-dashed"
+          style={{
+            left: dropGhost.x,
+            top: dropGhost.y,
+            width: 280,
+            height: 120,
+            borderColor: 'var(--win-border-focus)',
+            background: 'var(--panel-primary-bg)',
+          }}
+        />
+      ) : null}
+      {isMobile ? null : <Taskbar onLogout={onLogout} authenticated={authenticated} />}
+
+      {isMobile ? (
+        <MobileShell authenticated={authenticated} onLogout={onLogout} />
+      ) : (
+        <>
+          <DesktopIconLayer apps={desktopShortcuts} />
+          <DesktopWidgetLayer />
+
+          <div className="absolute inset-0 pointer-events-none">
+            <AnimatePresence>
+              {visibleWindows.map((win) => {
+                const renderContent = WINDOW_CONTENT[win.kind]
+                return (
+                  <Window key={win.id} win={win}>
+                    <WindowErrorBoundary>
+                      <Suspense fallback={<WindowFallback />}>
+                        {renderContent ? (
+                          <WindowPollingProvider win={win}>{renderContent(win, authenticated)}</WindowPollingProvider>
+                        ) : (
+                          <p className="text-sm" style={{ color: 'var(--sand-400)' }}>
+                            {t('common.noContent')}
+                          </p>
+                        )}
+                      </Suspense>
+                    </WindowErrorBoundary>
+                  </Window>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+          <Dock />
+        </>
+      )}
+      <AnimatePresence>
+        {authenticated && wallpaperLoading ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            className="pointer-events-none absolute inset-0 z-[50] flex items-center justify-center bg-[var(--app-wallpaper-overlay-bg)] backdrop-blur-xs"
+          >
+            <div className="flex items-center gap-3 rounded-xl border border-[var(--app-wallpaper-loader-border)] bg-[var(--app-wallpaper-loader-bg)] px-4 py-2.5 text-xs font-medium text-[var(--app-wallpaper-loader-text)] shadow-[var(--app-wallpaper-loader-shadow)] backdrop-blur-md">
+              <Loader2 size={15} className="animate-spin text-[var(--app-wallpaper-spinner)] shrink-0" />
+              <span>{t('app.preparingWallpaper')}</span>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isLocked && <LockScreen onLogout={onLogout} />}
+      </AnimatePresence>
+
+      {!isMobile && contextMenu && (
+        <DesktopContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          role={userRole}
+        />
+      )}
+
+      <CommandPalette />
+    </div>
+  )
+}

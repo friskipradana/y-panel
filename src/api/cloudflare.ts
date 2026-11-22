@@ -1,4 +1,5 @@
 import { agentApi } from './client'
+import { listParams, type ListQuery, type TableResult } from '@/lib/listQuery'
 
 export interface CFConfig {
   configured: boolean
@@ -19,8 +20,29 @@ export const setCFConfig = (payload: {
   baseDomain?: string
 }) => agentApi.post<{ ok: boolean; message: string }>('/api/v1/me/cloudflare', payload).then((r) => r.data)
 
+/** What the agent could do with the token on the last verification */
+export interface CFPermissionDetails {
+  valid: boolean
+  canReadZones: boolean
+  canManageDNS: boolean
+  canEditTunnels: boolean
+  canManageRedirects: boolean
+  canManageBotManagement: boolean
+  canManageWAF: boolean
+  /** SSL and Certificates is on the token and Custom Hostnames is on for the zone (hosting sellers only) */
+  canManageCustomHostnames: boolean
+  /** What Cloudflare answered when no zone could list custom hostnames */
+  customHostnamesError?: string
+  /** quota: the token works but the account has no Cloudflare for SaaS quota; permission: the token is refused */
+  customHostnamesReason?: 'quota' | 'permission' | 'error'
+  missingScopes?: string[]
+  summary: string
+}
+
 export const verifyCFConfig = () =>
-  agentApi.post<{ valid: boolean; status?: string; error?: string; action?: string }>('/api/v1/me/cloudflare/verify').then((r) => r.data)
+  agentApi
+    .post<{ valid: boolean; status?: string; error?: string; action?: string; details?: CFPermissionDetails }>('/api/v1/me/cloudflare/verify')
+    .then((r) => r.data)
 
 export const deleteCFConfig = () =>
   agentApi.delete<{ ok: boolean }>('/api/v1/me/cloudflare').then((r) => r.data)
@@ -87,8 +109,9 @@ export const getCloudflareDomain = (zoneId: string) =>
 export const deleteCloudflareDomain = (zoneId: string) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/cloudflare/domains/${zoneId}`).then((r) => r.data)
 
-export const listCloudflareDNSRecords = (zoneId: string) =>
-  agentApi.get<{ items?: CloudflareDNSRecord[] }>(`/api/v1/cloudflare/domains/${zoneId}/dns`).then((r) => r.data.items ?? [])
+// The records of a domain: the search, the column filters and the order are the agent's to apply (lib/listQuery)
+export const listCloudflareDNSRecords = (zoneId: string, query: ListQuery) =>
+  agentApi.get<TableResult<CloudflareDNSRecord>>(`/api/v1/cloudflare/domains/${zoneId}/dns`, { params: listParams(query) }).then((r) => r.data)
 
 export const createCloudflareDNSRecord = (zoneId: string, payload: CloudflareDNSRecordPayload) =>
   agentApi.post<CloudflareDNSRecord>(`/api/v1/cloudflare/domains/${zoneId}/dns`, payload).then((r) => r.data)
@@ -108,5 +131,92 @@ export const createCloudflareTunnelProfile = (payload: CloudflareTunnelProfilePa
 export const deleteCloudflareTunnelProfile = (profileId: string) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/cloudflare/tunnel-profiles/${profileId}`).then((r) => r.data)
 
-export const listCloudflareTunnelProfileRoutes = (profileId: string) =>
-  agentApi.get<{ items?: import('./tunnels').Tunnel[] }>(`/api/v1/cloudflare/tunnel-profiles/${profileId}/routes`).then((r) => r.data.items ?? [])
+export const listCloudflareTunnelProfileRoutes = (profileId: string, query: ListQuery) =>
+  agentApi.get<TableResult<import('./tunnels').Tunnel>>(`/api/v1/cloudflare/tunnel-profiles/${profileId}/routes`, { params: listParams(query) }).then((r) => r.data)
+
+export interface BotManagementSettings {
+  fight_mode: boolean
+  ai_bots_protection: string
+  enable_js: boolean
+  crawler_protection?: string
+  using_latest_model?: boolean
+}
+
+export interface FirewallCustomRule {
+  id?: string
+  ref?: string
+  description?: string
+  expression: string
+  action: string
+  enabled: boolean
+  action_parameters?: Record<string, unknown>
+  last_updated?: string
+}
+
+export interface CloudflareZoneSecurityResponse {
+  zoneId: string
+  zoneName: string
+  botManagement: BotManagementSettings | null
+  botPermissionError?: boolean
+  botError?: string
+  customRules: FirewallCustomRule[]
+  wafPermissionError?: boolean
+  wafError?: string
+}
+
+export interface UpdateBotManagementPayload {
+  fightMode?: boolean
+  aiBotsProtection?: 'disabled' | 'block' | 'only_on_ad_pages'
+  enableJs?: boolean
+}
+
+export interface ApplyAICrawlerPresetPayload {
+  hostname?: string
+  applyToAllHosts?: boolean
+  pathPrefixes?: string[]
+  allowVerifiedBots?: boolean
+  userAgents?: string[]
+  disableAiBotsProtection?: boolean
+  disableFightMode?: boolean
+  description?: string
+}
+
+export interface AICrawlerPresetResult {
+  rule: FirewallCustomRule
+  rules: FirewallCustomRule[]
+  botManagement?: BotManagementSettings | null
+  botWarning?: string
+  skippedScopes: string[]
+}
+
+export interface CreateWafRulePayload {
+  description?: string
+  action: 'skip' | 'managed_challenge' | 'block' | 'js_challenge' | 'log'
+  hostname?: string
+  pathValue?: string
+  pathMatchMode?: 'starts_with' | 'eq' | 'contains'
+  userAgents?: string[]
+  countries?: string[]
+  sourceIps?: string[]
+  includeVerifiedBots?: boolean
+  combineWith?: 'and' | 'or'
+  enabled?: boolean
+}
+
+export const getCloudflareZoneSecurity = (zoneId: string) =>
+  agentApi.get<CloudflareZoneSecurityResponse>(`/api/v1/cloudflare/domains/${zoneId}/security`).then((r) => r.data)
+
+export const updateCloudflareBotManagement = (zoneId: string, payload: UpdateBotManagementPayload) =>
+  agentApi.put<BotManagementSettings>(`/api/v1/cloudflare/domains/${zoneId}/bot-management`, payload).then((r) => r.data)
+
+export const applyCloudflareAICrawlerPreset = (zoneId: string, payload: ApplyAICrawlerPresetPayload) =>
+  agentApi.post<AICrawlerPresetResult>(`/api/v1/cloudflare/domains/${zoneId}/waf-rules/ai-preset`, payload).then((r) => r.data)
+
+export const createCloudflareWafRule = (zoneId: string, payload: CreateWafRulePayload) =>
+  agentApi.post<{ rule: FirewallCustomRule; rules: FirewallCustomRule[] }>(`/api/v1/cloudflare/domains/${zoneId}/waf-rules`, payload).then((r) => r.data)
+
+export const toggleCloudflareWafRule = (zoneId: string, ruleId: string, enabled: boolean) =>
+  agentApi.patch<{ rules: FirewallCustomRule[] }>(`/api/v1/cloudflare/domains/${zoneId}/waf-rules/${ruleId}`, { enabled }).then((r) => r.data)
+
+export const deleteCloudflareWafRule = (zoneId: string, ruleId: string) =>
+  agentApi.delete<{ ok: boolean; rules: FirewallCustomRule[] }>(`/api/v1/cloudflare/domains/${zoneId}/waf-rules/${ruleId}`).then((r) => r.data)

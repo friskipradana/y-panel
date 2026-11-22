@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"errors"
 	"log"
 	"os"
@@ -13,13 +14,15 @@ import (
 )
 
 const (
-	managedOriginsBlockBegin = "# YPANEL_ALLOWED_ORIGINS_BEGIN"
-	managedOriginsBlockEnd   = "# YPANEL_ALLOWED_ORIGINS_END"
+	managedOriginsBlockBegin = "# RENEO_ALLOWED_ORIGINS_BEGIN"
+	managedOriginsBlockEnd   = "# RENEO_ALLOWED_ORIGINS_END"
 	managedOriginsLinePrefix = "#|"
 
 	// Legacy markers for backward compatibility with existing agent.env files
 	legacyOriginsBlockBegin = "# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
 	legacyOriginsBlockEnd   = "# UI_PANEL_ALLOWED_ORIGINS_END"
+	ypanelOriginsBlockBegin = "# YPANEL_ALLOWED_ORIGINS_BEGIN"
+	ypanelOriginsBlockEnd   = "# YPANEL_ALLOWED_ORIGINS_END"
 )
 
 // Config holds all runtime configuration for the panel agent.
@@ -47,15 +50,24 @@ type Config struct {
 	AdminFileManagerRootAccess bool
 
 	// External services
-	PortainerURL   string
 	InstallChannel string
 
 	// Panel identity
 	BaseDomain    string // e.g. "panel.example.com" — used for generated subdomains
 	EncryptionKey string // 32-byte hex key for encrypting CF tokens at rest
+
+	// Public read-only demo account (disabled when DemoPassword is empty)
+	DemoUsername string
+	DemoPassword string
+
+	// Performance & Observability
+	ProfilingEnabled bool
 }
 
 func Load() (Config, error) {
+	loadDotEnv(".env")
+	// RENEO_* names are accepted wherever PANEL_* is
+	runtimepath.ApplyEnvAliases()
 	cfg := Config{
 		BindAddr:                   getenv("PANEL_BIND_ADDR", "0.0.0.0:8787"),
 		AllowedHosts:               parseCSVEnv("PANEL_ALLOWED_HOSTS", nil),
@@ -64,15 +76,17 @@ func Load() (Config, error) {
 		SessionTTL:                 parseDurationEnv("PANEL_SESSION_TTL", 12*time.Hour),
 		DatabaseDSN:                os.Getenv("PANEL_DATABASE_DSN"),
 		DatabaseEnable:             parseBoolEnv("PANEL_DB_ENABLED", true),
-		StateDir:                   getenv("PANEL_STATE_DIR", "/var/lib/ypanel"),
-		FrontendDir:                getenv("PANEL_FRONTEND_DIR", "/opt/ypanel/frontend"),
+		StateDir:                   getenv("PANEL_STATE_DIR", runtimepath.StateDir()),
+		FrontendDir:                getenv("PANEL_FRONTEND_DIR", runtimepath.FrontendDir()),
 		TerminalEnabled:            parseBoolEnv("PANEL_TERMINAL_ENABLED", true),
 		TerminalAllowRemote:        parseBoolEnv("PANEL_TERMINAL_ALLOW_REMOTE", false),
 		AdminFileManagerRootAccess: parseBoolEnv("PANEL_ADMIN_FILE_ROOT_ACCESS", false),
-		PortainerURL:               os.Getenv("PANEL_PORTAINER_URL"),
 		InstallChannel:             getenv("PANEL_INSTALL_CHANNEL", "stable"),
 		BaseDomain:                 os.Getenv("PANEL_BASE_DOMAIN"),
 		EncryptionKey:              os.Getenv("PANEL_ENCRYPTION_KEY"),
+		DemoUsername:               getenv("PANEL_DEMO_USERNAME", "demo"),
+		DemoPassword:               os.Getenv("PANEL_DEMO_PASSWORD"),
+		ProfilingEnabled:           parseBoolEnv("PANEL_PROFILING_ENABLED", false),
 	}
 
 	if cfg.DatabaseEnable && cfg.DatabaseDSN == "" {
@@ -218,11 +232,11 @@ func readAllowedOriginsFromManagedBlock() ([]string, bool) {
 	end := -1
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin {
+		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin || trimmed == ypanelOriginsBlockBegin {
 			start = i
 			continue
 		}
-		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd) && start >= 0 {
+		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd || trimmed == ypanelOriginsBlockEnd) && start >= 0 {
 			end = i
 			break
 		}
@@ -266,18 +280,7 @@ func readAllowedOriginsFromManagedBlock() ([]string, bool) {
 }
 
 func runtimeEnvPath() string {
-	if envPath := strings.TrimSpace(os.Getenv("PANEL_ENV_FILE")); envPath != "" {
-		return envPath
-	}
-	newPath := filepath.Join("/etc", "ypanel", "agent.env")
-	if _, err := os.Stat(newPath); err == nil {
-		return newPath
-	}
-	legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
-	if _, err := os.Stat(legacyPath); err == nil {
-		return legacyPath
-	}
-	return newPath
+	return runtimepath.EnvFile()
 }
 
 func firstNonEmpty(values ...string) string {
@@ -291,3 +294,26 @@ func firstNonEmpty(values ...string) string {
 
 // Kept for backward compatibility with system package
 var _ = parseIntEnv
+
+func loadDotEnv(filename string) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		parts := strings.SplitN(trimmed, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		val := strings.TrimSpace(parts[1])
+		val = strings.Trim(val, "\"'")
+		if os.Getenv(key) == "" {
+			_ = os.Setenv(key, val)
+		}
+	}
+}

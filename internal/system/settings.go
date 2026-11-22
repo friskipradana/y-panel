@@ -7,13 +7,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 )
 
 const (
-	managedResolvedConfigPath       = "/etc/systemd/resolved.conf.d/ypanel.conf"
-	legacyManagedResolvedConfigPath = "/etc/systemd/resolved.conf.d/ui-panel.conf"
+	managedResolvedConfigPath       = "/etc/systemd/resolved.conf.d/reneo.conf"
+	legacyManagedResolvedConfigPath = "/etc/systemd/resolved.conf.d/ypanel.conf"
+	oldestManagedResolvedConfigPath = "/etc/systemd/resolved.conf.d/ui-panel.conf"
 )
 
 type SettingsSnapshot struct {
@@ -58,33 +62,114 @@ func ReadEditableSettings() (SettingsSnapshot, error) {
 	}, nil
 }
 
+var (
+	hostnameLabelRe = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
+	timezoneRe      = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_+./-]{0,63}$`)
+)
+
+// ValidateHostname accepts an RFC 1123 name: dot separated labels of letters,
+// digits and hyphens, not starting or ending with a hyphen, 253 characters at most.
+func ValidateHostname(name string) error {
+	if name == "" {
+		return fmt.Errorf("hostname tidak boleh kosong")
+	}
+	if len(name) > 253 {
+		return fmt.Errorf("hostname terlalu panjang (maksimal 253 karakter)")
+	}
+	for _, label := range strings.Split(name, ".") {
+		if !hostnameLabelRe.MatchString(label) {
+			return fmt.Errorf("hostname hanya boleh berisi huruf, angka, dan tanda hubung; tiap bagian 1-63 karakter dan tidak diawali atau diakhiri tanda hubung")
+		}
+	}
+	return nil
+}
+
+// ValidateTimezone checks the shape and that the zone exists on this host.
+func ValidateTimezone(zone string) error {
+	if zone == "" {
+		return fmt.Errorf("timezone tidak boleh kosong")
+	}
+	if !timezoneRe.MatchString(zone) || strings.Contains(zone, "..") {
+		return fmt.Errorf("timezone tidak valid")
+	}
+	if info, err := os.Stat(filepath.Join("/usr/share/zoneinfo", zone)); err != nil || info.IsDir() {
+		// hosts without zoneinfo (containers, Windows dev) cannot be checked: let timedatectl decide
+		if _, dirErr := os.Stat("/usr/share/zoneinfo"); dirErr == nil {
+			return fmt.Errorf("timezone %q tidak dikenal di host ini", zone)
+		}
+	}
+	return nil
+}
+
+// UpdateEditableSettings validates everything first, then applies only what changed,
+// so a bad timezone cannot leave a renamed host behind and unchanged DNS is not restarted.
 func UpdateEditableSettings(input SettingsUpdate) (SettingsSnapshot, error) {
+	current, _ := ReadEditableSettings()
+
 	nextHostname := strings.TrimSpace(input.Hostname)
 	if nextHostname != "" {
-		if err := exec.Command("hostnamectl", "set-hostname", nextHostname).Run(); err != nil {
-			return SettingsSnapshot{}, fmt.Errorf("gagal memperbarui hostname")
+		if err := ValidateHostname(nextHostname); err != nil {
+			return SettingsSnapshot{}, err
 		}
 	}
-
 	nextTimezone := strings.TrimSpace(input.Timezone)
 	if nextTimezone != "" {
-		if err := exec.Command("timedatectl", "set-timezone", nextTimezone).Run(); err != nil {
-			return SettingsSnapshot{}, fmt.Errorf("gagal memperbarui timezone")
-		}
-	}
-
-	sanitizedNameservers := sanitizeNameservers(input.Nameservers)
-	if len(sanitizedNameservers) > 0 {
-		if err := writeManagedNameservers(sanitizedNameservers); err != nil {
+		if err := ValidateTimezone(nextTimezone); err != nil {
 			return SettingsSnapshot{}, err
 		}
 	}
 
-	if err := updatePanelAccessSettings(input.BindAddr, input.AllowedHosts, input.AllowedOrigins, false); err != nil {
-		return SettingsSnapshot{}, err
+	var nameservers []string
+	nameserversRequested := false
+	for _, value := range input.Nameservers {
+		if strings.TrimSpace(value) != "" {
+			nameserversRequested = true
+			break
+		}
+	}
+	if nameserversRequested {
+		nameservers = sanitizeNameservers(input.Nameservers)
+		if len(nameservers) == 0 {
+			return SettingsSnapshot{}, fmt.Errorf("tidak ada nameserver yang valid: gunakan alamat IP publik (bukan loopback atau link-local)")
+		}
+	}
+
+	if nextHostname != "" && nextHostname != current.Hostname {
+		if err := exec.Command("hostnamectl", "set-hostname", nextHostname).Run(); err != nil {
+			return SettingsSnapshot{}, fmt.Errorf("gagal memperbarui hostname")
+		}
+	}
+	if nextTimezone != "" && nextTimezone != current.Timezone {
+		if err := exec.Command("timedatectl", "set-timezone", nextTimezone).Run(); err != nil {
+			return SettingsSnapshot{}, fmt.Errorf("gagal memperbarui timezone")
+		}
+	}
+	if nameserversRequested && !sameStrings(nameservers, current.Nameservers) {
+		if err := writeManagedNameservers(nameservers); err != nil {
+			return SettingsSnapshot{}, err
+		}
+	}
+
+	// the panel's access settings are only rewritten when the request carries them
+	if strings.TrimSpace(input.BindAddr) != "" || len(input.AllowedHosts) > 0 || len(input.AllowedOrigins) > 0 || strings.TrimSpace(input.OriginsRaw) != "" {
+		if err := updatePanelAccessSettings(input.BindAddr, input.AllowedHosts, input.AllowedOrigins, false); err != nil {
+			return SettingsSnapshot{}, err
+		}
 	}
 
 	return ReadEditableSettings()
+}
+
+func sameStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func UpdatePanelPort(port int) (SettingsSnapshot, error) {
@@ -242,6 +327,7 @@ func writeManagedNameservers(nameservers []string) error {
 		return fmt.Errorf("gagal menulis konfigurasi dns terkelola")
 	}
 	_ = os.Remove(legacyManagedResolvedConfigPath)
+	_ = os.Remove(oldestManagedResolvedConfigPath)
 	if err := exec.Command("systemctl", "restart", "systemd-resolved").Run(); err != nil {
 		return fmt.Errorf("gagal me-restart systemd-resolved")
 	}
@@ -254,6 +340,9 @@ func managedResolvedPath() string {
 	}
 	if _, err := os.Stat(legacyManagedResolvedConfigPath); err == nil {
 		return legacyManagedResolvedConfigPath
+	}
+	if _, err := os.Stat(oldestManagedResolvedConfigPath); err == nil {
+		return oldestManagedResolvedConfigPath
 	}
 	return managedResolvedConfigPath
 }
@@ -334,28 +423,19 @@ func updatePanelAccessSettingsRaw(bindAddr string, allowedHosts []string, origin
 }
 
 const (
-	managedOriginsBlockBegin = "# YPANEL_ALLOWED_ORIGINS_BEGIN"
-	managedOriginsBlockEnd   = "# YPANEL_ALLOWED_ORIGINS_END"
+	managedOriginsBlockBegin = "# RENEO_ALLOWED_ORIGINS_BEGIN"
+	managedOriginsBlockEnd   = "# RENEO_ALLOWED_ORIGINS_END"
 	managedOriginsLinePrefix = "#|"
 
 	// Legacy markers for backward compatibility with existing agent.env files
 	legacyOriginsBlockBegin = "# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
 	legacyOriginsBlockEnd   = "# UI_PANEL_ALLOWED_ORIGINS_END"
+	ypanelOriginsBlockBegin = "# YPANEL_ALLOWED_ORIGINS_BEGIN"
+	ypanelOriginsBlockEnd   = "# YPANEL_ALLOWED_ORIGINS_END"
 )
 
 func panelEnvPath() string {
-	if envPath := strings.TrimSpace(os.Getenv("PANEL_ENV_FILE")); envPath != "" {
-		return envPath
-	}
-	newPath := filepath.Join("/etc", "ypanel", "agent.env")
-	if _, err := os.Stat(newPath); err == nil {
-		return newPath
-	}
-	legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
-	if _, err := os.Stat(legacyPath); err == nil {
-		return legacyPath
-	}
-	return newPath
+	return runtimepath.EnvFile()
 }
 
 func panelOriginsRawPath() string {
@@ -518,11 +598,11 @@ func readManagedOriginsBlock(data string) string {
 	end := -1
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin {
+		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin || trimmed == ypanelOriginsBlockBegin {
 			start = i
 			continue
 		}
-		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd) && start >= 0 {
+		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd || trimmed == ypanelOriginsBlockEnd) && start >= 0 {
 			end = i
 			break
 		}
@@ -540,9 +620,7 @@ func readManagedOriginsBlock(data string) string {
 
 		if strings.HasPrefix(trimmedLeft, "#") {
 			trimmedLeft = strings.TrimPrefix(trimmedLeft, "#")
-			if strings.HasPrefix(trimmedLeft, " ") {
-				trimmedLeft = strings.TrimPrefix(trimmedLeft, " ")
-			}
+			trimmedLeft = strings.TrimPrefix(trimmedLeft, " ")
 			result = append(result, trimmedLeft)
 			continue
 		}
@@ -558,11 +636,11 @@ func writeManagedOriginsBlock(data, rawValue string) string {
 	insertAt := len(lines)
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin {
+		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin || trimmed == ypanelOriginsBlockBegin {
 			start = i
 			continue
 		}
-		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd) && start >= 0 {
+		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd || trimmed == ypanelOriginsBlockEnd) && start >= 0 {
 			end = i
 			break
 		}

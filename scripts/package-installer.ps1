@@ -13,10 +13,12 @@ $FrontendDir = Join-Path $BuildDir 'frontend'
 $BackendDir = Join-Path $BuildDir 'backend'
 $InstallerDir = Join-Path $BuildDir 'installer'
 $TmpDir = Join-Path $DeployDir 'tmp'
-$ArchivePath = Join-Path $TmpDir 'ypanel-bundle.tar.gz'
-$RunPath = Join-Path $TmpDir 'ypanel-installer.run'
+$ArchivePath = Join-Path $TmpDir 'reneo-bundle.tar.gz'
+$RunPath = Join-Path $TmpDir 'reneo-installer.run'
 $ReleaseDir = Join-Path $ProjectRoot 'dist-release'
-$ReleaseInstaller = Join-Path $ReleaseDir 'ypanel-installer.run'
+$ReleaseInstaller = Join-Path $ReleaseDir 'reneo-installer.run'
+# Same file under the pre-rename name so existing download links and redirects keep working
+$LegacyInstaller = Join-Path $ReleaseDir 'ypanel-installer.run'
 
 function Require-Command([string]$Name) {
   if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -48,6 +50,30 @@ foreach ($item in @('go.mod', 'go.sum', 'cmd', 'internal', 'main.go')) {
   if (Test-Path $source) { Copy-Item $source $BackendDir -Recurse -Force }
 }
 
+# Prebuilt static agents so the target server needs no Go toolchain
+Require-Command go
+$BinDir = Join-Path $BackendDir 'bin'
+New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
+$oldGoos = $env:GOOS; $oldGoarch = $env:GOARCH; $oldGoarm = $env:GOARM; $oldCgo = $env:CGO_ENABLED
+try {
+  $env:GOOS = 'linux'; $env:CGO_ENABLED = '0'
+  foreach ($arch in @('amd64', 'arm64', 'arm')) {
+    $env:GOARCH = $arch
+    if ($arch -eq 'arm') { $env:GOARM = '7' } else { Remove-Item Env:GOARM -ErrorAction SilentlyContinue }
+    $out = Join-Path $BinDir "reneo-agent-linux-$arch"
+    Push-Location $ProjectRoot
+    try { & go build -trimpath -ldflags '-s -w' -o $out ./cmd/panel-agent; if ($LASTEXITCODE -ne 0) { throw "go build linux/$arch gagal." } }
+    finally { Pop-Location }
+    Write-Host ("Agent linux/{0}: {1} MB" -f $arch, [math]::Round((Get-Item $out).Length / 1MB, 1))
+  }
+} finally {
+  $env:GOOS = $oldGoos; $env:GOARCH = $oldGoarch; $env:GOARM = $oldGoarm; $env:CGO_ENABLED = $oldCgo
+}
+
+# Bundle version shown by the installer and stored in /opt/reneo/VERSION
+$pkgVersion = (Get-Content (Join-Path $ProjectRoot 'package.json') -Raw | ConvertFrom-Json).version
+[System.IO.File]::WriteAllText((Join-Path $BackendDir 'VERSION'), "$pkgVersion`n", (New-Object System.Text.UTF8Encoding($false)))
+
 Remove-Item "$InstallerDir\*" -Recurse -Force -ErrorAction SilentlyContinue
 $sourceInstaller = Join-Path $ProjectRoot 'installer\linux'
 if (Test-Path $sourceInstaller) { Copy-Item "$sourceInstaller\*" $InstallerDir -Recurse -Force }
@@ -65,28 +91,47 @@ if (-not (Test-Path $remoteInstall)) { throw 'deploy/lib/remote_install.sh tidak
 $payloadB64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($ArchivePath))
 $selfExtract = @'
 #!/usr/bin/env bash
+# Reneo installer. Runs as a file (bash reneo-installer.run) and piped (curl -fsSL URL | sudo bash).
 set -euo pipefail
-WORK=$(mktemp -d /tmp/ypanel.XXXXXX)
-trap 'rm -rf $WORK' EXIT
-awk 'found{print}/^__ARCHIVE__$/{found=1;next}' "$0" | base64 -d > "$WORK/payload.tar.gz"
-tar -xzf "$WORK/payload.tar.gz" -C "$WORK"
-cd "$WORK"
-[ -d frontend ] && mv frontend dist
-[ -d backend  ] && { cp -r backend/* . 2>/dev/null||true; rm -rf backend; }
-mkdir -p installer/linux
-if [ -d installer ] && [ ! -f installer/linux/install.sh ]; then
-  find installer -maxdepth 1 -type f -exec cp {} installer/linux/ \;
-fi
-find installer -name '*.sh' -exec sed -i 's/\r$//' {} +
-chmod +x installer/linux/install.sh installer/linux/uninstall.sh 2>/dev/null||true
-bash installer/linux/install.sh
-exit 0
+
+extract_payload() {
+  if [ -f "$0" ] && grep -qx '__ARCHIVE__' "$0" 2>/dev/null; then
+    awk 'found{print}/^__ARCHIVE__$/{found=1;next}' "$0"
+  else
+    # Piped: bash reads the script from stdin byte by byte, so the payload is still in the pipe
+    awk 'found{print}/^__ARCHIVE__$/{found=1;next}'
+  fi
+}
+
+run_install() {
+  WORK=$(mktemp -d /tmp/reneo.XXXXXX)
+  trap 'rm -rf "$WORK"' EXIT
+  extract_payload | base64 -d > "$WORK/payload.tar.gz"
+  tar -xzf "$WORK/payload.tar.gz" -C "$WORK"
+  cd "$WORK"
+  [ -d frontend ] && mv frontend dist
+  [ -d backend  ] && { cp -r backend/* . 2>/dev/null||true; rm -rf backend; }
+  mkdir -p installer/linux
+  if [ -d installer ] && [ ! -f installer/linux/install.sh ]; then
+    find installer -maxdepth 1 -type f -exec cp {} installer/linux/ \;
+  fi
+  find installer -name '*.sh' -exec sed -i 's/\r$//' {} +
+  chmod +x installer/linux/install.sh installer/linux/uninstall.sh 2>/dev/null||true
+  bash installer/linux/install.sh "$@"
+}
+
+run_install "$@"; exit 0
 __ARCHIVE__
 '@
 
 $content = ($selfExtract -replace "`r`n", "`n") + "`n" + $payloadB64 + "`n"
 [System.IO.File]::WriteAllText($RunPath, $content, (New-Object System.Text.UTF8Encoding($false)))
 Copy-Item $RunPath $ReleaseInstaller -Force
+Copy-Item $RunPath $LegacyInstaller -Force
+
+$hash = (Get-FileHash -Algorithm SHA256 $ReleaseInstaller).Hash.ToLower()
+[System.IO.File]::WriteAllText((Join-Path $ReleaseDir 'reneo-installer.run.sha256'), "$hash  reneo-installer.run`n", (New-Object System.Text.UTF8Encoding($false)))
+Write-Host "SHA256: $hash"
 
 $sizeMB = [math]::Round((Get-Item $ReleaseInstaller).Length / 1MB, 1)
 Write-Host "Installer artifact: $ReleaseInstaller (${sizeMB}MB)"

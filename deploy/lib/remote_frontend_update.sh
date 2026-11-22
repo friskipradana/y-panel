@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# YPanel — Update Frontend Only
+# Reneo — Update Frontend Only
 set -euo pipefail
 : "${SUDO_PASS:?}"
 : "${REMOTE_FRONT_DIR:?}"
 : "${INSTALL_FRONT_DIR:?}"
 : "${PANEL_USER:=root}"
-: "${SERVICE_NAME:=ypanel}"
+: "${SERVICE_NAME:=reneo}"
 
 printf '%s\n' "$SUDO_PASS" | sudo -S -p '' bash -c "
   cp -r '$REMOTE_FRONT_DIR/.' '$INSTALL_FRONT_DIR/'

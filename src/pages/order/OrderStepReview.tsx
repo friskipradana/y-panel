@@ -1,0 +1,179 @@
+import { useState, type ReactNode } from 'react'
+import { Eye, EyeOff, Pencil } from 'lucide-react'
+import { formatRupiah } from '@/api/hosting'
+import { useDurationLabel } from '@/components/hosting/PeriodPicker'
+import { PriceLines } from '@/components/hosting/PriceLines'
+import { VoucherField } from '@/components/hosting/VoucherField'
+import { IconButton } from '@/components/ui/IconButton'
+import { monthsLabel } from '@/lib/duration'
+import { useI18n } from '@/lib/i18n'
+import { formatDate, validUntil } from './orderValidity'
+import { LegalLinks } from '@/pages/legal/LegalLinks'
+import type { OrderFormState, OrderStep } from './useOrderForm'
+
+// One group of the review: its facts as label and value, and a single pencil that goes back to the step they came from
+function Group({ rows, onEdit, editLabel }: { rows: { label: string; value: ReactNode; mono?: boolean }[]; onEdit: () => void; editLabel: string }) {
+  return (
+    <div className="flex items-start justify-between gap-2 py-2.5">
+      <dl className="grid min-w-0 flex-1 grid-cols-1 gap-y-1 text-[0.8125rem] sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-x-3 sm:gap-y-1">
+        {rows.map((row) => (
+          <div key={row.label} className="contents">
+            <dt className="text-[0.75rem] text-[var(--text-secondary)] sm:text-[0.8125rem]">{row.label}</dt>
+            <dd className={`min-w-0 font-medium text-[var(--win-text)] ${row.mono ? 'panel-mono break-all' : 'break-words'}`}>{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <IconButton label={editLabel} onClick={onEdit} className="shrink-0 -mr-1">
+        <Pencil className="h-3.5 w-3.5" />
+      </IconButton>
+    </div>
+  )
+}
+
+// The password as dots, with a button that shows what was typed
+function PasswordValue({ value }: { value: string }) {
+  const { t } = useI18n()
+  const [shown, setShown] = useState(false)
+  return (
+    <span className="flex items-center justify-between gap-2">
+      <span className="panel-mono min-w-0 break-all">{shown ? value : '\u2022'.repeat(Math.min(value.length, 12))}</span>
+      <IconButton label={shown ? t('ui.hidePassword') : t('ui.showPassword')} onClick={() => setShown((v) => !v)} className="-my-1 shrink-0 !h-[26px] !w-[26px]">
+        {shown ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+      </IconButton>
+    </span>
+  )
+}
+
+// The day the plan ends, with a line saying it is counted from when the account is switched on
+function Validity({ end }: { end: Date | null }) {
+  const { t, language } = useI18n()
+  if (!end) return <>{t('order.review.noExpiry')}</>
+  return (
+    <>
+      {formatDate(end, language)}
+      <span className="block text-[0.75rem] font-normal text-[var(--text-secondary)]">{t('order.review.estimate')}</span>
+    </>
+  )
+}
+
+// Step 4: everything the buyer is about to order in one card, the voucher, and the price, before the order is made
+export function OrderStepReview({ order }: { order: OrderFormState }) {
+  const { t } = useI18n()
+  const {
+    plan, isTrial, count, total, price, basePrice, voucherText, setVoucherText, voucherApplied, voucherAnswer, voucherValid, voucherChecking, voucherFailed,
+    applyVoucher, removeVoucher, address, domains, needsAddress, form, phone, setStep, steps,
+    planIncludesApp, bundledApp, bundledLicense, addonSelected, selectedAddonApp, selectedAddonLicense, addonMonths, addonAmount,
+  } = order
+  const durationLabel = useDurationLabel(plan?.period ?? 'monthly')
+  if (!plan) return null
+  const edit = (step: OrderStep) => () => setStep(step)
+  const domain = domains.find((d) => d.zoneId === address.zoneId)?.name ?? domains[0]?.name ?? ''
+  const free = isTrial || (plan.priceAmount === 0 && addonAmount === 0)
+  const hasAddonStep = steps.includes('addon')
+
+  return (
+    <div className="space-y-3">
+      <section className="divide-y divide-[var(--win-border)] border-y border-[var(--win-border)]">
+        <Group
+          onEdit={edit('plan')}
+          editLabel={`${t('order.review.edit')}: ${t('order.step.plan')}`}
+          rows={[
+            { label: t('order.plan'), value: plan.name },
+            { label: t('order.review.period'), value: isTrial ? t('order.trialNote', { days: plan.trialDays }) : durationLabel(count) },
+            { label: t('order.review.until'), value: <Validity end={validUntil(plan, count, isTrial)} /> },
+          ]}
+        />
+        {hasAddonStep ? (
+          <Group
+            onEdit={edit('addon')}
+            editLabel={`${t('order.review.edit')}: ${t('order.step.addon')}`}
+            rows={
+              planIncludesApp
+                ? [{
+                    label: t('order.addon.reviewLabel'),
+                    value: `${bundledApp?.name ?? t('order.addon.includedTitle')}${bundledLicense ? ` — ${bundledLicense.name}` : ''} (${t('order.addon.includedBadge')})`,
+                  }]
+                : addonSelected && selectedAddonApp && selectedAddonLicense
+                  ? [
+                      { label: t('order.addon.reviewLabel'), value: `${selectedAddonApp.name} — ${selectedAddonLicense.name}` },
+                      { label: t('order.review.period'), value: monthsLabel(t, addonMonths) },
+                    ]
+                  : [{ label: t('order.addon.reviewLabel'), value: t('order.addon.noneValue') }]
+            }
+          />
+        ) : null}
+        {needsAddress ? (
+          <Group onEdit={edit('address')} editLabel={`${t('order.review.edit')}: ${t('order.step.address')}`} rows={[{ label: t('order.review.address'), value: `https://${address.label}.${domain}`, mono: true }]} />
+        ) : null}
+        <Group
+          onEdit={edit('account')}
+          editLabel={`${t('order.review.edit')}: ${t('order.step.account')}`}
+          rows={[
+            { label: t('order.username'), value: form.username, mono: true },
+            { label: t('order.email'), value: form.email.trim() },
+            ...(phone ? [{ label: t('order.whatsapp'), value: `+${phone}`, mono: true }] : []),
+            ...(form.displayName.trim() ? [{ label: t('order.displayName'), value: form.displayName.trim() }] : []),
+            { label: t('order.password'), value: <PasswordValue value={form.password} /> },
+          ]}
+        />
+        <div className="space-y-3 py-3">
+          {!free && price.promoExclusive ? (
+            <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{t('order.voucher.promoExclusiveNote')}</p>
+          ) : null}
+          {!free && !price.promoExclusive ? (
+            <VoucherField
+              id="order-voucher"
+              value={voucherText}
+              onChange={setVoucherText}
+              applied={voucherApplied}
+              onApply={applyVoucher}
+              onRemove={removeVoucher}
+              answer={voucherAnswer}
+              discount={price.voucherDiscount}
+              checking={voucherChecking}
+              failed={voucherFailed}
+            />
+          ) : null}
+          {free ? (
+            <div className="flex items-baseline justify-between text-[0.8125rem]">
+              <span className="font-semibold text-[var(--win-text)]">{t('order.review.price')}</span>
+              <span className="panel-mono font-semibold text-[var(--win-text)]">{t('hosting.landing.free')}</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {addonSelected && selectedAddonLicense ? (
+                <div className="space-y-1 border-b border-[var(--win-border)] pb-2 text-[0.75rem] text-[var(--text-secondary)]">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span>{t('order.addon.hostingLine', { plan: plan.name })}</span>
+                    <span className="panel-mono text-[var(--win-text)]">{formatRupiah(basePrice.list)}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span>{t('order.addon.lineItem', { tier: selectedAddonLicense.name, duration: monthsLabel(t, addonMonths) })}</span>
+                    <span className="panel-mono text-[var(--win-text)]">{formatRupiah(addonAmount)}</span>
+                  </div>
+                </div>
+              ) : null}
+              <PriceLines
+                list={price.list}
+                promoPercent={price.promoPercent}
+                promoDiscount={price.promoDiscount}
+                durationPercent={price.durationPercent}
+                durationDiscount={price.durationDiscount}
+                voucherCode={voucherValid ? voucherApplied : undefined}
+                voucherDiscount={voucherValid ? price.voucherDiscount : 0}
+                subtotal={price.subtotal}
+              />
+            </div>
+          )}
+        </div>
+      </section>
+
+      <div className="space-y-1.5 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
+        <p>{isTrial ? t('order.review.trialNote') : total === 0 ? t('order.review.freeNote') : t('order.review.payNote')}</p>
+        <p>
+          <LegalLinks messageKey="legal.order.agree" />
+        </p>
+      </div>
+    </div>
+  )
+}

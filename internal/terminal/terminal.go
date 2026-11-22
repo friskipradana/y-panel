@@ -3,21 +3,30 @@ package terminal
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/friskipradana/panel-desktop-ui/internal/osuser"
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 )
 
 const (
 	maxBufferedOutput = 256 * 1024
+	ptyReadBufferSize = 16 * 1024
 	defaultCols       = 120
 	defaultRows       = 32
+
+	// A session without an attached websocket is kept alive this long so the
+	// browser can re-attach after a network drop, then it is reaped.
+	detachedTTL  = 30 * time.Minute
+	reapInterval = time.Minute
 )
 
 type Session struct {
@@ -26,15 +35,20 @@ type Session struct {
 	pty    *os.File
 	closed bool
 	meta   SessionMeta
+	owner  int64
 
 	mu         sync.RWMutex
-	onChunk    func(string)
+	onChunk    func(string) error
 	onClose    func()
+	onReplaced func()
+	attachGen  uint64
+	detachedAt time.Time
 	closeOnce  sync.Once
 	callbackMu sync.RWMutex
 	outputMu   sync.RWMutex
 	streamMu   sync.Mutex
 	outputBuf  []byte
+	historyBuf []byte
 }
 
 type SessionMeta struct {
@@ -45,11 +59,16 @@ type SessionMeta struct {
 }
 
 type StartRequest struct {
+	// OwnerID is the panel account that may use the session
+	OwnerID       int64
 	PanelUsername string
 	DisplayName   string
 	Role          string
 	Target        string
 	Cwd           string
+	// quota of the account: 0 = unlimited (the superadmin)
+	CPULimitPct   int
+	MemoryLimitMB int
 }
 
 type StartResult struct {
@@ -60,16 +79,84 @@ type StartResult struct {
 	OSUsername string
 }
 
+type SessionInfo struct {
+	SessionID  string `json:"sessionId"`
+	Target     string `json:"target"`
+	Cwd        string `json:"cwd"`
+	Mode       string `json:"mode"`
+	OSUsername string `json:"osUsername"`
+}
+
 type Manager struct {
 	mu       sync.RWMutex
 	sessions map[string]*Session
+	stopOnce sync.Once
+	stopCh   chan struct{}
 }
 
 func NewManager() *Manager {
-	return &Manager{sessions: map[string]*Session{}}
+	m := &Manager{
+		sessions: map[string]*Session{},
+		stopCh:   make(chan struct{}),
+	}
+	go m.reapLoop()
+	return m
+}
+
+// CloseAll terminates all active terminal sessions and stops the reaper loop.
+func (m *Manager) CloseAll() {
+	m.stopOnce.Do(func() {
+		if m.stopCh != nil {
+			close(m.stopCh)
+		}
+	})
+	m.mu.RLock()
+	var list []*Session
+	for _, s := range m.sessions {
+		list = append(list, s)
+	}
+	m.mu.RUnlock()
+	for _, s := range list {
+		m.closeSession(s)
+	}
+}
+
+// reapLoop closes sessions that stayed detached longer than detachedTTL.
+func (m *Manager) reapLoop() {
+	ticker := time.NewTicker(reapInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.stopCh:
+			return
+		case <-ticker.C:
+		}
+		now := time.Now()
+		var stale []*Session
+		m.mu.RLock()
+		for _, s := range m.sessions {
+			s.callbackMu.RLock()
+			attached := s.onChunk != nil
+			detachedAt := s.detachedAt
+			s.callbackMu.RUnlock()
+			if !attached && !detachedAt.IsZero() && now.Sub(detachedAt) > detachedTTL {
+				stale = append(stale, s)
+			}
+		}
+		m.mu.RUnlock()
+		for _, s := range stale {
+			m.closeSession(s)
+		}
+	}
 }
 
 func (m *Manager) Start(req StartRequest) (*StartResult, error) {
+	if req.OwnerID <= 0 {
+		return nil, errors.New("terminal session needs an owner")
+	}
+	if err := m.checkCapacity(req.OwnerID); err != nil {
+		return nil, err
+	}
 	id, err := randomID(12)
 	if err != nil {
 		return nil, err
@@ -80,42 +167,45 @@ func (m *Manager) Start(req StartRequest) (*StartResult, error) {
 	mode := "local-user"
 	osUsername := ""
 
-	var cmd *exec.Cmd
-	if target == "" || target == "local" {
-		cmd = exec.Command("/bin/bash", "-i")
-		osUsername, err = osuser.EnsureUserForRole(req.PanelUsername, req.DisplayName, req.Role)
-		if err != nil {
-			return nil, err
-		}
-		cmd, err = osuser.WrapCommand(cmd, osUsername)
-		if err != nil {
-			return nil, err
-		}
-		if cwd != "" {
-			cmd.Dir = cwd
-		}
-	} else {
-		mode = "remote-ssh"
-		cmd = exec.Command("ssh", "-t", target)
-		if cwd != "" {
-			cmd.Dir = cwd
-		}
+	remote := target != "" && target != "local"
+	if remote && !validSSHTarget(target) {
+		return nil, invalidError("invalid ssh target: use user@host")
+	}
+	osUsername, err = osuser.EnsureUserForRole(req.PanelUsername, req.DisplayName, req.Role)
+	if err != nil {
+		return nil, err
+	}
+	if cwd, err = resolveCwd(osuser.ResolveHomeDir(req.PanelUsername), cwd, req.Role == "superadmin"); err != nil {
+		return nil, err
 	}
 
-	cmd.Env = append(os.Environ(),
-		"TERM=xterm-256color",
-		"COLORTERM=truecolor",
-	)
+	var cmd *exec.Cmd
+	if remote {
+		mode = "remote-ssh"
+		// -- ends the options, so the target can never be read as one
+		cmd = exec.Command("ssh", "-t", "--", target)
+	} else {
+		cmd = exec.Command("/bin/bash", "-i")
+	}
+	// nothing is inherited from the agent: its environment holds the session secret and the database DSN
+	cmd.Env = osuser.BaseEnv("TERM=xterm-256color", "COLORTERM=truecolor")
+	cmd.Dir = cwd
+	// the shell lives in a systemd slice that carries the account's CPU and memory quota
+	if slice := osuser.SliceFor(osUsername, osuser.Limits{CPUPercent: req.CPULimitPct, MemoryMB: req.MemoryLimitMB}); slice != "" {
+		cmd = osuser.InSlice(cmd, slice)
+	}
 
-	ptyFile, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: uint16(defaultCols), Rows: uint16(defaultRows)})
+	ptyFile, err := startPTY(cmd, osUsername, defaultCols, defaultRows)
 	if err != nil {
 		return nil, fmt.Errorf("start pty shell: %w", err)
 	}
 
 	session := &Session{
-		id:  id,
-		cmd: cmd,
-		pty: ptyFile,
+		id:         id,
+		cmd:        cmd,
+		owner:      req.OwnerID,
+		pty:        ptyFile,
+		detachedAt: time.Now(),
 		meta: SessionMeta{
 			Mode:       mode,
 			Target:     target,
@@ -127,6 +217,7 @@ func (m *Manager) Start(req StartRequest) (*StartResult, error) {
 	m.mu.Lock()
 	m.sessions[id] = session
 	m.mu.Unlock()
+	performance.DefaultRegistry.TrackTerminalSession(1)
 
 	go m.captureOutput(session, ptyFile)
 	go m.waitForExit(session)
@@ -153,50 +244,81 @@ func (m *Manager) Write(id, input string) error {
 	return nil
 }
 
-func (m *Manager) Attach(id string, onChunk func(string), onClose func()) error {
+// Attach binds a websocket to the session and returns an attach generation.
+// If replay is true, recent terminal history is flushed to the connection.
+// Output buffered while detached is flushed first. A previous attachment is
+// told to go away through its onReplaced callback.
+func (m *Manager) Attach(id string, replay bool, onChunk func(string) error, onClose func(), onReplaced func()) (uint64, error) {
 	session, err := m.get(id)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	var buffered string
 	session.streamMu.Lock()
 	session.outputMu.Lock()
-	if len(session.outputBuf) > 0 {
-		buffered = string(append([]byte(nil), session.outputBuf...))
-		session.outputBuf = nil
+	if replay && len(session.historyBuf) > 0 {
+		buffered = boundedTailString(session.historyBuf, maxBufferedOutput)
+		session.outputBuf = session.outputBuf[:0]
+	} else if len(session.outputBuf) > 0 {
+		buffered = boundedTailString(session.outputBuf, maxBufferedOutput)
+		session.outputBuf = session.outputBuf[:0]
 	}
 	session.outputMu.Unlock()
 	session.callbackMu.Lock()
+	previous := session.onReplaced
+	session.attachGen++
+	gen := session.attachGen
 	session.onChunk = onChunk
 	session.onClose = onClose
+	session.onReplaced = onReplaced
+	session.detachedAt = time.Time{}
 	session.callbackMu.Unlock()
 	session.streamMu.Unlock()
+
+	if previous != nil {
+		previous()
+	}
 
 	session.mu.RLock()
 	closed := session.closed
 	session.mu.RUnlock()
 
 	if buffered != "" && onChunk != nil {
-		onChunk(buffered)
+		if err := onChunk(buffered); err != nil {
+			if !replay {
+				session.appendOutput([]byte(buffered))
+			}
+			m.detachIfCurrent(session, gen)
+		}
 	}
 	if closed && onClose != nil {
 		onClose()
 	}
-	return nil
+	return gen, nil
 }
 
-func (m *Manager) Detach(id string) error {
+// Detach releases the attachment only when gen still owns the session, so a
+// stale connection can never wipe the callbacks of its replacement.
+func (m *Manager) Detach(id string, gen uint64) error {
 	session, err := m.get(id)
 	if err != nil {
 		return err
 	}
+	m.detachIfCurrent(session, gen)
+	return nil
+}
 
+func (m *Manager) detachIfCurrent(session *Session, gen uint64) {
 	session.callbackMu.Lock()
+	defer session.callbackMu.Unlock()
+	if session.attachGen != gen {
+		return
+	}
 	session.onChunk = nil
 	session.onClose = nil
-	session.callbackMu.Unlock()
-	return nil
+	session.onReplaced = nil
+	session.detachedAt = time.Now()
 }
 
 func (m *Manager) Close(id string) error {
@@ -214,12 +336,7 @@ func (m *Manager) Resize(id string, cols, rows int) error {
 		return err
 	}
 
-	if cols < 20 {
-		cols = 20
-	}
-	if rows < 8 {
-		rows = 8
-	}
+	cols, rows = clampSize(cols, rows)
 
 	if err := pty.Setsize(session.pty, &pty.Winsize{Cols: uint16(cols), Rows: uint16(rows)}); err != nil {
 		return fmt.Errorf("resize terminal: %w", err)
@@ -228,40 +345,45 @@ func (m *Manager) Resize(id string, cols, rows int) error {
 }
 
 func (m *Manager) captureOutput(session *Session, reader io.Reader) {
-	buffer := make([]byte, 4096)
+	buffer := make([]byte, ptyReadBufferSize)
 	for {
 		n, err := reader.Read(buffer)
 		if n > 0 {
+			performance.DefaultRegistry.RecordTerminalOutput(n)
 			chunk := string(buffer[:n])
-			session.streamMu.Lock()
-			session.callbackMu.RLock()
-			cb := session.onChunk
-			session.callbackMu.RUnlock()
-			if cb != nil {
-				cb(chunk)
-			} else {
-				session.appendOutput(buffer[:n])
-			}
-			session.streamMu.Unlock()
+			session.appendHistory(buffer[:n])
+			m.deliver(session, chunk, buffer[:n])
 		}
 		if err != nil {
 			if err != io.EOF {
 				errChunk := "\r\n[terminal error] " + err.Error() + "\r\n"
-				session.streamMu.Lock()
-				session.callbackMu.RLock()
-				cb := session.onChunk
-				session.callbackMu.RUnlock()
-				if cb != nil {
-					cb(errChunk)
-				} else {
-					session.appendOutput([]byte(errChunk))
-				}
-				session.streamMu.Unlock()
+				session.appendHistory([]byte(errChunk))
+				m.deliver(session, errChunk, []byte(errChunk))
 			}
 			m.closeSession(session)
 			return
 		}
 	}
+}
+
+// deliver sends a chunk to the attached websocket, or buffers it when no
+// websocket is attached or the write failed (so nothing is lost on reconnect).
+func (m *Manager) deliver(session *Session, chunk string, raw []byte) {
+	session.streamMu.Lock()
+	defer session.streamMu.Unlock()
+
+	session.callbackMu.RLock()
+	cb := session.onChunk
+	gen := session.attachGen
+	session.callbackMu.RUnlock()
+
+	if cb != nil {
+		if err := cb(chunk); err == nil {
+			return
+		}
+		m.detachIfCurrent(session, gen)
+	}
+	session.appendOutput(raw)
 }
 
 func (m *Manager) waitForExit(session *Session) {
@@ -278,9 +400,7 @@ func (m *Manager) closeSession(session *Session) {
 		if session.pty != nil {
 			_ = session.pty.Close()
 		}
-		if session.cmd.Process != nil {
-			_ = session.cmd.Process.Kill()
-		}
+		killTree(session.cmd)
 
 		session.callbackMu.RLock()
 		onClose := session.onClose
@@ -289,7 +409,9 @@ func (m *Manager) closeSession(session *Session) {
 			onClose()
 		}
 
-		m.remove(session.id)
+		if m.remove(session.id) {
+			performance.DefaultRegistry.TrackTerminalSession(-1)
+		}
 	})
 }
 
@@ -298,26 +420,119 @@ func (m *Manager) get(id string) (*Session, error) {
 	defer m.mu.RUnlock()
 	session, ok := m.sessions[id]
 	if !ok {
-		return nil, fmt.Errorf("terminal session not found")
+		return nil, errNotFound
 	}
 	return session, nil
 }
 
-func (m *Manager) remove(id string) {
+// Authorize says whether the account owns the session. A foreign or unknown id gets the same
+// answer, so ids cannot be probed.
+func (m *Manager) Authorize(id string, ownerID int64) error {
+	session, err := m.get(id)
+	if err != nil || ownerID <= 0 || session.owner != ownerID {
+		return errNotFound
+	}
+	return nil
+}
+
+// CloseOwned ends every session of an account (suspended, deleted, or no longer allowed a terminal).
+func (m *Manager) CloseOwned(ownerID int64) int {
+	m.mu.RLock()
+	var owned []*Session
+	for _, s := range m.sessions {
+		if s.owner == ownerID {
+			owned = append(owned, s)
+		}
+	}
+	m.mu.RUnlock()
+	for _, s := range owned {
+		m.closeSession(s)
+	}
+	return len(owned)
+}
+
+func (m *Manager) checkCapacity(ownerID int64) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	own := 0
+	for _, s := range m.sessions {
+		if s.owner == ownerID {
+			own++
+		}
+	}
+	if own >= maxSessionsPerOwner || len(m.sessions) >= maxSessionsTotal {
+		return ErrTooManySessions
+	}
+	return nil
+}
+
+func (m *Manager) remove(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	delete(m.sessions, id)
+	_, exists := m.sessions[id]
+	if exists {
+		delete(m.sessions, id)
+	}
+	return exists
 }
 
 func (s *Session) appendOutput(chunk []byte) {
 	s.outputMu.Lock()
 	defer s.outputMu.Unlock()
+	s.outputBuf = appendBounded(s.outputBuf, chunk, maxBufferedOutput)
+}
 
-	s.outputBuf = append(s.outputBuf, chunk...)
-	if len(s.outputBuf) <= maxBufferedOutput {
-		return
+func (s *Session) appendHistory(chunk []byte) {
+	s.outputMu.Lock()
+	defer s.outputMu.Unlock()
+	s.historyBuf = appendBounded(s.historyBuf, chunk, maxBufferedOutput)
+}
+
+func appendBounded(buf, chunk []byte, maxBytes int) []byte {
+	if len(chunk) >= maxBytes {
+		if cap(buf) < maxBytes {
+			buf = make([]byte, maxBytes)
+		} else {
+			buf = buf[:maxBytes]
+		}
+		copy(buf, chunk[len(chunk)-maxBytes:])
+		return buf
 	}
-	s.outputBuf = append([]byte(nil), s.outputBuf[len(s.outputBuf)-maxBufferedOutput:]...)
+	buf = append(buf, chunk...)
+	if len(buf) > maxBytes*2 {
+		copy(buf[:maxBytes], buf[len(buf)-maxBytes:])
+		buf = buf[:maxBytes]
+	}
+	return buf
+}
+
+func boundedTailString(buf []byte, maxBytes int) string {
+	if len(buf) > maxBytes {
+		buf = buf[len(buf)-maxBytes:]
+	}
+	return string(buf)
+}
+
+func (m *Manager) ListOwned(ownerID int64) []SessionInfo {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var result []SessionInfo
+	for _, s := range m.sessions {
+		s.mu.RLock()
+		closed := s.closed
+		s.mu.RUnlock()
+		if s.owner == ownerID && !closed {
+			result = append(result, SessionInfo{
+				SessionID:  s.id,
+				Target:     s.meta.Target,
+				Cwd:        s.meta.Cwd,
+				Mode:       s.meta.Mode,
+				OSUsername: s.meta.OSUsername,
+			})
+		}
+	}
+	return result
 }
 
 func randomID(size int) (string, error) {

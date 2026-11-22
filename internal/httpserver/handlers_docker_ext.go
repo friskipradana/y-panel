@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
@@ -22,16 +23,29 @@ func (s *Server) handleDockerNetworksList(w http.ResponseWriter, r *http.Request
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if !auth.IsAdmin(actor.Role) {
+	if !auth.IsSuperAdmin(actor.Role) {
 		filtered := make([]docker.Network, 0, len(networks))
 		for _, network := range networks {
-			if network.OwnerUserID == actor.ID {
+			if s.ownerScopeFor(actor).has(network.OwnerUserID) {
 				filtered = append(filtered, network)
 			}
 		}
 		networks = filtered
 	}
-	s.writeJSON(w, http.StatusOK, map[string]any{"items": networks})
+	// how many containers each network holds
+	holding := map[string]int{}
+	if containers, listErr := docker.ListContainers(); listErr == nil {
+		for _, c := range containers {
+			for _, name := range c.Networks {
+				holding[name]++
+			}
+		}
+	}
+	rows := make([]networkRow, len(networks))
+	for i, network := range networks {
+		rows[i] = networkRow{Network: network, Containers: holding[network.Name]}
+	}
+	s.writeJSON(w, http.StatusOK, tableResponse(rows, networkSpec(), r.URL.Query()))
 }
 
 func (s *Server) handleDockerNetworkCreate(w http.ResponseWriter, r *http.Request) {
@@ -85,16 +99,37 @@ func (s *Server) handleDockerImagesList(w http.ResponseWriter, r *http.Request) 
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if !auth.IsAdmin(actor.Role) {
+	if !auth.IsSuperAdmin(actor.Role) {
 		filtered := make([]docker.Image, 0, len(images))
 		for _, image := range images {
-			if imageOwnedBy(image, actor.ID) {
+			if s.imageVisibleTo(actor, image) {
 				filtered = append(filtered, image)
 			}
 		}
 		images = filtered
 	}
-	s.writeJSON(w, http.StatusOK, map[string]any{"items": images})
+	// which images a container uses, so "in use" is a column that can be filtered
+	used := map[string]bool{}
+	if containers, listErr := docker.ListContainers(); listErr == nil {
+		for _, c := range containers {
+			if c.Image != "" {
+				used[c.Image] = true
+			}
+			if c.ImageID != "" {
+				used[c.ImageID] = true
+				cleanID := strings.TrimPrefix(c.ImageID, "sha256:")
+				used[cleanID] = true
+				if len(cleanID) >= 12 {
+					used[cleanID[:12]] = true
+				}
+			}
+		}
+	}
+	rows := make([]imageRow, len(images))
+	for i, img := range images {
+		rows[i] = imageRow{Image: img, InUse: imageInUse(img, used)}
+	}
+	s.writeJSON(w, http.StatusOK, tableResponse(rows, imageSpec(), r.URL.Query()))
 }
 
 func (s *Server) handleDockerImageDelete(w http.ResponseWriter, r *http.Request) {
@@ -140,16 +175,16 @@ func (s *Server) handleDockerTemplatesList(w http.ResponseWriter, r *http.Reques
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if !auth.IsAdmin(actor.Role) {
+	if !auth.IsSuperAdmin(actor.Role) {
 		filtered := make([]database.DockerComposeTemplate, 0, len(templates))
 		for _, tmpl := range templates {
-			if tmpl.OwnerUserID == actor.ID {
+			if s.ownerScopeFor(actor).has(tmpl.OwnerUserID) {
 				filtered = append(filtered, tmpl)
 			}
 		}
 		templates = filtered
 	}
-	s.writeJSON(w, http.StatusOK, map[string]any{"items": templates})
+	s.writeJSON(w, http.StatusOK, tableResponse(templates, templateSpec(), r.URL.Query()))
 }
 
 func (s *Server) handleDockerTemplateCreate(w http.ResponseWriter, r *http.Request) {
@@ -195,7 +230,7 @@ func (s *Server) handleDockerTemplateUpdate(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	ownerID := user.ID
-	if auth.IsAdmin(user.Role) {
+	if auth.IsSuperAdmin(user.Role) {
 		ownerID = 0
 	}
 	if err := s.database.UpdateComposeTemplate(id, ownerID, payload.Name, payload.Description, payload.YAMLContent); err != nil {
@@ -214,7 +249,7 @@ func (s *Server) handleDockerTemplateDelete(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	ownerID := user.ID
-	if auth.IsAdmin(user.Role) {
+	if auth.IsSuperAdmin(user.Role) {
 		ownerID = 0
 	}
 	if err := s.database.DeleteComposeTemplateForOwner(id, ownerID); err != nil {
@@ -223,21 +258,13 @@ func (s *Server) handleDockerTemplateDelete(w http.ResponseWriter, r *http.Reque
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
-func imageOwnedBy(image docker.Image, userID int64) bool {
-	for _, ownerID := range image.OwnerUserIDs {
-		if ownerID == userID {
-			return true
-		}
-	}
-	return false
-}
 
 func (s *Server) ensureImageAccess(r *http.Request, id string) error {
 	actor := s.currentUserRecord(r)
 	if actor == nil {
 		return fmt.Errorf("unauthorized")
 	}
-	if auth.IsAdmin(actor.Role) {
+	if auth.IsSuperAdmin(actor.Role) {
 		return nil
 	}
 	images, err := docker.ListImages()
@@ -245,7 +272,7 @@ func (s *Server) ensureImageAccess(r *http.Request, id string) error {
 		return err
 	}
 	for _, image := range images {
-		if imageOwnedBy(image, actor.ID) && (image.ID == id || image.Repository == id || image.Repository+":"+image.Tag == id) {
+		if s.imageVisibleTo(actor, image) && (image.ID == id || image.Repository == id || image.Repository+":"+image.Tag == id) {
 			return nil
 		}
 	}
@@ -257,7 +284,7 @@ func (s *Server) ensureNetworkAccess(r *http.Request, id string) error {
 	if actor == nil {
 		return fmt.Errorf("unauthorized")
 	}
-	if auth.IsAdmin(actor.Role) {
+	if auth.IsSuperAdmin(actor.Role) {
 		return nil
 	}
 	networks, err := docker.ListNetworks()
@@ -265,9 +292,20 @@ func (s *Server) ensureNetworkAccess(r *http.Request, id string) error {
 		return err
 	}
 	for _, network := range networks {
-		if network.OwnerUserID == actor.ID && (network.ID == id || network.Name == id) {
+		if s.ownerScopeFor(actor).has(network.OwnerUserID) && (network.ID == id || network.Name == id) {
 			return nil
 		}
 	}
 	return fmt.Errorf("forbidden: network bukan milik user ini")
+}
+
+// imageVisibleTo reports whether any owner of the image is the caller or below it.
+func (s *Server) imageVisibleTo(actor *database.User, image docker.Image) bool {
+	scope := s.ownerScopeFor(actor)
+	for _, ownerID := range image.OwnerUserIDs {
+		if scope.has(ownerID) {
+			return true
+		}
+	}
+	return false
 }

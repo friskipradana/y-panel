@@ -2,101 +2,17 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { withMutative } from "./middleware/mutative";
 import type { WindowKind, WindowState } from "@/types";
+import { soundManager } from "@/lib/sound";
+import { Z } from "@/lib/zLayers";
+import {
+  DEFAULTS,
+  bringToFront,
+  createWindowId,
+  nextWindowTitle,
+  reorder,
+} from "./windowDefaults";
 
-const DEFAULTS: Record<
-  WindowKind,
-  { title: string; icon: string; width: number; height: number; singleton?: boolean }
-> = {
-  apps: { title: "Docker", icon: "🐋", width: 1200, height: 900, singleton: true },
-  terminal: { title: "Terminal", icon: "💻", width: 518, height: 320, singleton: true },
-  "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 1035, height: 640, singleton: true },
-  system: { title: "System Info", icon: "⚙️", width: 1100, height: 680, singleton: true },
-  "system-logs": { title: "System Logs", icon: "📜", width: 1003, height: 620, singleton: true },
-  docs: { title: "Docs", icon: "📚", width: 857, height: 530, singleton: true },
-  changelog: { title: "Changelog", icon: "🔔", width: 809, height: 500, singleton: true },
-  portainer: { title: "Portainer", icon: "🐋", width: 680, height: 420, singleton: true },
-  settings: { title: "Settings", icon: "🔧", width: 1035, height: 640, singleton: true },
-  database: { title: "Database", icon: "🗄️", width: 1100, height: 680, singleton: true },
-  "file-manager": { title: "File Manager", icon: "📁", width: 971, height: 600, singleton: true },
-  "file-editor": { title: "Code Editor", icon: "📝", width: 1133, height: 700, singleton: true },
-  trash: { title: "Trash", icon: "🗑️", width: 485, height: 300, singleton: true },
-  users: { title: "User Management", icon: "👥", width: 860, height: 740, singleton: true },
-  projects: { title: "Projects", icon: "🗂️", width: 900, height: 740, singleton: true },
-  tunnels: { title: "Cloudflare", icon: "🌐", width: 1235, height: 740, singleton: true },
-  profile: { title: "Profile & Integrasi", icon: "👤", width: 520, height: 640, singleton: true },
-};
-
-// Z-index tiers
-const Z_NORMAL = 100;
-const Z_MAXIMIZED = 500;
-const Z_FOCUS_BOOST = 50000; // window terfokus non-fullscreen di atas window biasa
-const Z_FULLSCREEN = 120000; // fullscreen tetap layer tertinggi
-
-function reorder(windows: WindowState[]) {
-  const non = windows.filter((w) => !w.isFullscreen);
-  const full = windows.filter((w) => w.isFullscreen);
-
-  // non-fullscreen sorted: maximized gets slightly higher base
-  non.forEach((w, i) => {
-    w.zIndex = (w.isMaximized ? Z_MAXIMIZED : Z_NORMAL) + i;
-  });
-
-  // fullscreen: selalu di lapisan paling atas
-  full.forEach((w, i) => {
-    w.zIndex = Z_FULLSCREEN + i;
-  });
-}
-
-function bringToFront(windows: WindowState[], id: string) {
-  const index = windows.findIndex((w) => w.id === id);
-  if (index === -1) return;
-
-  const win = windows[index];
-  const isFullscreen = win.isFullscreen;
-
-  // Pisahkan bucket fullscreen dan non-fullscreen
-  const nonFull = windows.filter((w) => !w.isFullscreen);
-  const full = windows.filter((w) => w.isFullscreen);
-
-  if (isFullscreen) {
-    // Pindah ke akhir bucket fullscreen
-    const fi = full.findIndex((w) => w.id === id);
-    if (fi !== -1 && fi !== full.length - 1) {
-      const [w] = full.splice(fi, 1);
-      full.push(w);
-    }
-  } else {
-    // Pindah ke akhir bucket non-fullscreen
-    const ni = nonFull.findIndex((w) => w.id === id);
-    if (ni !== -1 && ni !== nonFull.length - 1) {
-      const [w] = nonFull.splice(ni, 1);
-      nonFull.push(w);
-    }
-  }
-
-  // Rebuild array: non-fullscreen dulu, fullscreen di belakang
-  windows.length = 0;
-  windows.push(...nonFull, ...full);
-  reorder(windows);
-
-  // Jika window yang di-focus BUKAN fullscreen, beri z-index boost
-  // agar dia terlihat di atas semua window biasa/maksimasi,
-  // tetapi tetap di bawah overlay taskbar dan mode fullscreen.
-  if (!isFullscreen) {
-    win.zIndex = Z_FOCUS_BOOST;
-  }
-}
-
-function nextWindowTitle(kind: WindowKind, windows: WindowState[]) {
-  const def = DEFAULTS[kind];
-  if (def.singleton) return def.title;
-  const count = windows.filter((w) => w.kind === kind).length + 1;
-  return count === 1 ? def.title : `${def.title} ${count}`;
-}
-
-function createWindowId(kind: WindowKind) {
-  return `${kind}:${Math.random().toString(36).slice(2, 8)}`;
-}
+const Z_FOCUS_BOOST = Z.windowFocused;
 
 interface WindowStore {
   windows: WindowState[];
@@ -120,12 +36,8 @@ interface WindowStore {
   setGlobalTerminalFontSize: (value: number) => void;
   toggleDockAutoHide: () => void;
   closeWindowsByKind: (kind: WindowKind) => void;
-  setShowSystemStats: (v: boolean) => void;
-  setSystemStatsConfig: (config: { cpu: boolean; ram: boolean; temp: boolean }) => void;
+  clampWindowsToViewport: () => void;
   resetWindows: () => void;
-
-  showSystemStats: boolean;
-  systemStatsConfig: { cpu: boolean; ram: boolean; temp: boolean };
 }
 
 export const selectFocusedId = (s: WindowStore) => s.focusedId;
@@ -133,9 +45,14 @@ export const selectWindows = (s: WindowStore) => s.windows;
 export const selectAutoHideDock = (s: WindowStore) => s.autoHideDock;
 export const selectGlobalContentZoom = (s: WindowStore) => s.globalContentZoom;
 export const selectGlobalFontIndex = (s: WindowStore) => s.globalFontIndex;
-export const selectGlobalTerminalFontSize = (s: WindowStore) => s.globalTerminalFontSize;
+export const selectGlobalTerminalFontSize = (s: WindowStore) =>
+  s.globalTerminalFontSize;
 export const selectWindowCountByKind = (kind: WindowKind) => (s: WindowStore) =>
   s.windows.filter((w) => w.kind === kind).length;
+
+export const TERMINAL_FONT_DEFAULT = 15;
+export const TERMINAL_FONT_MIN = 8;
+export const TERMINAL_FONT_MAX = 32;
 
 export const useWindowStore = create<WindowStore>()(
   persist(
@@ -145,21 +62,39 @@ export const useWindowStore = create<WindowStore>()(
       autoHideDock: false,
       globalContentZoom: 1,
       globalFontIndex: 2,
-      globalTerminalFontSize: 9,
+      globalTerminalFontSize: TERMINAL_FONT_DEFAULT,
 
       openWindow: (kind, params) => {
-        let openedId = '';
+        let openedId = "";
+        soundManager.playWindowOpen();
         set((state) => {
           const def = DEFAULTS[kind];
-          const existing = def.singleton
-            ? state.windows.find((w) => w.kind === kind)
-            : undefined;
+          const appIdParam = kind === 'installed-app' && params?.appId ? Number(params.appId) : null;
+          const isSharedCrmParam = kind === 'installed-app' && params?.sharedCrm === true;
+          const sharedAppKeyParam = typeof params?.sharedAppKey === 'string' ? params.sharedAppKey : 'reneo-crm';
+          const existing = appIdParam
+            ? state.windows.find(
+                (w) => w.kind === 'installed-app' && Number(w.params?.appId) === appIdParam,
+              )
+            : isSharedCrmParam
+              ? state.windows.find(
+                  (w) =>
+                    w.kind === 'installed-app' &&
+                    w.params?.sharedCrm === true &&
+                    (typeof w.params?.sharedAppKey === 'string' ? w.params.sharedAppKey : 'reneo-crm') === sharedAppKeyParam,
+                )
+              : def.singleton
+                ? state.windows.find((w) => w.kind === kind)
+                : undefined;
 
           if (existing) {
             existing.isMinimized = false;
-            existing.lastAction = 'restore';
+            existing.lastAction = "restore";
             if (params) {
               existing.params = { ...(existing.params || {}), ...params };
+              if (kind === 'installed-app' && typeof params.appName === 'string' && params.appName.trim()) {
+                existing.title = params.appName.trim();
+              }
             }
             bringToFront(state.windows, existing.id);
             state.focusedId = existing.id;
@@ -167,32 +102,61 @@ export const useWindowStore = create<WindowStore>()(
             return;
           }
 
-          const pad = 16;
-          const width = Math.min(def.width, window.innerWidth - pad * 2);
-          const height = Math.min(def.height, window.innerHeight - 72);
-          const offset = state.windows.filter((w) => w.kind === kind).length * 26;
-          const x = Math.max(pad, (window.innerWidth - width) / 2 + offset);
-          const y = Math.max(54, (window.innerHeight - height) / 2 + Math.min(offset, 64));
+          const maxW = Math.max(340, Math.floor(window.innerWidth * 0.94));
+          const maxH = Math.max(
+            240,
+            Math.floor((window.innerHeight - 64) * 0.92),
+          );
+
+          let width = def.width;
+          let height = def.height;
+
+          let squeezed = false;
+          if (width > maxW || height > maxH) {
+            const scale = Math.min(maxW / width, maxH / height);
+            width = Math.max(320, Math.round(width * scale));
+            height = Math.max(220, Math.round(height * scale));
+            squeezed = true;
+          }
+
+          const openCount = state.windows.filter(
+            (w) => !w.isMinimized && !w.isMaximized && !w.isFullscreen,
+          ).length;
+          const step = (openCount % 8) * 28;
+          const baseX = Math.round((window.innerWidth - width) / 2);
+          const baseY = Math.round((window.innerHeight - 56 - height) / 2);
+          const x = Math.min(
+            Math.max(16, baseX + step),
+            Math.max(16, window.innerWidth - width - 16),
+          );
+          const y = Math.min(
+            Math.max(48, baseY + step),
+            Math.max(48, window.innerHeight - height - 72),
+          );
           const id = createWindowId(kind);
           openedId = id;
 
           state.windows.push({
             id,
             kind,
-            title: nextWindowTitle(kind, state.windows),
-            icon: def.icon,
+            title:
+              kind === 'installed-app' && typeof params?.appName === 'string' && params.appName.trim()
+                ? params.appName.trim()
+                : nextWindowTitle(kind, state.windows),
             x,
             y,
             width,
             height,
+            ...(squeezed ? { prefWidth: def.width, prefHeight: def.height } : {}),
             zIndex: Z_FOCUS_BOOST,
             isMinimized: false,
             isMaximized: false,
             isFullscreen: false,
-            lastAction: 'open',
+            lastAction: "open",
             params: params || {},
           });
 
+          bringToFront(state.windows, id);
           state.focusedId = id;
         });
         return openedId;
@@ -206,16 +170,20 @@ export const useWindowStore = create<WindowStore>()(
           }
         }),
 
-      closeWindow: (id) =>
+      closeWindow: (id) => {
+        soundManager.playWindowClose();
         set((state) => {
           const index = state.windows.findIndex((w) => w.id === id);
           if (index !== -1) {
             state.windows.splice(index, 1);
             reorder(state.windows);
-            const lastVisible = [...state.windows].reverse().find((w) => !w.isMinimized);
+            const lastVisible = [...state.windows]
+              .reverse()
+              .find((w) => !w.isMinimized);
             state.focusedId = lastVisible?.id ?? null;
           }
-        }),
+        });
+      },
 
       focusWindow: (id) =>
         set((state) => {
@@ -223,20 +191,21 @@ export const useWindowStore = create<WindowStore>()(
           if (!win) return;
           if (win.isMinimized) {
             win.isMinimized = false;
-            win.lastAction = 'restore';
+            win.lastAction = "restore";
           }
           bringToFront(state.windows, id);
           state.focusedId = id;
         }),
 
-      minimizeWindow: (id) =>
+      minimizeWindow: (id) => {
         set((state) => {
           const win = state.windows.find((w) => w.id === id);
           if (!win) return;
           win.isMinimized = !win.isMinimized;
-          win.lastAction = win.isMinimized ? 'minimize' : 'restore';
+          win.lastAction = win.isMinimized ? "minimize" : "restore";
 
           if (win.isMinimized) {
+            soundManager.playWindowMinimize();
             const lastVisible = [...state.windows]
               .reverse()
               .find((w) => !w.isMinimized && w.id !== id);
@@ -244,9 +213,11 @@ export const useWindowStore = create<WindowStore>()(
             return;
           }
 
+          soundManager.playWindowOpen();
           bringToFront(state.windows, id);
           state.focusedId = id;
-        }),
+        });
+      },
 
       maximizeWindow: (id) =>
         set((state) => {
@@ -269,7 +240,7 @@ export const useWindowStore = create<WindowStore>()(
           win.isFullscreen = !win.isFullscreen;
           if (win.isFullscreen) {
             win.isMinimized = false;
-            win.lastAction = 'restore';
+            win.lastAction = "restore";
           }
           bringToFront(state.windows, id);
           state.focusedId = id;
@@ -290,12 +261,17 @@ export const useWindowStore = create<WindowStore>()(
           if (win) {
             win.width = width;
             win.height = height;
+            delete win.prefWidth;
+            delete win.prefHeight;
           }
         }),
 
       setGlobalContentZoom: (value) =>
         set((state) => {
-          state.globalContentZoom = Math.min(2, Math.max(0.75, Number(value.toFixed(2))));
+          state.globalContentZoom = Math.min(
+            2,
+            Math.max(0.75, Number(value.toFixed(2))),
+          );
         }),
 
       setGlobalFontIndex: (value) =>
@@ -305,7 +281,10 @@ export const useWindowStore = create<WindowStore>()(
 
       setGlobalTerminalFontSize: (value) =>
         set((state) => {
-          state.globalTerminalFontSize = Math.min(18, Math.max(7, Math.round(value)));
+          state.globalTerminalFontSize = Math.min(
+            TERMINAL_FONT_MAX,
+            Math.max(TERMINAL_FONT_MIN, Math.round(value)),
+          );
         }),
 
       toggleDockAutoHide: () =>
@@ -313,11 +292,39 @@ export const useWindowStore = create<WindowStore>()(
           state.autoHideDock = !state.autoHideDock;
         }),
 
+      clampWindowsToViewport: () =>
+        set((state) => {
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          for (const win of state.windows) {
+            if (win.isMaximized || win.isFullscreen) continue;
+            const wantW = win.prefWidth ?? win.width;
+            const wantH = win.prefHeight ?? win.height;
+            win.width = Math.min(wantW, Math.max(320, vw - 16));
+            win.height = Math.min(wantH, Math.max(220, vh - 44 - 24));
+            if (win.width < wantW || win.height < wantH) {
+              win.prefWidth = wantW;
+              win.prefHeight = wantH;
+            } else {
+              delete win.prefWidth;
+              delete win.prefHeight;
+            }
+            const minX = 8 - (win.width - 180);
+            const maxX = vw - 180 - 8;
+            win.x = Math.min(Math.max(win.x, minX), Math.max(minX, maxX));
+            win.y = Math.min(Math.max(win.y, 44), Math.max(44, vh - 96));
+          }
+        }),
+
       closeWindowsByKind: (kind) =>
         set((state) => {
-          state.windows = state.windows.filter((windowItem) => windowItem.kind !== kind);
+          state.windows = state.windows.filter(
+            (windowItem) => windowItem.kind !== kind,
+          );
           reorder(state.windows);
-          const lastVisible = [...state.windows].reverse().find((w) => !w.isMinimized);
+          const lastVisible = [...state.windows]
+            .reverse()
+            .find((w) => !w.isMinimized);
           state.focusedId = lastVisible?.id ?? null;
         }),
 
@@ -326,46 +333,33 @@ export const useWindowStore = create<WindowStore>()(
           state.windows = [];
           state.focusedId = null;
         }),
-
-      showSystemStats: false,
-      systemStatsConfig: { cpu: true, ram: true, temp: true },
-      setShowSystemStats: (v) =>
-        set((state) => {
-          state.showSystemStats = v;
-        }),
-
-      setSystemStatsConfig: (config) =>
-        set((state) => {
-          state.systemStatsConfig = config;
-        }),
     })),
     {
-      name: "ui-panel-windows",
+      name: "reneo-windows",
       storage: createJSONStorage(() => localStorage),
-    }
-  )
+      version: 4,
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<WindowStore>;
+        if (
+          version < 2 &&
+          (state.globalTerminalFontSize === 9 ||
+            state.globalTerminalFontSize === 13)
+        )
+          state.globalTerminalFontSize = TERMINAL_FONT_DEFAULT;
+        if (version < 3 && Array.isArray(state.windows))
+          state.windows = state.windows.filter(
+            (w) => (w.kind as string) !== "portainer",
+          );
+        if (version < 4 && Array.isArray(state.windows))
+          for (const w of state.windows) {
+            const def = DEFAULTS[w.kind];
+            if (def && !w.isMaximized && !w.isFullscreen && (w.width <= 360 || w.height <= 240)) {
+              w.width = Math.min(def.width, Math.max(320, window.innerWidth - 16));
+              w.height = Math.min(def.height, Math.max(220, window.innerHeight - 68));
+            }
+          }
+        return state as WindowStore;
+      },
+    },
+  ),
 );
-
-const DEBUG = true;
-
-useWindowStore.subscribe((state) => {
-  if (!DEBUG) return;
-
-  console.log("🧠 [STATE UPDATE]", {
-    total: state.windows.length,
-    focusedId: state.focusedId,
-    autoHideDock: state.autoHideDock,
-    windows: state.windows.map((w) => ({
-      id: w.id,
-      kind: w.kind,
-      z: w.zIndex,
-      x: Math.round(w.x),
-      y: Math.round(w.y),
-      minimized: w.isMinimized,
-      maximized: w.isMaximized,
-      fullscreen: w.isFullscreen,
-      action: w.lastAction,
-      params: w.params,
-    })),
-  });
-});

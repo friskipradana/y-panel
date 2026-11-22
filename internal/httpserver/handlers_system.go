@@ -7,8 +7,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
+	"github.com/friskipradana/panel-desktop-ui/internal/updater"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
@@ -52,10 +56,6 @@ type systemLogResponse struct {
 	Lines   []system.LogEntry `json:"lines"`
 }
 
-type changelogResponse struct {
-	Items []database.ChangelogEntry `json:"items"`
-}
-
 type databaseStatusResponse struct {
 	Status        database.Status               `json:"status"`
 	RuntimeLogs   []database.RuntimeLog         `json:"runtimeLogs"`
@@ -67,9 +67,43 @@ type truncateDataRequest struct {
 	Days   int    `json:"days"`
 }
 
-func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
-	summary := system.Inspect(s.cfg.PortainerURL, s.cfg.StateDir)
-	dbStatus := s.database.Status()
+func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
+	s.writeJSON(w, http.StatusOK, s.systemSummaryPayload(userFromCtx(r)))
+}
+
+// systemSummaryPayload is the summary of the host (or of the viewer's own share of it). The HTTP
+// handler and the live WebSocket both send it, so the two never drift apart.
+func (s *Server) systemSummaryPayload(viewer *database.User) jsonResponse {
+	started := time.Now()
+	defer func() {
+		performance.DefaultRegistry.RecordSystemSummary(time.Since(started))
+	}()
+
+	demo := s.isDemoUser(viewer)
+	isSuperadmin := viewer != nil && viewer.Role == auth.SuperadminRole
+
+	var dbStatus database.Status
+	if isSuperadmin {
+		dbStatus = s.database.Status()
+	} else {
+		connStatus := s.database.ConnectionStatus()
+		dbStatus = database.Status{Enabled: connStatus.Enabled, Connected: connStatus.Connected}
+	}
+
+	// the machine is only measured for the superadmin; everyone else gets figures for their own account
+	var summary system.Summary
+	if isSuperadmin {
+		summary = system.Inspect(s.cfg.StateDir)
+	}
+	var scoped *accountResources
+	if !isSuperadmin && viewer != nil {
+		res := s.accountResources(viewer, true)
+		scoped = &res
+		summary.Hostname = viewer.Username
+		summary.CPUUsagePercent = res.CPUPercent
+		summary.Memory = system.UsageStat{Total: res.MemLimit, Used: res.MemUsed}
+		summary.Storage = system.UsageStat{Total: res.DiskLimit, Used: res.DiskUsed}
+	}
 
 	projectSummary := map[string]any{
 		"total":          0,
@@ -85,16 +119,20 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 			total       int64
 		)
 		var err error
-		projectList, total, err = s.database.ListAllProjects(250, 0)
+		if viewer != nil {
+			// workload counts cover the account itself and the accounts below it, nothing else
+			projectList, total, err = s.projectsForSummary(s.ownerScopeFor(viewer))
+		}
 		if err != nil {
 			log.Printf("[system] failed to summarize projects: %v", err)
 		} else {
+			snapshots := s.projectManager.SnapshotAllCached(projectList)
 			activeCount := 0
 			degradedCount := 0
 			driftCount := 0
 			attentionCount := 0
 			for _, project := range projectList {
-				snapshot := s.projectManager.SnapshotProject(project)
+				snapshot := snapshots[project.ID]
 				if strings.EqualFold(strings.TrimSpace(project.Status), "active") || snapshot.Running {
 					activeCount++
 				}
@@ -120,7 +158,17 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 		}
 	}
 
-	s.writeJSON(w, http.StatusOK, jsonResponse{
+	_ = demo
+	// the panel's own database (host, user, port, counts) is for the superadmin only
+	if !isSuperadmin {
+		dbStatus = database.Status{Enabled: dbStatus.Enabled, Connected: dbStatus.Connected}
+	}
+	stateDir := s.cfg.StateDir
+	if demo || !isSuperadmin {
+		stateDir = ""
+	}
+
+	return jsonResponse{
 		"hostname":           summary.Hostname,
 		"osName":             summary.OSName,
 		"kernel":             summary.Kernel,
@@ -132,18 +180,21 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 		"dockerInstalled":    summary.DockerInstalled,
 		"dockerReachable":    summary.DockerReachable,
 		"dockerStatus":       summary.DockerStatus,
-		"portainerReachable": summary.PortainerReachable,
-		"portainerUrl":       s.cfg.PortainerURL,
-		"stateDir":           s.cfg.StateDir,
+		"networkIO":          summary.NetworkIO,
+		"ipAddresses":        summary.IPAddresses,
+		"counts":             s.systemCounts(viewer),
+		"stateDir":           stateDir,
 		"database":           dbStatus,
 		"projects":           projectSummary,
-	})
+		"scoped":             scoped != nil,
+		"account":            scoped,
+	}
 }
 
 func (s *Server) handleSystemLogs(w http.ResponseWriter, r *http.Request) {
 	service := strings.TrimSpace(r.URL.Query().Get("service"))
 	if service == "" {
-		service = "ypanel"
+		service = "reneo"
 	}
 	limit := 160
 	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
@@ -169,13 +220,49 @@ func (s *Server) handleSystemLogs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) handleSystemChangelog(w http.ResponseWriter, _ *http.Request) {
+// handleSystemChangelog follows the GitHub releases of the project. When GitHub
+// cannot be reached (offline server, rate limit, updates disabled) the locally
+// stored entries are returned instead and the response says so.
+func (s *Server) handleSystemChangelog(w http.ResponseWriter, r *http.Request) {
+	force := r.URL.Query().Get("refresh") == "1"
+	if updater.Enabled() && s.updates != nil {
+		notes, err := s.updates.Releases(r.Context(), force)
+		if len(notes) > 0 {
+			resp := jsonResponse{"source": "github", "items": releaseNotesAsEntries(notes), "current": s.currentVersion()}
+			if err != nil {
+				resp["warning"] = err.Error()
+			}
+			s.writeJSON(w, http.StatusOK, resp)
+			return
+		}
+		if err != nil {
+			log.Printf("[changelog] github releases unavailable: %v", err)
+		}
+	}
 	items, err := s.database.ListChangelog(24)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, changelogResponse{Items: items})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"source": "local", "items": items, "current": s.currentVersion()})
+}
+
+func releaseNotesAsEntries(notes []updater.ReleaseNote) []map[string]any {
+	out := make([]map[string]any, 0, len(notes))
+	for i, n := range notes {
+		out = append(out, map[string]any{
+			"id":         i + 1,
+			"version":    n.Version,
+			"title":      n.Title,
+			"summary":    n.Summary,
+			"body":       n.Body,
+			"url":        n.URL,
+			"prerelease": n.Prerelease,
+			"releasedAt": n.PublishedAt,
+			"createdAt":  n.PublishedAt,
+		})
+	}
+	return out
 }
 
 func (s *Server) handleDatabaseStatus(w http.ResponseWriter, _ *http.Request) {
@@ -222,6 +309,7 @@ func (s *Server) handleDatabaseTruncate(w http.ResponseWriter, r *http.Request) 
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.database.InvalidateStatsCache()
 
 	username, _ := s.currentUser(r)
 	log.Printf("[database] truncate success target=%q days=%d affected=%d remote=%s user=%q", req.Target, req.Days, affected, remoteAddr(r), username)
@@ -253,6 +341,19 @@ func (s *Server) handleUpdateSystemSettings(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	if name := strings.TrimSpace(req.Hostname); name != "" {
+		if err := system.ValidateHostname(name); err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+	if zone := strings.TrimSpace(req.Timezone); zone != "" {
+		if err := system.ValidateTimezone(zone); err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+
 	snapshot, err := system.UpdateEditableSettings(system.SettingsUpdate{
 		Hostname:    req.Hostname,
 		Timezone:    req.Timezone,
@@ -274,7 +375,7 @@ func (s *Server) handleUpdateSystemSettings(w http.ResponseWriter, r *http.Reque
 	s.database.RecordSettingsAudit(auditUserID, snapshot.Hostname, snapshot.Timezone, snapshot.Nameservers)
 	log.Printf("[settings] update applied hostname=%q timezone=%q dns=%q remote=%s", snapshot.Hostname, snapshot.Timezone, strings.Join(snapshot.Nameservers, ","), remoteAddr(r))
 	s.recordRuntimeLog("info", "settings update applied", map[string]any{"hostname": snapshot.Hostname, "timezone": snapshot.Timezone, "nameservers": snapshot.Nameservers, "remote": remoteAddr(r), "user": username})
-	s.notifyCurrentServerUser(r, "System settings diperbarui ⚙️", fmt.Sprintf("Hostname '%s' dan timezone '%s' berhasil diperbarui.", snapshot.Hostname, snapshot.Timezone), "info")
+	s.notifyCurrentServerUser(r, "Pengaturan server disimpan", fmt.Sprintf("Hostname '%s' dan zona waktu '%s' diterapkan.", snapshot.Hostname, snapshot.Timezone), "info")
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
@@ -299,7 +400,7 @@ func (s *Server) handleUpdatePanelPort(w http.ResponseWriter, r *http.Request) {
 	username, _ := s.currentUser(r)
 	log.Printf("[settings] panel port updated bind=%q remote=%s", snapshot.BindAddr, remoteAddr(r))
 	s.recordRuntimeLog("info", "panel port updated", map[string]any{"bindAddr": snapshot.BindAddr, "allowedOrigins": snapshot.AllowedOrigins, "remote": remoteAddr(r), "user": username})
-	s.notifyCurrentServerUser(r, "Port panel diperbarui 🔌", fmt.Sprintf("Panel sekarang menggunakan bind address %s.", snapshot.BindAddr), "info")
+	s.notifyCurrentServerUser(r, "Alamat bind panel diubah", fmt.Sprintf("Panel sekarang mendengarkan di %s.", snapshot.BindAddr), "info")
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
@@ -324,34 +425,62 @@ func (s *Server) handleUpdatePanelOrigins(w http.ResponseWriter, r *http.Request
 	username, _ := s.currentUser(r)
 	log.Printf("[settings] panel origins updated count=%d remote=%s", len(snapshot.AllowedOrigins), remoteAddr(r))
 	s.recordRuntimeLog("info", "panel origins updated", map[string]any{"allowedOrigins": snapshot.AllowedOrigins, "originsRaw": snapshot.OriginsRaw, "remote": remoteAddr(r), "user": username})
-	s.notifyCurrentServerUser(r, "Allowed origins diperbarui 🌍", fmt.Sprintf("Daftar origin panel berhasil diperbarui menjadi %d entri.", len(snapshot.AllowedOrigins)), "info")
+	s.notifyCurrentServerUser(r, "Origin yang diizinkan disimpan", fmt.Sprintf("Daftar origin yang diizinkan sekarang berisi %d entri.", len(snapshot.AllowedOrigins)), "info")
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
 // ─── Wallpaper Handlers ────────────────────────────────────────────────────
 
+type storedWallpaperPrefs struct {
+	Wallpaper   string `json:"wallpaper,omitempty"`
+	Fit         string `json:"fit,omitempty"`
+	CustomImage string `json:"customImage,omitempty"`
+}
+
+func parseStoredWallpaper(raw string) storedWallpaperPrefs {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return storedWallpaperPrefs{}
+	}
+	if strings.HasPrefix(trimmed, "{") {
+		var prefs storedWallpaperPrefs
+		if err := json.Unmarshal([]byte(trimmed), &prefs); err == nil {
+			return prefs
+		}
+	}
+	return storedWallpaperPrefs{
+		Wallpaper:   "custom",
+		CustomImage: raw,
+	}
+}
+
 func (s *Server) handleGetWallpaper(w http.ResponseWriter, r *http.Request) {
 	currentUser := s.currentUserRecord(r)
 	if currentUser == nil {
-		currentUser, _ = s.database.GetUserByUsername("admin")
-	}
-	if currentUser == nil {
-		s.writeJSON(w, http.StatusOK, jsonResponse{"data": ""})
+		s.writeJSON(w, http.StatusOK, jsonResponse{"data": "", "wallpaper": "", "fit": ""})
 		return
 	}
 	wallpaperData, err := s.database.GetWallpaper(currentUser.ID)
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, jsonResponse{"data": ""})
+		s.writeJSON(w, http.StatusOK, jsonResponse{"data": "", "wallpaper": "", "fit": ""})
 		return
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"data": wallpaperData})
+	prefs := parseStoredWallpaper(wallpaperData)
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"data":      prefs.CustomImage,
+		"wallpaper": prefs.Wallpaper,
+		"fit":       prefs.Fit,
+	})
 }
 
 func (s *Server) handleUpdateWallpaper(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var req struct {
-		Data string `json:"data"`
+		Data        string `json:"data"`
+		Wallpaper   string `json:"wallpaper"`
+		Fit         string `json:"fit"`
+		ClearCustom bool   `json:"clearCustom"`
 	}
 
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<20)).Decode(&req); err != nil {
@@ -361,19 +490,42 @@ func (s *Server) handleUpdateWallpaper(w http.ResponseWriter, r *http.Request) {
 
 	currentUser := s.currentUserRecord(r)
 	if currentUser == nil {
-		currentUser, _ = s.database.GetUserByUsername("admin")
-	}
-	if currentUser == nil {
 		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
 		return
 	}
 
-	if err := s.database.SetWallpaper(currentUser.ID, req.Data); err != nil {
+	existingRaw, _ := s.database.GetWallpaper(currentUser.ID)
+	prefs := parseStoredWallpaper(existingRaw)
+
+	if req.ClearCustom {
+		prefs.CustomImage = ""
+	} else if req.Data != "" {
+		prefs.CustomImage = req.Data
+		if req.Wallpaper == "" {
+			prefs.Wallpaper = "custom"
+		}
+	}
+	if req.Wallpaper != "" {
+		prefs.Wallpaper = req.Wallpaper
+	}
+	if req.Fit != "" {
+		prefs.Fit = req.Fit
+	}
+
+	encoded, err := json.Marshal(prefs)
+	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	s.notifyCurrentServerUser(r, "Wallpaper diperbarui 🖼️", "Wallpaper desktop berhasil diperbarui.", "success")
+	if err := s.database.SetWallpaper(currentUser.ID, string(encoded)); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if req.Wallpaper != "" || req.Data != "" || req.ClearCustom {
+		s.notifyCurrentServerUser(r, "Wallpaper diganti", "Wallpaper desktop diganti.", "success")
+	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -392,7 +544,21 @@ func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// the password changes in PostgreSQL first, then in the env file; if the file cannot be written the old password goes back,
+	// otherwise the panel would be locked out of its own database at the next start
+	previous := s.database.Password()
+	if err := s.database.ChangePassword(password); err != nil {
+		log.Printf("[database] reset password failed remote=%s err=%v", remoteAddr(r), err)
+		s.recordRuntimeLog("error", "database password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error()})
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
 	if err := rotateDatabasePassword(s.cfg, password); err != nil {
+		if previous != "" {
+			if restoreErr := s.database.ChangePassword(previous); restoreErr != nil {
+				log.Printf("[database] could not put the old password back: %v", restoreErr)
+			}
+		}
 		log.Printf("[database] reset password failed remote=%s err=%v", remoteAddr(r), err)
 		s.recordRuntimeLog("error", "database password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error()})
 		s.writeError(w, http.StatusBadGateway, err)
@@ -400,10 +566,10 @@ func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Requ
 	}
 
 	username, _ := s.currentUser(r)
-	message := "Password database berhasil dirotasi dan env runtime diperbarui. Restart service agent bila koneksi lama masih aktif."
+	message := "Password database diganti di PostgreSQL dan di file env. Koneksi baru langsung memakainya."
 	log.Printf("[database] password rotated user=%q remote=%s dsn=%s", username, remoteAddr(r), redactDSNPassword(s.cfg.DatabaseDSN))
 	s.recordRuntimeLog("info", "database password rotated", map[string]any{"remote": remoteAddr(r), "user": username, "dsn": redactDSNPassword(s.cfg.DatabaseDSN)})
-	s.notifyCurrentServerUser(r, "Password database dirotasi 🔐", "Password database berhasil dirotasi dan kredensial runtime diperbarui.", "warning")
+	s.notifyCurrentServerUser(r, "Password database diganti", "Password database Reneo diganti di PostgreSQL dan di file env.", "warning")
 	s.writeJSON(w, http.StatusOK, resetDatabasePasswordResponse{OK: true, Password: password, Message: message})
 }
 
@@ -435,21 +601,57 @@ func (s *Server) handleResetPrimaryPanelPassword(w http.ResponseWriter, r *http.
 
 	targetUser, err := s.database.GetPrimarySuperadmin()
 	if err != nil || targetUser == nil {
-		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "akun utama YPanel tidak ditemukan"})
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "akun utama Reneo tidak ditemukan"})
 		return
 	}
 
 	if err := s.auth.ResetPassword(targetUser.ID, req.NewPassword); err != nil {
-		log.Printf("[auth] reset primary YPanel password failed remote=%s err=%v", remoteAddr(r), err)
-		s.recordRuntimeLog("error", "primary YPanel password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error(), "targetUser": targetUser.Username})
+		log.Printf("[auth] reset primary Reneo password failed remote=%s err=%v", remoteAddr(r), err)
+		s.recordRuntimeLog("error", "primary Reneo password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error(), "targetUser": targetUser.Username})
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	actor, _ := s.currentUser(r)
-	message := fmt.Sprintf("Password akun utama YPanel (%s) berhasil diperbarui.", targetUser.Username)
-	log.Printf("[auth] primary YPanel password reset actor=%q target=%q remote=%s", actor, targetUser.Username, remoteAddr(r))
-	s.recordRuntimeLog("warning", "primary YPanel password reset", map[string]any{"remote": remoteAddr(r), "actor": actor, "targetUser": targetUser.Username})
-	s.notifyCurrentServerUser(r, "Password akun utama diperbarui 🔐", message, "warning")
+	message := fmt.Sprintf("Kata sandi akun utama Reneo (%s) diganti.", targetUser.Username)
+	log.Printf("[auth] primary Reneo password reset actor=%q target=%q remote=%s", actor, targetUser.Username, remoteAddr(r))
+	s.recordRuntimeLog("warning", "primary Reneo password reset", map[string]any{"remote": remoteAddr(r), "actor": actor, "targetUser": targetUser.Username})
+	s.notifyCurrentServerUser(r, "Kata sandi akun utama diganti", message, "warning")
 	s.writeJSON(w, http.StatusOK, resetPrimaryPanelPasswordResponse{OK: true, Message: message, Username: targetUser.Username})
+}
+
+// projectsForSummary reads every project the scope covers, page by page: a count over only the first page would be wrong
+func (s *Server) projectsForSummary(scope ownerScope) ([]database.Project, int64, error) {
+	const page = 250
+	var all []database.Project
+	for offset := 0; offset < 10000; offset += page {
+		var (
+			part  []database.Project
+			total int64
+			err   error
+		)
+		if scope.all {
+			part, total, err = s.database.ListAllProjects(page, offset)
+		} else {
+			part, total, err = s.database.ListProjectsForOwners(scope.list(), "", page, offset)
+		}
+		if err != nil {
+			return nil, 0, err
+		}
+		all = append(all, part...)
+		if int64(len(all)) >= total || len(part) == 0 {
+			return all, total, nil
+		}
+	}
+	return all, int64(len(all)), nil
+}
+
+func (s *Server) handleAppMetrics(w http.ResponseWriter, _ *http.Request) {
+	s.writeJSON(w, http.StatusOK, performance.DefaultRegistry.Snapshot())
+}
+
+func (s *Server) handlePrometheusMetrics(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(performance.DefaultRegistry.PrometheusFormat()))
 }

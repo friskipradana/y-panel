@@ -1,27 +1,41 @@
 package main
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"bufio"
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"time"
+	"syscall"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/database/migrations"
 	"github.com/friskipradana/panel-desktop-ui/internal/httpserver"
+	"github.com/friskipradana/panel-desktop-ui/internal/mcp"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
 
 func main() {
 	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "reset-primary-password", "migrate", "seed-plans":
+			// the maintenance commands change the panel's data and read its configuration: root only
+			if err := requireRoot(); err != nil {
+				log.Fatalf("%s: %v", os.Args[1], err)
+			}
+		}
 		switch os.Args[1] {
 		case "reset-primary-password":
 			if err := runResetPrimaryPassword(os.Args[2:]); err != nil {
@@ -33,6 +47,16 @@ func main() {
 				log.Fatalf("migrate: %v", err)
 			}
 			return
+		case "seed-plans":
+			if err := runSeedPlans(os.Args[2:]); err != nil {
+				log.Fatalf("seed-plans: %v", err)
+			}
+			return
+		case "mcp":
+			if err := runMCP(); err != nil {
+				log.Fatalf("mcp: %v", err)
+			}
+			return
 		}
 	}
 
@@ -42,18 +66,58 @@ func main() {
 	}
 
 	srv := httpserver.New(cfg)
-	defer func() {
-		if err := srv.Close(); err != nil {
-			log.Printf("YPanel agent close warning: %v", err)
+
+	ln, err := net.Listen("tcp", cfg.BindAddr)
+	if err != nil {
+		_ = srv.Close()
+		log.Fatalf("listen %s: %v", cfg.BindAddr, err)
+	}
+
+	httpServer := &http.Server{
+		Addr:              cfg.BindAddr,
+		Handler:           srv,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
+	serveErrCh := make(chan error, 1)
+	go func() {
+		log.Printf("Reneo agent listening on %s", cfg.BindAddr)
+		if err := httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
+			serveErrCh <- err
+			return
 		}
+		serveErrCh <- nil
 	}()
 
-	srv.RestoreProjects()
-	srv.RestoreTunnels()
+	// Non-blocking startup recovery once listener is ready to serve requests.
+	srv.RestoreAsync()
 
-	log.Printf("YPanel agent listening on %s", cfg.BindAddr)
-	if err := http.ListenAndServe(cfg.BindAddr, srv); err != nil {
-		log.Fatalf("listen and serve: %v", err)
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	select {
+	case err := <-serveErrCh:
+		if closeErr := srv.Close(); closeErr != nil {
+			log.Printf("Reneo agent close warning: %v", closeErr)
+		}
+		if err != nil {
+			log.Fatalf("listen and serve: %v", err)
+		}
+	case <-sigCtx.Done():
+		log.Printf("Reneo agent shutting down...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("HTTP server shutdown warning: %v", err)
+		}
+		cancel()
+		if err := <-serveErrCh; err != nil {
+			log.Printf("HTTP serve exit warning: %v", err)
+		}
+		if err := srv.Close(); err != nil {
+			log.Printf("Reneo agent close warning: %v", err)
+		}
+		log.Printf("Reneo agent stopped")
 	}
 }
 
@@ -87,7 +151,7 @@ func runResetPrimaryPassword(args []string) error {
 	})
 	defer db.Close()
 
-	dbStatus := db.Status()
+	dbStatus := db.ConnectionStatus()
 	if !dbStatus.Connected {
 		if dbStatus.LastError != "" {
 			return fmt.Errorf("database not connected: %s", dbStatus.LastError)
@@ -99,19 +163,19 @@ func runResetPrimaryPassword(args []string) error {
 	targetUser, err := db.GetPrimarySuperadmin()
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no rows") {
-			return fmt.Errorf("akun utama YPanel tidak ditemukan: tabel users kosong")
+			return fmt.Errorf("akun utama Reneo tidak ditemukan: tabel users kosong")
 		}
-		return fmt.Errorf("gagal menemukan akun utama YPanel: %w", err)
+		return fmt.Errorf("gagal menemukan akun utama Reneo: %w", err)
 	}
 	if targetUser == nil {
-		return fmt.Errorf("akun utama YPanel tidak ditemukan")
+		return fmt.Errorf("akun utama Reneo tidak ditemukan")
 	}
 	if err := authMgr.ResetPassword(targetUser.ID, password); err != nil {
 		return err
 	}
 
-	log.Printf("[auth] primary YPanel password reset actor=%q target=%q source=runtime-cli", "root", targetUser.Username)
-	fmt.Printf("Password akun utama YPanel (%s) berhasil diperbarui.\n", targetUser.Username)
+	log.Printf("[auth] primary Reneo password reset actor=%q target=%q source=runtime-cli", "root", targetUser.Username)
+	fmt.Printf("Password akun utama Reneo (%s) berhasil diperbarui.\n", targetUser.Username)
 	return nil
 }
 
@@ -130,21 +194,33 @@ func readPasswordFromStdin() (string, error) {
 
 func loadRuntimeEnv() error {
 	envPath := strings.TrimSpace(os.Getenv("PANEL_ENV_FILE"))
-	if envPath == "" {
-		envPath = filepath.Join("/etc", "ypanel", "agent.env")
+	candidates := []string{}
+	if envPath != "" {
+		candidates = append(candidates, envPath)
+	} else {
+		candidates = append(candidates, runtimepath.EnvFileCandidates()...)
+		candidates = append(candidates, ".env")
 	}
-	data, err := os.ReadFile(envPath)
-	if err != nil && envPath == filepath.Join("/etc", "ypanel", "agent.env") {
-		legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
-		if legacyData, legacyErr := os.ReadFile(legacyPath); legacyErr == nil {
-			envPath = legacyPath
-			data = legacyData
-			err = nil
+
+	var data []byte
+	var loadedPath string
+	var lastErr error
+
+	for _, p := range candidates {
+		if content, err := os.ReadFile(p); err == nil {
+			data = content
+			loadedPath = p
+			lastErr = nil
+			break
+		} else {
+			lastErr = err
 		}
 	}
-	if err != nil {
-		return err
+
+	if lastErr != nil {
+		return fmt.Errorf("tidak dapat memuat file env: %w", lastErr)
 	}
+
 	for _, line := range strings.Split(string(data), "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
@@ -160,7 +236,8 @@ func loadRuntimeEnv() error {
 		}
 		_ = os.Setenv(key, strings.TrimSpace(value))
 	}
-	_ = os.Setenv("PANEL_ENV_FILE", envPath)
+	_ = os.Setenv("PANEL_ENV_FILE", loadedPath)
+	runtimepath.ApplyEnvAliases()
 	return nil
 }
 
@@ -173,6 +250,54 @@ func loadRuntimeConfig() (config.Config, error) {
 		return config.Config{}, fmt.Errorf("load config: %w", err)
 	}
 	return cfg, nil
+}
+
+func runMCP() error {
+	_ = loadRuntimeEnv()
+
+	panelURL := os.Getenv("PANEL_MCP_URL")
+	if panelURL == "" {
+		bindAddr := os.Getenv("PANEL_BIND_ADDR")
+		if bindAddr == "" {
+			bindAddr = "0.0.0.0:8787"
+		}
+		host := bindAddr
+		if strings.HasPrefix(host, "0.0.0.0:") {
+			host = "localhost:" + strings.TrimPrefix(host, "0.0.0.0:")
+		}
+		panelURL = "http://" + host
+	}
+
+	mcpCfg := mcp.Config{
+		PanelURL:     panelURL,
+		SessionToken: os.Getenv("PANEL_MCP_TOKEN"),
+		StateDir:     os.Getenv("PANEL_STATE_DIR"),
+	}
+
+	// Parse optional CLI arguments: --token <tok> or --token=<tok>, --url <url> or --url=<url>
+	for i := 2; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		if arg == "--token" && i+1 < len(os.Args) {
+			mcpCfg.SessionToken = os.Args[i+1]
+			i++
+		} else if strings.HasPrefix(arg, "--token=") {
+			mcpCfg.SessionToken = strings.TrimPrefix(arg, "--token=")
+		} else if arg == "--url" && i+1 < len(os.Args) {
+			mcpCfg.PanelURL = os.Args[i+1]
+			i++
+		} else if strings.HasPrefix(arg, "--url=") {
+			mcpCfg.PanelURL = strings.TrimPrefix(arg, "--url=")
+		}
+	}
+
+	if mcpCfg.StateDir == "" {
+		mcpCfg.StateDir = runtimepath.StateDir()
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	return mcp.Run(ctx, mcpCfg)
 }
 
 func openMigrationDB() (*sql.DB, error) {

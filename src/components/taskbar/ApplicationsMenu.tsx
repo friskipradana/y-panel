@@ -1,0 +1,274 @@
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { ChevronRight, ChevronDown } from 'lucide-react'
+import { Apps24Filled } from '@fluentui/react-icons'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useWindowStore } from '@/store/windowStore'
+import { useI18n, windowTitleKey } from '@/lib/i18n'
+import { AppIcon } from '@/components/common/AppIcon'
+import { canAccessWindow } from '@/components/desktop/windowRegistry'
+import type { WindowKind } from '@/types'
+import { installedAppWindowParams, sharedCrmWindowParams, sharedSidesaWindowParams } from '@/api/appCatalog'
+import { useInstalledApps } from '@/hooks/useAppCatalog'
+import { CATEGORIES, MENU_ITEMS, type CategoryKey } from './appCatalog'
+
+interface ApplicationsMenuProps {
+  role?: string | null
+}
+
+export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
+  const { t, language } = useI18n()
+  const { openWindow } = useWindowStore()
+  const [isOpen, setIsOpen] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<CategoryKey>('all')
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const isEn = language === 'en'
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
+  const { installedApps, sharedCrm, sharedSidesa } = useInstalledApps()
+
+  const accessibleItems = useMemo(() => {
+    // the same access rules as the desktop icons, the dock and the palette
+    return MENU_ITEMS.filter((item) => canAccessWindow(item.kind, role))
+  }, [role])
+
+  const accessibleInstalled = useMemo(
+    () => (canAccessWindow('installed-app', role) ? installedApps : []),
+    [installedApps, role],
+  )
+
+  const accessibleSharedCrm = useMemo(() => {
+    if (!canAccessWindow('installed-app', role) || !sharedCrm) return null
+    return installedApps.some((app) => app.catalogId === 'reneo-crm') ? null : sharedCrm
+  }, [installedApps, sharedCrm, role])
+
+  const accessibleSharedSidesa = useMemo(() => {
+    if (!canAccessWindow('installed-app', role) || !sharedSidesa) return null
+    return installedApps.some((app) => app.catalogId === 'reneo-sidesa') ? null : sharedSidesa
+  }, [installedApps, sharedSidesa, role])
+
+  const filteredItems = useMemo(() => {
+    return accessibleItems.filter((item) => {
+      return activeCategory === 'all' || item.category === activeCategory
+    })
+  }, [accessibleItems, activeCategory])
+
+  const filteredInstalled = useMemo(() => {
+    if (activeCategory !== 'all' && activeCategory !== 'installed') return []
+    return accessibleInstalled
+  }, [accessibleInstalled, activeCategory])
+
+  const handleLaunch = (kind: WindowKind, params?: Record<string, unknown>) => {
+    openWindow(kind, params)
+    setIsOpen(false)
+  }
+
+  return (
+    <div className="relative inline-flex items-center select-none" ref={menuRef}>
+      {/* ── Applications Trigger Button (Fluent Apps Icon + Text + Chevron) ── */}
+      <button
+        type="button"
+        id="taskbar-applications-btn"
+        className="group flex items-center gap-1.5 h-7 px-1.5 bg-transparent border-0 outline-none ring-0 shadow-none cursor-pointer transition-opacity duration-150 hover:opacity-70 focus:outline-none select-none"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+      >
+        <span className="text-[var(--tb-text)] inline-flex items-center justify-center shrink-0 transition-transform duration-150 group-active:scale-95">
+          <Apps24Filled style={{ fontSize: '15px', width: '15px', height: '15px' }} />
+        </span>
+        <span className="text-[13px] font-semibold tracking-normal text-[var(--tb-text)] font-sans">
+          {isEn ? 'Applications' : 'Aplikasi'}
+        </span>
+        <ChevronDown
+          size={12}
+          className={`text-[var(--tb-text)] opacity-60 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {/* ── Applications Drawer Popover (Emerges smoothly beneath taskbar) ── */}
+      <AnimatePresence>
+        {isOpen && (
+          <div className="fixed left-4 top-[44px] z-[59990] w-[500px] max-w-[calc(100vw-32px)] h-[400px] rounded-b-2xl overflow-hidden pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0, y: -40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -40 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className="pointer-events-auto flex w-full h-full flex-col rounded-t-none rounded-b-2xl border-x border-b border-[var(--menu-border)] bg-[var(--menu-bg)] backdrop-blur-2xl shadow-[var(--menu-shadow)] text-[var(--win-text)] overflow-hidden"
+            >
+              {/* ── Main Content: Sidebar Categories + App List ── */}
+              <div className="flex flex-1 min-h-0">
+                {/* Category Column */}
+                <div className="w-[170px] border-r border-[var(--win-border)] p-2.5 flex flex-col gap-1 bg-[var(--panel-surface)] overflow-y-auto">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] opacity-80">
+                    {isEn ? 'Categories' : 'Kategori'}
+                  </div>
+                  {CATEGORIES.map((cat) => {
+                    const isActive = activeCategory === cat.key
+                    const installedTotal = accessibleInstalled.length + (accessibleSharedCrm ? 1 : 0)
+                    const count = cat.key === 'all'
+                      ? accessibleItems.length + installedTotal
+                      : cat.key === 'installed'
+                        ? installedTotal
+                        : accessibleItems.filter((i) => i.category === cat.key).length
+
+                    return (
+                      <button
+                        key={cat.key}
+                        type="button"
+                        onClick={() => setActiveCategory(cat.key)}
+                        className={`flex items-center justify-between w-full px-2.5 py-2 rounded-xl text-left text-[12px] font-medium border transition-colors duration-150 cursor-pointer outline-none focus:outline-none ${
+                          isActive
+                            ? 'bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-semibold border-[var(--panel-primary-text)]/25 shadow-xs'
+                            : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]'
+                        }`}
+                      >
+                        <span className="truncate">{isEn ? cat.labelEn : cat.labelId}</span>
+                        <span className="text-[10.5px] opacity-70 ml-1 font-mono">{count}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Apps List Column */}
+                <div className="flex-1 p-2.5 overflow-y-auto space-y-1">
+                  {filteredItems.map((item) => {
+                    const title = t(windowTitleKey(item.kind))
+                    const desc = isEn ? item.descEn : item.descId
+
+                    return (
+                      <button
+                        key={item.kind}
+                        type="button"
+                        onClick={() => handleLaunch(item.kind)}
+                        className="group flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all duration-150 hover:bg-[var(--panel-surface-hover)] active:scale-[0.99] cursor-pointer"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--panel-surface)] border border-[var(--win-border)] shadow-xs transition-transform duration-150 group-hover:scale-105">
+                          <AppIcon kind={item.kind} size={22} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)] transition-colors">
+                            {title}
+                          </div>
+                          <div className="text-[11px] text-[var(--text-secondary)] truncate leading-snug mt-0.5">
+                            {desc}
+                          </div>
+                        </div>
+                        <ChevronRight size={14} className="text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--panel-primary-text)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                      </button>
+                    )
+                  })}
+                  {filteredInstalled.map((app) => (
+                    <button
+                      key={`installed-${app.id}`}
+                      type="button"
+                      onClick={() => handleLaunch('installed-app', installedAppWindowParams(app))}
+                      className="group flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all duration-150 hover:bg-[var(--panel-surface-hover)] active:scale-[0.99] cursor-pointer"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--panel-surface)] border border-[var(--win-border)] shadow-xs transition-transform duration-150 group-hover:scale-105">
+                        <AppIcon kind="installed-app" iconKey={app.iconKey} iconColor={app.iconColor} size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)] transition-colors">
+                          {app.name}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-secondary)] truncate leading-snug mt-0.5">
+                          {app.tagline || app.image || app.targetUrl}
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--panel-primary-text)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  ))}
+                  {accessibleSharedCrm && (activeCategory === 'all' || activeCategory === 'installed') ? (
+                    <button
+                      key="shared-reneo-crm"
+                      type="button"
+                      onClick={() => handleLaunch('installed-app', sharedCrmWindowParams(accessibleSharedCrm))}
+                      className="group flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all duration-150 hover:bg-[var(--panel-surface-hover)] active:scale-[0.99] cursor-pointer"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--panel-surface)] border border-[var(--win-border)] shadow-xs transition-transform duration-150 group-hover:scale-105">
+                        <AppIcon
+                          kind="installed-app"
+                          iconKey={accessibleSharedCrm.iconKey}
+                          iconColor={accessibleSharedCrm.iconColor}
+                          size={22}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)] transition-colors">
+                          {accessibleSharedCrm.name}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-secondary)] truncate leading-snug mt-0.5">
+                          {accessibleSharedCrm.openUrl}
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--panel-primary-text)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  ) : null}
+                  {accessibleSharedSidesa && (activeCategory === 'all' || activeCategory === 'installed') ? (
+                    <button
+                      key="shared-reneo-sidesa"
+                      type="button"
+                      onClick={() => handleLaunch('installed-app', sharedSidesaWindowParams(accessibleSharedSidesa))}
+                      className="group flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all duration-150 hover:bg-[var(--panel-surface-hover)] active:scale-[0.99] cursor-pointer"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--panel-surface)] border border-[var(--win-border)] shadow-xs transition-transform duration-150 group-hover:scale-105">
+                        <AppIcon
+                          kind="installed-app"
+                          iconKey={accessibleSharedSidesa.iconKey}
+                          iconColor={accessibleSharedSidesa.iconColor}
+                          size={22}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)] transition-colors">
+                          {accessibleSharedSidesa.name}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-secondary)] truncate leading-snug mt-0.5">
+                          {accessibleSharedSidesa.openUrl}
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--panel-primary-text)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* ── Bottom Bar: Total Apps Counter ── */}
+              <div className="flex items-center justify-end px-4 py-2 border-t border-[var(--win-border)] bg-[var(--panel-surface)] text-[11px] text-[var(--text-secondary)]">
+                <span className="text-[11px] text-[var(--text-secondary)] font-medium">
+                  {accessibleItems.length + accessibleInstalled.length} {isEn ? 'apps installed' : 'aplikasi'}
+                </span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}

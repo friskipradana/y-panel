@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# YPanel — Remote Install Script v2
+# Reneo — Remote Install Script v2
 # Di-upload oleh build.ps1 lalu dieksekusi via SSH.
 # Semua konfigurasi diterima via environment variables.
 # ─────────────────────────────────────────────────────────────────────
@@ -12,10 +12,10 @@ set -euo pipefail
 : "${PANEL_BIND_ADDR:=0.0.0.0:8787}"
 : "${PANEL_DATABASE_DSN:?PANEL_DATABASE_DSN required}"
 : "${PANEL_ENCRYPTION_KEY:?PANEL_ENCRYPTION_KEY required}"
-: "${PANEL_STATE_DIR:=/var/lib/ypanel}"
-: "${PANEL_FRONTEND_DIR:=/opt/ypanel/frontend}"
+: "${PANEL_STATE_DIR:=/var/lib/reneo}"
+: "${PANEL_FRONTEND_DIR:=/opt/reneo/frontend}"
 : "${ENV_CONTENT_FILE:=}"
-: "${LOG_PATH:=/tmp/ypanel-install.log}"
+: "${LOG_PATH:=/tmp/reneo-install.log}"
 
 LOG="$LOG_PATH"
 : > "$LOG"
@@ -71,8 +71,8 @@ if ! printf '%s\n' "$SUDO_PASS" | sudo -S -p '' env \
   PANEL_ALLOWED_ORIGINS="${PANEL_ALLOWED_ORIGINS:-}" \
   PANEL_SESSION_TTL="${PANEL_SESSION_TTL:-12h}" \
   PANEL_ENV_FILE="${PANEL_ENV_FILE:-}" \
-  GOPATH=/tmp/go-ypanel-cache \
-  GOCACHE=/tmp/go-ypanel-build-cache \
+  GOPATH=/tmp/go-reneo-cache \
+  GOCACHE=/tmp/go-reneo-build-cache \
   bash "$INSTALLER_PATH" >> "$LOG" 2>&1; then
   log "Installer failed. Last log lines:"
   tail -n 120 "$LOG" || true

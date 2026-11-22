@@ -16,7 +16,7 @@ import type {
 export const getSystemSummary = () =>
   agentApi.get<SystemSummary>('/api/v1/system/summary').then((r) => r.data)
 
-export const getSystemLogs = (service = 'ypanel', limit = 160) =>
+export const getSystemLogs = (service = 'reneo', limit = 160) =>
   agentApi.get<SystemLogsResponse>('/api/v1/system/logs', { params: { service, limit } }).then((r) => r.data)
 
 export const getSystemChangelog = () =>
@@ -46,8 +46,174 @@ export const resetDatabasePassword = () =>
 export const resetPrimaryPanelPassword = (payload: ResetPrimaryPanelPasswordPayload) =>
   agentApi.post<ResetPrimaryPanelPasswordResponse>('/api/v1/settings/panel-primary/reset-password', payload).then((r) => r.data)
 
-export const getWallpaper = () =>
-  agentApi.get<{ data: string }>('/api/v1/settings/wallpaper').then((r) => r.data)
+export interface WallpaperPrefsResponse {
+  data: string
+  wallpaper?: string
+  fit?: string
+}
 
-export const updateWallpaper = (data: string) =>
-  agentApi.post<{ ok: boolean }>('/api/v1/settings/wallpaper', { data }).then((r) => r.data)
+export interface UpdateWallpaperPayload {
+  data?: string
+  wallpaper?: string
+  fit?: string
+  clearCustom?: boolean
+}
+
+export const getWallpaper = () =>
+  agentApi.get<WallpaperPrefsResponse>('/api/v1/settings/wallpaper').then((r) => r.data)
+
+export const updateWallpaper = (payload: string | UpdateWallpaperPayload) => {
+  const body = typeof payload === 'string' ? { data: payload } : payload
+  return agentApi.post<{ ok: boolean }>('/api/v1/settings/wallpaper', body).then((r) => r.data)
+}
+
+export interface PingResult {
+  ok: boolean
+  host: string
+  mode: 'icmp' | 'tcp'
+  latencyMs: number
+  resolved?: string
+  error?: string
+  checkedAt: number
+}
+
+// Server-side reachability probe: ICMP when port is 0, otherwise TCP connect
+export const pingHost = (host: string, port = 0) =>
+  agentApi.post<PingResult>('/api/v1/tools/ping', { host, port }).then((r) => r.data)
+
+// Server-side history and per-user widget layout
+export interface SystemHistoryPoint {
+  t: number
+  v: number
+}
+
+export const getSystemHistory = (since = 0) =>
+  agentApi
+    .get<{ series: Record<string, SystemHistoryPoint[]> }>('/api/v1/system/history', { params: since > 0 ? { since } : undefined })
+    .then((r) => r.data.series)
+
+export interface WidgetLayoutResponse {
+  data: { placedWidgets?: unknown; mobile?: unknown; notes?: unknown } | null
+  updatedAt: string | null
+}
+
+export interface DemoInfo {
+  enabled: boolean
+  username?: string
+  password?: string
+  readOnly?: boolean
+}
+
+export interface DemoSettings {
+  enabled: boolean
+  username: string
+  password?: string
+  /** env = set by PANEL_DEMO_PASSWORD, panel = chosen in Settings */
+  source: 'env' | 'panel' | 'default'
+}
+
+export const getDemoSettings = () => agentApi.get<DemoSettings>('/api/v1/settings/demo').then((r) => r.data)
+
+export const setDemoSettings = (enabled: boolean) =>
+  agentApi.put<DemoSettings>('/api/v1/settings/demo', { enabled }).then((r) => r.data)
+
+
+export interface SiteSettings {
+  landingEnabled: boolean
+  indexingEnabled: boolean
+  hostingEnabled: boolean
+  /** Days an account keeps working after its plan ended; 0 suspends at once */
+  graceDays: number
+  /** Where the order buttons of the landing page lead */
+  orderUrl: string
+  /** Text sent with the order button; empty uses the default */
+  orderMessage: string
+  /** The superadmin accepted Ookla's licence for its command line client */
+  ooklaLicenseAccepted: boolean
+  /** The example plans were offered once */
+  examplePlansSeeded: boolean
+  /** Buyers may sign up and pay from the landing page */
+  selfSignup: boolean
+  /** The banks and e-wallets buyers can pay to */
+  orderMethods?: OrderMethod[]
+  /** The single account of settings from before the list; read only */
+  orderBank?: string
+  orderAccount?: string
+  orderHolder?: string
+  /** Minutes an order waits for its payment; 0 means a day */
+  orderExpiryMinutes: number
+  /** Largest unique code added to a price; 0 means 999 */
+  orderUniqueMax: number
+  /** A trial waits for the superadmin instead of starting at once */
+  trialApproval: boolean
+  /** The seller as an invoice shows them */
+  invoiceName?: string
+  invoiceAddress?: string
+  invoiceContact?: string
+  invoiceNote?: string
+  /** Host display / KVM VNC WebRTC remote desktop for superadmin */
+  kvmEnabled?: boolean
+  kvmPort?: number
+  kvmDisplay?: string
+  kvmResolution?: string
+}
+
+export interface OrderMethod {
+  id: string
+  kind: 'bank' | 'ewallet'
+  name: string
+  account: string
+  holder: string
+  enabled: boolean
+}
+
+export const getSiteSettings = () => agentApi.get<SiteSettings>('/api/v1/settings/site').then((r) => r.data)
+
+export const setSiteSettings = (patch: Partial<SiteSettings>) =>
+  agentApi.put<SiteSettings>('/api/v1/settings/site', patch).then((r) => r.data)
+
+/** What the public pages may show; no login needed */
+export interface PublicSite {
+  landing: boolean
+  hosting: boolean
+}
+
+export const getPublicSite = () => agentApi.get<PublicSite>('/api/v1/public/site').then((r) => r.data)
+
+export const getDemoInfo = () => agentApi.get<DemoInfo>('/api/v1/public/demo').then((r) => r.data)
+
+export const getMyWidgets = () => agentApi.get<WidgetLayoutResponse>('/api/v1/me/widgets').then((r) => r.data)
+
+export const putMyWidgets = (data: { placedWidgets: unknown; mobile?: unknown; notes?: unknown }) =>
+  agentApi.put<{ ok: boolean }>('/api/v1/me/widgets', { data }).then((r) => r.data)
+
+export interface UpdateInfo {
+  enabled: boolean
+  current: string
+  latest: string
+  available: boolean
+  releaseUrl?: string
+  notes?: string
+  publishedAt?: string
+  checkedAt?: string
+  canApply: boolean
+  error?: string
+}
+
+export interface UpdateState {
+  state: 'idle' | 'running' | 'done' | 'failed'
+  from?: string
+  to?: string
+  startedAt?: string
+  log?: string[]
+}
+
+export const getUpdateInfo = (refresh = false) =>
+  agentApi.get<UpdateInfo>('/api/v1/system/update', { params: refresh ? { refresh: 1 } : undefined }).then((r) => r.data)
+
+export const getUpdateStatus = () =>
+  agentApi.get<UpdateState>('/api/v1/system/update/status').then((r) => r.data)
+
+export const applyUpdate = (version?: string) =>
+  agentApi.post<{ ok: boolean; state: UpdateState; startedAt: string }>('/api/v1/system/update/apply', { version, confirm: true }).then((r) => r.data)
+

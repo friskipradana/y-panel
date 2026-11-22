@@ -1,0 +1,514 @@
+// Cloudflare Workspace & Tunnel Manager
+
+.cloudflare-domain-success {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--panel-info-text) 34%, var(--win-border));
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--panel-info-text) 18%, transparent), transparent 34%),
+    color-mix(in srgb, var(--panel-info-bg) 44%, var(--win-bg));
+}
+
+.cloudflare-domain-success__head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.cloudflare-domain-success__icon {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--panel-info-text);
+  background: color-mix(in srgb, var(--panel-info-text) 18%, transparent);
+}
+
+.cloudflare-domain-success__eyebrow {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.cloudflare-domain-success__title {
+  margin-top: 2px;
+  color: var(--win-text);
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.cloudflare-domain-success__status {
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.cloudflare-domain-success__status.is-pending {
+  color: var(--panel-warning-text);
+  background: color-mix(in srgb, var(--panel-warning-text) 18%, transparent);
+}
+
+.cloudflare-domain-success__status.is-active {
+  color: var(--panel-success-text);
+  background: color-mix(in srgb, var(--panel-success-text) 18%, transparent);
+}
+
+.cloudflare-domain-success__steps {
+  display: grid;
+  gap: 8px;
+}
+
+.cloudflare-domain-success__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--win-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.cloudflare-domain-success__step span {
+  display: inline-grid;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--panel-info-text);
+  font-size: 12px;
+  font-weight: 900;
+  background: color-mix(in srgb, var(--panel-info-text) 22%, transparent);
+}
+
+.cloudflare-ns-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--win-border) 78%, transparent);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--win-bg) 76%, transparent);
+}
+
+.cloudflare-ns-card__label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.cloudflare-ns-card__list {
+  display: grid;
+  gap: 8px;
+}
+
+.cloudflare-ns-copy-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--panel-info-text) 18%, var(--win-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-surface) 78%, transparent);
+  color: var(--win-text);
+  text-align: left;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.cloudflare-ns-copy-row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--panel-info-text) 42%, var(--win-border));
+  background: color-mix(in srgb, var(--panel-info-text) 10%, var(--panel-surface));
+}
+
+.cloudflare-ns-copy-row__index {
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--panel-info-text);
+  font-size: 12px;
+  font-weight: 900;
+  background: color-mix(in srgb, var(--panel-info-text) 15%, transparent);
+}
+
+.cloudflare-ns-copy-row__value {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cloudflare-copy-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--panel-info-text);
+  font-size: 12px;
+  font-weight: 850;
+  background: color-mix(in srgb, var(--panel-info-text) 16%, transparent);
+}
+
+.cloudflare-domain-success__actions {
+  display: flex;
+}
+
+.cloudflare-domain-success__actions .panel-btn {
+  width: 100%;
+  min-height: 38px;
+}
+
+.cloudflare-domain-success__note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+// What the list of the Cloudflare window belongs to: the domain or the profile picked above it
+.cloudflare-scope {
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--win-border);
+  background: var(--win-bar);
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.cloudflare-scope__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+  min-height: 32px;
+}
+
+.cloudflare-scope__select {
+  width: 220px;
+  flex-shrink: 0;
+}
+
+.cloudflare-scope__state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cloudflare-scope__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+// A nameserver of the domain, copied with one press
+.cloudflare-ns-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--win-border);
+  border-radius: 6px;
+  background: var(--panel-surface);
+  color: var(--win-text);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: var(--tb-hover);
+    border-color: var(--panel-primary-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: 1px;
+  }
+
+  span {
+    color: var(--panel-primary-text);
+    font-weight: 600;
+    font-size: 0.68rem;
+  }
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-weight: 500;
+  }
+}
+
+// Floating info popover for domain details
+.cloudflare-info-popover {
+  position: fixed;
+  z-index: 60500;
+  width: 330px;
+  max-width: calc(100vw - 24px);
+  padding: 13px 15px;
+  border-radius: 12px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface-strong);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  font-size: 0.8125rem;
+  color: var(--win-text);
+  animation: cloudflare-popover-in 0.14s ease-out;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 9px;
+    margin-bottom: 9px;
+    border-bottom: 1px solid var(--win-border);
+  }
+
+  &__name {
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--win-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    flex-shrink: 0;
+
+    &--success {
+      background: var(--panel-success-bg);
+      color: var(--panel-success-text);
+      border: 1px solid var(--panel-success-border);
+    }
+
+    &--warning {
+      background: var(--panel-warning-bg);
+      color: var(--panel-warning-text);
+      border: 1px solid var(--panel-warning-border);
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__val-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--win-border);
+    background: var(--panel-surface);
+  }
+
+  &__val-mono {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--win-text);
+  }
+
+  &__copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+
+    &:hover {
+      background: var(--panel-surface-hover);
+      color: var(--win-text);
+    }
+  }
+
+  &__ns-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+@keyframes cloudflare-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+// Phones: scope toolbar is 1 clean line with select and icon actions; NS details are in info modal
+.layout-mobile {
+  .cloudflare-scope {
+    min-height: auto;
+    padding: 8px 10px;
+  }
+
+  .cloudflare-scope__row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    width: 100%;
+    min-height: auto;
+  }
+
+  .cloudflare-scope__select {
+    flex: 1 1 0%;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+
+    .docker-image-combobox__button {
+      height: 32px;
+      min-height: 32px;
+      border-radius: 8px;
+      padding-top: 0;
+      padding-bottom: 0;
+      padding-left: 10px;
+      padding-right: 28px;
+      font-size: 0.75rem;
+    }
+
+    .docker-image-combobox__toggle {
+      width: 26px;
+      height: 26px;
+    }
+  }
+
+  .cloudflare-scope__state {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+
+    .docker-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+    }
+  }
+
+  .cloudflare-scope__meta {
+    display: none;
+  }
+
+  .cloudflare-security__cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloudflare-security__table {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+
+    .docker-table {
+      padding: 0;
+    }
+
+    .docker-table-scroll > .p-8 {
+      padding: 18px 12px;
+    }
+  }
+}
+
+// Security & WAF cards: flat divider rows flush with card header and inset notice bar
+.cloudflare-security-card.settings-card {
+  padding: 14px;
+  gap: 10px;
+
+  .setting-row {
+    padding: 9px 0;
+  }
+
+  > .setting-row:first-of-type {
+    padding-top: 10px;
+    border-top: 1px solid var(--win-border);
+  }
+}
+
+.cloudflare-perm-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--panel-warning-text);
+  background: var(--panel-warning-bg);
+  color: var(--panel-warning-text);
+}
+
+// Security & WAF custom rules table embedded inside the scrollable Security tab
+.cloudflare-security__table {
+  border: 1px solid var(--win-border);
+  border-radius: 12px;
+  background: var(--panel-surface);
+  overflow: hidden;
+
+  .docker-table {
+    flex: none;
+  }
+
+  .docker-table-scroll {
+    overflow: visible;
+
+    > .p-8 {
+      padding: 20px 16px;
+    }
+  }
+}

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { closeTerminalSession, startTerminalSession } from '@/api/agent'
+import { closeTerminalSession, listTerminalSessions, startTerminalSession } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 
 type TerminalSocketMessage = {
-  type: 'ready' | 'output' | 'closed' | 'error' | 'resize'
+  type: 'ready' | 'output' | 'closed' | 'error' | 'resize' | 'pong'
   data?: string
   error?: string
   closed?: boolean
@@ -12,26 +12,32 @@ type TerminalSocketMessage = {
   rows?: number
 }
 
-function resolveTerminalSocketUrl(sessionId: string) {
-  const apiBase = import.meta.env.VITE_AGENT_API_BASE || '/api/v1'
-  const normalizedBase = apiBase.startsWith('/') ? apiBase : `/${apiBase}`
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}${normalizedBase}/terminal/sessions/${sessionId}/ws`
-}
+const HEARTBEAT_MS = 20_000
+const WATCHDOG_MS = 10_000
+const STALE_AFTER_MS = 90_000
+const RECONNECT_BASE_MS = 800
+const RECONNECT_MAX_MS = 8_000
+const RECONNECT_MAX_ATTEMPTS = 12
+const MAX_PENDING_INPUT = 200
 
-function filterInternalTerminalNoise(input: string) {
-  return input
-    .replace(/^.*stty cols \d+ rows \d+ 2>\/dev\/null; export COLUMNS=\d+ LINES=\d+\r?\n?/gm, '')
-    .replace(/\u001b\]633;.*?(?:\u0007|\u001b\\)/g, '')
-    .replace(/\u001b\]133;.*?(?:\u0007|\u001b\\)/g, '')
-    .replace(/\u001bP\$q.*?\u001b\\/g, '')
-    .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g, '')
+function resolveTerminalSocketUrl(sessionId: string, replay = false) {
+  const apiBase = import.meta.env.VITE_AGENT_API_BASE || '/api/v1'
+  const base = apiBase.startsWith('/') ? apiBase : `/${apiBase}`
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${proto}//${window.location.host}${base}/terminal/sessions/${sessionId}/ws${replay ? '?replay=1' : ''}`
 }
 
 function mapKeyToTerminalInput(event: KeyboardEvent) {
   if (event.ctrlKey && event.key.toLowerCase() === 'c') return '\u0003'
   if (event.ctrlKey && event.key.toLowerCase() === 'd') return '\u0004'
   if (event.ctrlKey && event.key.toLowerCase() === 'l') return '\u000c'
+  if (event.ctrlKey && event.key.toLowerCase() === 'z') return '\u001a'
+  if (event.ctrlKey && event.key.toLowerCase() === 'a') return '\u0001'
+  if (event.ctrlKey && event.key.toLowerCase() === 'e') return '\u0005'
+  if (event.ctrlKey && event.key.toLowerCase() === 'k') return '\u000b'
+  if (event.ctrlKey && event.key.toLowerCase() === 'u') return '\u0015'
+  if (event.ctrlKey && event.key.toLowerCase() === 'w') return '\u0017'
+  if (event.ctrlKey && event.key.toLowerCase() === 'r') return '\u0012'
   if (event.key === 'Enter') return '\r'
   if (event.key === 'Backspace') return '\u007f'
   if (event.key === 'Tab') return '\t'
@@ -40,236 +46,381 @@ function mapKeyToTerminalInput(event: KeyboardEvent) {
   if (event.key === 'ArrowDown') return '\u001b[B'
   if (event.key === 'ArrowRight') return '\u001b[C'
   if (event.key === 'ArrowLeft') return '\u001b[D'
+  if (event.key === 'Home') return '\u001b[H'
+  if (event.key === 'End') return '\u001b[F'
+  if (event.key === 'PageUp') return '\u001b[5~'
+  if (event.key === 'PageDown') return '\u001b[6~'
+  if (event.key === 'Insert') return '\u001b[2~'
+  if (event.key === 'Delete') return '\u001b[3~'
   if (event.key.length === 1 && !event.metaKey) return event.key
   return null
 }
 
-export function useTerminalSession() {
+const reconnectDelay = (attempt: number) =>
+  Math.min(RECONNECT_BASE_MS * 2 ** Math.max(0, attempt - 1), RECONNECT_MAX_MS) + Math.floor(Math.random() * 250)
+
+export interface UseTerminalSessionOptions {
+  initialSessionId?: string | null
+  onSessionChange?: (sessionId: string | null) => void
+  onSessionInvalid?: (sessionId: string) => void
+}
+
+export function useTerminalSession(options?: UseTerminalSessionOptions) {
+  const optionsRef = useRef(options)
+  optionsRef.current = options
+
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [connected, setConnected] = useState(false)
+  const [reconnecting, setReconnecting] = useState(false)
   const [closed, setClosed] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [closedByUser, setClosedByUser] = useState(false)
 
   const socketRef = useRef<WebSocket | null>(null)
   const sessionIdRef = useRef<string | null>(null)
+  const targetRef = useRef('local')
+  const cwdRef = useRef<string | undefined>(undefined)
   const manualCloseRef = useRef(false)
+  const backendClosedRef = useRef(false)
   const startInFlightRef = useRef(false)
   const sessionEpochRef = useRef(0)
+  const attemptRef = useRef(0)
+  const reconnectTimerRef = useRef<number | null>(null)
+  const heartbeatRef = useRef<number | null>(null)
+  const watchdogRef = useRef<number | null>(null)
+  const lastRxRef = useRef(0)
+  const pendingInputRef = useRef<string[]>([])
   const terminalSizeRef = useRef({ cols: 120, rows: 32 })
   const outputListenerRef = useRef<((chunk: string) => void) | null>(null)
+  const connectSocketRef = useRef<(id: string, epoch: number, replay?: boolean) => void>(() => {})
+  const startRef = useRef<(target?: string, cwd?: string) => Promise<void>>(async () => {})
 
-  const cleanupSocket = useCallback((closeActiveSocket = true) => {
+  const clearTimers = useCallback(() => {
+    if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current)
+    if (heartbeatRef.current !== null) window.clearInterval(heartbeatRef.current)
+    if (watchdogRef.current !== null) window.clearInterval(watchdogRef.current)
+    reconnectTimerRef.current = heartbeatRef.current = watchdogRef.current = null
+  }, [])
+
+  const cleanupSocket = useCallback((closeActive = true) => {
     const socket = socketRef.current
     socketRef.current = null
+    if (heartbeatRef.current !== null) window.clearInterval(heartbeatRef.current)
+    if (watchdogRef.current !== null) window.clearInterval(watchdogRef.current)
+    heartbeatRef.current = watchdogRef.current = null
 
-    if (!closeActiveSocket || !socket) return
-    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-      runtimeLogger.info('terminal', 'closing websocket connection', { sessionId: sessionIdRef.current })
-      socket.close()
-    }
+    if (!closeActive || !socket) return
+    socket.onmessage = socket.onerror = socket.onclose = null
+    if (socket.readyState === WebSocket.CONNECTING) socket.onopen = () => socket.close()
+    else if (socket.readyState === WebSocket.OPEN) socket.close()
   }, [])
 
   const releaseSession = useCallback(async (id: string | null) => {
     if (!id) return
     try {
-      runtimeLogger.info('terminal', 'releasing terminal session', { sessionId: id })
       await closeTerminalSession(id)
     } catch (err) {
-      runtimeLogger.warn('terminal', 'release session request failed', { sessionId: id, error: err })
+      runtimeLogger.warn('terminal', 'release session failed', { sessionId: id, error: err })
     }
   }, [])
 
   const close = useCallback(async () => {
     manualCloseRef.current = true
     setClosedByUser(true)
+    clearTimers()
     cleanupSocket(true)
+    pendingInputRef.current = []
 
     const id = sessionIdRef.current
     sessionIdRef.current = null
     setSessionId(null)
+    optionsRef.current?.onSessionChange?.(null)
     setConnected(false)
+    setReconnecting(false)
     setClosed(true)
 
     await releaseSession(id)
-  }, [cleanupSocket, releaseSession])
+  }, [cleanupSocket, clearTimers, releaseSession])
 
-  const connectSocket = useCallback((nextSessionId: string, epoch: number) => {
+  const scheduleReconnect = useCallback((epoch: number, immediate = false) => {
+    if (manualCloseRef.current || backendClosedRef.current) return
+    if (sessionEpochRef.current !== epoch || !sessionIdRef.current) return
+    if (reconnectTimerRef.current !== null) {
+      if (!immediate) return
+      window.clearTimeout(reconnectTimerRef.current)
+      reconnectTimerRef.current = null
+    }
+
+    attemptRef.current += 1
+    if (attemptRef.current > RECONNECT_MAX_ATTEMPTS) {
+      setReconnecting(false)
+      setClosed(true)
+      setError('Koneksi terminal terputus. Klik Reconnect untuk memulai ulang.')
+      return
+    }
+
+    setConnected(false)
+    setReconnecting(true)
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null
+      const id = sessionIdRef.current
+      if (!id || manualCloseRef.current || sessionEpochRef.current !== epoch) return
+      connectSocketRef.current(id, epoch, false)
+    }, immediate ? 0 : reconnectDelay(attemptRef.current))
+  }, [])
+
+  const connectSocket = useCallback((nextId: string, epoch: number, replay = false) => {
     cleanupSocket(true)
-
-    runtimeLogger.info('terminal', 'opening websocket', { sessionId: nextSessionId, epoch })
-    const socket = new WebSocket(resolveTerminalSocketUrl(nextSessionId))
+    const socket = new WebSocket(resolveTerminalSocketUrl(nextId, replay))
     socketRef.current = socket
+    let hasOpened = false
+    const isCurrent = () => socketRef.current === socket && sessionIdRef.current === nextId && sessionEpochRef.current === epoch
 
     socket.onopen = () => {
-      if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
-      runtimeLogger.info('terminal', 'websocket connected', { sessionId: nextSessionId, epoch })
+      if (!isCurrent()) return
+      hasOpened = true
+      attemptRef.current = 0
+      lastRxRef.current = Date.now()
       setConnected(true)
+      setReconnecting(false)
       setClosed(false)
       setError(null)
-      
-      // Send the latest known terminal size immediately upon connection
-      // because ResizeObservers might have updated the ref while WS was connecting
-      const size = terminalSizeRef.current
-      socket.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }))
+
+      socket.send(JSON.stringify({ type: 'resize', ...terminalSizeRef.current }))
+      const pending = pendingInputRef.current
+      pendingInputRef.current = []
+      for (const data of pending) socket.send(JSON.stringify({ type: 'input', data }))
+
+      heartbeatRef.current = window.setInterval(() => {
+        if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'ping' }))
+      }, HEARTBEAT_MS)
+      watchdogRef.current = window.setInterval(() => {
+        if (Date.now() - lastRxRef.current > STALE_AFTER_MS) socket.close()
+      }, WATCHDOG_MS)
     }
 
     socket.onmessage = (event) => {
-      if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
-
+      if (!isCurrent()) return
+      lastRxRef.current = Date.now()
       try {
-        const message = JSON.parse(event.data) as TerminalSocketMessage
-        if (message.type === 'ready') {
-          runtimeLogger.info('terminal', 'terminal ready', { sessionId: nextSessionId, epoch })
+        const msg = JSON.parse(event.data) as TerminalSocketMessage
+        if (msg.type === 'ready' || msg.type === 'pong') return
+        if (msg.type === 'output' && msg.data) {
+          outputListenerRef.current?.(msg.data)
           return
         }
-        if (message.type === 'output' && message.data) {
-          const chunk = filterInternalTerminalNoise(message.data)
-          if (!chunk) return
-          outputListenerRef.current?.(chunk)
-          return
-        }
-        if (message.type === 'closed') {
-          runtimeLogger.info('terminal', 'terminal closed by backend', { sessionId: nextSessionId, epoch })
+        if (msg.type === 'closed') {
+          backendClosedRef.current = true
           setConnected(false)
+          setReconnecting(false)
           setClosed(true)
+          optionsRef.current?.onSessionChange?.(null)
           return
         }
-        if (message.type === 'error') {
-          runtimeLogger.error('terminal', 'terminal websocket error payload', { sessionId: nextSessionId, epoch, error: message.error })
-          setError(message.error ?? 'Terminal websocket error')
-          return
+        if (msg.type === 'error') {
+          const text = msg.error ?? 'Terminal error'
+          if (/session not found/i.test(text)) {
+            backendClosedRef.current = true
+            setReconnecting(false)
+            setClosed(true)
+            setConnected(false)
+            sessionIdRef.current = null
+            setSessionId(null)
+            optionsRef.current?.onSessionChange?.(null)
+            optionsRef.current?.onSessionInvalid?.(nextId)
+            void startRef.current(targetRef.current, cwdRef.current)
+            return
+          }
+          setError(text)
         }
       } catch {
-        const chunk = filterInternalTerminalNoise(String(event.data ?? ''))
-        if (!chunk) return
-        outputListenerRef.current?.(chunk)
+        const text = String(event.data ?? '')
+        if (text) outputListenerRef.current?.(text)
       }
     }
 
-    socket.onerror = () => {
-      if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
-      runtimeLogger.error('terminal', 'websocket low-level error', { sessionId: nextSessionId, epoch })
-      setError('Koneksi websocket terminal gagal')
-    }
-
+    socket.onerror = () => {}
     socket.onclose = () => {
-      if (socketRef.current === socket) {
-        socketRef.current = null
-      }
-      if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
-      runtimeLogger.info('terminal', 'websocket closed', { sessionId: nextSessionId, epoch, manualClose: manualCloseRef.current })
+      if (socketRef.current === socket) socketRef.current = null
+      if (sessionIdRef.current !== nextId || sessionEpochRef.current !== epoch) return
+      clearTimers()
       setConnected(false)
-      if (!manualCloseRef.current) {
+      if (manualCloseRef.current || backendClosedRef.current) return
+
+      if (!hasOpened) {
+        backendClosedRef.current = true
+        setReconnecting(false)
         setClosed(true)
+        sessionIdRef.current = null
+        setSessionId(null)
+        optionsRef.current?.onSessionChange?.(null)
+        optionsRef.current?.onSessionInvalid?.(nextId)
+        void startRef.current(targetRef.current, cwdRef.current)
+        return
       }
+
+      scheduleReconnect(epoch)
     }
-  }, [cleanupSocket])
+  }, [cleanupSocket, clearTimers, scheduleReconnect])
 
-  const start = useCallback(async (target = 'local') => {
-    if (startInFlightRef.current) return
+  useEffect(() => {
+    connectSocketRef.current = connectSocket
+  }, [connectSocket])
 
-    startInFlightRef.current = true
+  const attach = useCallback((existingId: string) => {
+    if (!existingId) return
     manualCloseRef.current = false
+    backendClosedRef.current = false
+    attemptRef.current = 0
     sessionEpochRef.current += 1
     const epoch = sessionEpochRef.current
+    clearTimers()
+    cleanupSocket(true)
+    pendingInputRef.current = []
+    setClosedByUser(false)
+    setStarting(false)
+    setError(null)
+    setClosed(false)
+    setConnected(false)
+    setReconnecting(false)
+
+    sessionIdRef.current = existingId
+    setSessionId(existingId)
+
+    void listTerminalSessions().then((activeSessions) => {
+      if (sessionEpochRef.current !== epoch) return
+      const found = Array.isArray(activeSessions) && activeSessions.some((s) => s.sessionId === existingId)
+      if (!found) {
+        sessionIdRef.current = null
+        setSessionId(null)
+        optionsRef.current?.onSessionChange?.(null)
+        optionsRef.current?.onSessionInvalid?.(existingId)
+        void startRef.current(targetRef.current, cwdRef.current)
+        return
+      }
+      optionsRef.current?.onSessionChange?.(existingId)
+      connectSocket(existingId, epoch, true)
+    }).catch(() => {
+      if (sessionEpochRef.current !== epoch) return
+      optionsRef.current?.onSessionChange?.(existingId)
+      connectSocket(existingId, epoch, true)
+    })
+  }, [cleanupSocket, clearTimers, connectSocket])
+
+  const start = useCallback(async (target = 'local', cwd?: string) => {
+    manualCloseRef.current = false
+    backendClosedRef.current = false
+    startInFlightRef.current = true
+    targetRef.current = target
+    cwdRef.current = cwd
+    attemptRef.current = 0
+    sessionEpochRef.current += 1
+    const epoch = sessionEpochRef.current
+    clearTimers()
+    cleanupSocket(true)
+    pendingInputRef.current = []
     setClosedByUser(false)
     setStarting(true)
     setError(null)
     setClosed(false)
     setConnected(false)
+    setReconnecting(false)
 
-    const previousSessionId = sessionIdRef.current
-    cleanupSocket(true)
+    const prev = sessionIdRef.current
     sessionIdRef.current = null
     setSessionId(null)
-
-    await releaseSession(previousSessionId)
+    if (prev) {
+      void releaseSession(prev)
+    }
 
     try {
-      runtimeLogger.info('terminal', 'starting terminal session', { epoch, target })
-      const result = await startTerminalSession(target)
+      const result = await startTerminalSession(target, cwd)
       if (sessionEpochRef.current !== epoch) {
-        runtimeLogger.warn('terminal', 'discarding stale terminal session result', { epoch, sessionId: result.sessionId })
-        await releaseSession(result.sessionId)
+        void releaseSession(result.sessionId)
         return
       }
-      runtimeLogger.info('terminal', 'terminal session started', { epoch, sessionId: result.sessionId })
       sessionIdRef.current = result.sessionId
       setSessionId(result.sessionId)
-      connectSocket(result.sessionId, epoch)
+      optionsRef.current?.onSessionChange?.(result.sessionId)
+      connectSocket(result.sessionId, epoch, false)
     } catch (err) {
-      runtimeLogger.error('terminal', 'failed to start terminal session', { epoch, error: err })
       if (sessionEpochRef.current === epoch) {
         setError(err instanceof Error ? err.message : 'Gagal memulai terminal session')
       }
     } finally {
       if (sessionEpochRef.current === epoch) {
         setStarting(false)
+        startInFlightRef.current = false
       }
-      startInFlightRef.current = false
     }
-  }, [cleanupSocket, connectSocket, releaseSession])
+  }, [cleanupSocket, clearTimers, connectSocket, releaseSession])
+
+  useEffect(() => {
+    startRef.current = start
+  }, [start])
+
+  useEffect(() => {
+    const kick = () => {
+      if (manualCloseRef.current || backendClosedRef.current || !sessionIdRef.current) return
+      if (socketRef.current?.readyState === WebSocket.OPEN) return
+      attemptRef.current = 0
+      scheduleReconnect(sessionEpochRef.current, true)
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') kick() }
+    window.addEventListener('online', kick)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('online', kick)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [scheduleReconnect])
 
   const sendInput = useCallback(async (input: string) => {
-    const socket = socketRef.current
-    if (!socket || socket.readyState !== WebSocket.OPEN) return
-    socket.send(JSON.stringify({ type: 'input', data: input }))
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: 'input', data: input }))
+      return
+    }
+    if (sessionIdRef.current && !backendClosedRef.current && !manualCloseRef.current) {
+      if (pendingInputRef.current.length < MAX_PENDING_INPUT) pendingInputRef.current.push(input)
+    }
   }, [])
 
   const handleTerminalKey = useCallback((event: KeyboardEvent) => {
     const payload = mapKeyToTerminalInput(event)
     if (!payload) return false
-
     event.preventDefault()
     void sendInput(payload)
     return true
   }, [sendInput])
 
   const updateTerminalSize = useCallback((cols: number, rows: number) => {
-    const next = {
-      cols: Math.max(20, Math.floor(cols)),
-      rows: Math.max(8, Math.floor(rows)),
-    }
-
-    if (next.cols === terminalSizeRef.current.cols && next.rows === terminalSizeRef.current.rows) {
-      return
-    }
-
+    const validCols = Number.isFinite(cols) && cols > 0 ? Math.floor(cols) : 120
+    const validRows = Number.isFinite(rows) && rows > 0 ? Math.floor(rows) : 32
+    const next = { cols: Math.max(20, Math.min(validCols, 500)), rows: Math.max(8, Math.min(validRows, 200)) }
+    if (next.cols === terminalSizeRef.current.cols && next.rows === terminalSizeRef.current.rows) return
     terminalSizeRef.current = next
-
-    const socket = socketRef.current
-    if (!socket || socket.readyState !== WebSocket.OPEN) return
-    runtimeLogger.info('terminal', 'sending resize event', { sessionId: sessionIdRef.current, ...next })
-    socket.send(JSON.stringify({ type: 'resize', ...next }))
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: 'resize', ...next }))
+    }
   }, [])
 
   useEffect(() => {
     return () => {
       manualCloseRef.current = true
+      clearTimers()
       cleanupSocket(true)
-      void releaseSession(sessionIdRef.current)
+      // Detach cleanly without killing the backend session so refresh preserves it.
       sessionIdRef.current = null
     }
-  }, [cleanupSocket, releaseSession])
+  }, [cleanupSocket, clearTimers])
 
   const setOutputListener = useCallback((listener: ((chunk: string) => void) | null) => {
     outputListenerRef.current = listener
   }, [])
 
   return {
-    sessionId,
-    starting,
-    connected,
-    closed,
-    closedByUser,
-    error,
-    start,
-    sendInput,
-    handleTerminalKey,
-    updateTerminalSize,
-    setOutputListener,
-    close,
+    sessionId, starting, connected, reconnecting, closed, closedByUser, error,
+    start, attach, sendInput, handleTerminalKey, updateTerminalSize, setOutputListener, close,
   }
 }

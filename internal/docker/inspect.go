@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -11,9 +12,9 @@ import (
 func InspectContainerConfig(id string) (*ContainerConfig, error) {
 	// Use docker inspect to get JSON output
 	cmd := exec.Command("docker", "inspect", id)
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("inspect container: %w", err)
+		return nil, fmt.Errorf("inspect container %s: %s (%w)", id, strings.TrimSpace(string(out)), err)
 	}
 
 	var inspects []struct {
@@ -30,6 +31,12 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 			} `json:"PortBindings"`
 			Binds []string `json:"Binds"`
 		} `json:"HostConfig"`
+		Mounts []struct {
+			Type        string `json:"Type"`
+			Source      string `json:"Source"`
+			Destination string `json:"Destination"`
+			RW          bool   `json:"RW"`
+		} `json:"Mounts"`
 		NetworkSettings struct {
 			Networks map[string]struct {
 				NetworkID string `json:"NetworkID"`
@@ -63,7 +70,7 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 	}
 
 	// Parse ports: "containerPort/proto" -> []{HostIP, HostPort}
-	var ports []PortBinding
+	ports := make([]PortBinding, 0)
 	for spec, bindings := range insp.HostConfig.PortBindings {
 		parts := strings.SplitN(spec, "/", 2)
 		containerPort := parts[0]
@@ -82,7 +89,7 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 	}
 
 	// Parse env vars (skip internal docker vars)
-	var env []EnvVar
+	env := make([]EnvVar, 0)
 	for _, e := range insp.Config.Env {
 		kv := strings.SplitN(e, "=", 2)
 		if len(kv) != 2 {
@@ -96,7 +103,7 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 	}
 
 	// Parse volume binds: "hostPath:containerPath[:mode]"
-	var volumes []VolumeBinding
+	volumes := make([]VolumeBinding, 0)
 	for _, bind := range insp.HostConfig.Binds {
 		parts := strings.SplitN(bind, ":", 3)
 		if len(parts) < 2 {
@@ -109,15 +116,49 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 			ReadOnly:      ro,
 		})
 	}
+	if len(volumes) == 0 && len(insp.Mounts) > 0 {
+		for _, m := range insp.Mounts {
+			if m.Source != "" && m.Destination != "" {
+				volumes = append(volumes, VolumeBinding{
+					HostPath:      m.Source,
+					ContainerPath: m.Destination,
+					ReadOnly:      !m.RW,
+				})
+			}
+		}
+	}
+
+	// Check if this container was created via compose
+	composeFiles := []string{}
+	if f := insp.Config.Labels["com.docker.compose.project.config_files"]; f != "" {
+		for _, part := range strings.Split(f, ",") {
+			if part = strings.TrimSpace(part); part != "" {
+				composeFiles = append(composeFiles, part)
+			}
+		}
+	}
+	if len(composeFiles) == 0 {
+		if dir := insp.Config.Labels["panel.compose_dir"]; dir != "" {
+			composeFiles = append(composeFiles, dir)
+		}
+	}
+	composeYaml := ""
+	for _, file := range composeFiles {
+		if data, err := os.ReadFile(file); err == nil && len(data) > 0 {
+			composeYaml = string(data)
+			break
+		}
+	}
 
 	return &ContainerConfig{
-		Name:    name,
-		Image:   insp.Config.Image,
-		Network: network,
-		Ports:   ports,
-		Env:     env,
-		EnvMode: "form",
-		EnvRaw:  envVarsToRaw(env),
-		Volumes: volumes,
+		Name:        name,
+		Image:       insp.Config.Image,
+		Network:     network,
+		Ports:       ports,
+		Env:         env,
+		EnvMode:     "form",
+		EnvRaw:      envVarsToRaw(env),
+		Volumes:     volumes,
+		ComposeYaml: composeYaml,
 	}, nil
 }

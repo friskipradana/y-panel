@@ -1,13 +1,14 @@
 import { Play, Square } from 'lucide-react'
+import type { UiTone } from '@/components/ui/IconBadge'
 import type { Container, DockerEnvMode, EnvVarInput } from '@/types'
 
 // ── State Styles ──────────────────────────────────────────────
-export const STATE_STYLES: Record<Container['State'], { badge: string; btn: string; btnText: string; actionIcon: typeof Play }> = {
-  running: { badge: 'panel-badge--success', btn: 'panel-btn--ghost', btnText: 'Stop', actionIcon: Square },
-  exited: { badge: 'panel-badge--danger', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
-  paused: { badge: 'panel-badge--warning', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
-  restarting: { badge: 'panel-badge--info', btn: 'panel-btn--ghost', btnText: 'Stop', actionIcon: Square },
-  dead: { badge: 'panel-badge--neutral', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
+export const STATE_STYLES: Record<Container['State'], { badge: UiTone; btn: string; btnText: string; actionIcon: typeof Play }> = {
+  running: { badge: 'success', btn: 'panel-btn--ghost', btnText: 'Stop', actionIcon: Square },
+  exited: { badge: 'danger', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
+  paused: { badge: 'warning', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
+  restarting: { badge: 'info', btn: 'panel-btn--ghost', btnText: 'Stop', actionIcon: Square },
+  dead: { badge: 'neutral', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
 }
 
 export const EMPTY_ENV_ROW: EnvVarInput = { key: '', value: '' }
@@ -17,6 +18,33 @@ export const DEFAULT_COMPOSE_YAML = 'version: "3.8"\nservices:\n  app:\n    imag
 export function createEmptyRegistryAuth() {
   return { enabled: false, registry: '', usernameOrEmail: '', password: '' }
 }
+
+// Order of the tabs in the Docker window
+export const DOCKER_TABS = ['containers', 'images', 'networks', 'volumes', 'templates'] as const
+export type DockerTab = (typeof DOCKER_TABS)[number]
+
+// A container the Database window runs for its own sake: the web client of the databases (Adminer).
+// Older ones have no label, so the name counts too.
+export function isDatabaseControl(container: { Names?: string[]; Labels?: Record<string, string> }): boolean {
+  return container.Labels?.['reneo.kind'] === 'database-control' || (container.Names ?? []).some((n) => n.replace(/^\//, '') === 'reneo-adminer')
+}
+
+// The WhatsApp runtime of the notifications (WAHA): managed from Settings > Notifications, but it can be updated from here.
+// It carries panel.source=waha; the name is the fallback.
+export function isWaha(container: { Names?: string[]; Labels?: Record<string, string> }): boolean {
+  return container.Labels?.['panel.source'] === 'waha' || (container.Names ?? []).some((n) => n.replace(/^\//, '') === 'reneo-waha')
+}
+
+// "2026-10-13 03:12:57 +0700 WIB" (how docker writes a date) as "13 Okt 2026, 03.12"; anything else as it came
+export function formatDockerDate(raw: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(raw)
+  if (!m) return raw
+  const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]))
+  return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)
+}
+
+// Networks Docker makes itself; they cannot be removed
+export const BUILTIN_NETWORKS = ['bridge', 'host', 'none']
 
 export function createDefaultDeployForm() {
   return {

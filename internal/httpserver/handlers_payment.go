@@ -1,10 +1,16 @@
 package httpserver
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/database"
 )
 
 // ─── Payment Settings Handlers ──────────────────────────────────────────────
@@ -75,7 +81,7 @@ func (s *Server) handleUpdatePaymentSettings(w http.ResponseWriter, r *http.Requ
 		"remote": remoteAddr(r),
 		"user":   username,
 	})
-	s.notifyCurrentServerUser(r, "Payment settings diperbarui 💳", "Konfigurasi payment gateway berhasil diperbarui.", "info")
+	s.notifyCurrentServerUser(r, "Pengaturan pembayaran disimpan", "Konfigurasi gateway pembayaran disimpan.", "info")
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":      true,
@@ -162,9 +168,13 @@ type registerNotificationDeviceRequest struct {
 }
 
 type updateNotificationDeviceRequest struct {
-	Status        string   `json:"status,omitempty"`
-	PackageFilter []string `json:"packageFilter,omitempty"`
+	Status string `json:"status,omitempty"`
+	// absent leaves the filter as it is; an empty list clears it, which means every package
+	PackageFilter *[]string `json:"packageFilter,omitempty"`
 }
+
+// notificationDeviceStatuses are the states a device can be in
+var notificationDeviceStatuses = map[string]bool{"active": true, "inactive": true, "blocked": true}
 
 // handleListNotificationDevices returns all registered notification listener devices.
 func (s *Server) handleListNotificationDevices(w http.ResponseWriter, r *http.Request) {
@@ -180,22 +190,55 @@ func (s *Server) handleListNotificationDevices(w http.ResponseWriter, r *http.Re
 	})
 }
 
-// handleRegisterNotificationDevice registers a new Android notification listener device.
+// maxNotificationDevices is how many phones can send notifications at once
+const maxNotificationDevices = 20
+
+// newListenerKey makes the API key of a phone: long enough to not be guessed, with a prefix that says what it is for
+func newListenerKey() (string, error) {
+	raw := make([]byte, 20)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	return "ypnl_" + hex.EncodeToString(raw), nil
+}
+
+// handleRegisterNotificationDevice adds an Android notification listener device. The panel makes the API key and returns it
+// once: only its hash is kept. A key sent in the request is still accepted for a phone that is set up already.
 func (s *Server) handleRegisterNotificationDevice(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var req registerNotificationDeviceRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body"})
 		return
 	}
-
-	if req.DeviceID == "" || req.APIKey == "" {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "deviceId and apiKey are required"})
+	req.DeviceID = strings.TrimSpace(req.DeviceID)
+	if req.DeviceID == "" || len(req.DeviceID) > 80 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "give the device a name of up to 80 characters"})
+		return
+	}
+	if existing, err := s.database.ListNotificationDevices(); err == nil && len(existing) >= maxNotificationDevices {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "the limit of 20 devices is reached: delete one that is no longer used"})
+		return
+	}
+	apiKey := strings.TrimSpace(req.APIKey)
+	if apiKey == "" {
+		generated, err := newListenerKey()
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		apiKey = generated
+	} else if len(apiKey) < 16 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "an API key needs at least 16 characters; leave it empty to have the panel make one"})
 		return
 	}
 
-	device, err := s.database.RegisterNotificationDevice(req.DeviceID, req.APIKey, req.PackageFilter)
+	device, err := s.database.RegisterNotificationDevice(req.DeviceID, apiKey, req.PackageFilter)
+	if errors.Is(err, database.ErrNotificationDeviceExists) {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "a device with this name already exists: pick another name, or make a new key for that device"})
+		return
+	}
 	if err != nil {
 		log.Printf("[notif-listener] register device failed remote=%s err=%v", remoteAddr(r), err)
 		s.writeError(w, http.StatusInternalServerError, err)
@@ -213,7 +256,30 @@ func (s *Server) handleRegisterNotificationDevice(w http.ResponseWriter, r *http
 	s.writeJSON(w, http.StatusCreated, jsonResponse{
 		"ok":     true,
 		"device": device,
+		"apiKey": apiKey,
 	})
+}
+
+// handleRotateNotificationDeviceKey gives a device a new API key and returns it once; the old key stops working at once.
+func (s *Server) handleRotateNotificationDeviceKey(w http.ResponseWriter, r *http.Request) {
+	deviceID := r.PathValue("deviceId")
+	apiKey, err := newListenerKey()
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	device, err := s.database.RotateNotificationDeviceKey(deviceID, apiKey)
+	if errors.Is(err, database.ErrNotificationDeviceNotFound) {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "this device is not registered"})
+		return
+	}
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	username, _ := s.currentUser(r)
+	log.Printf("[notif-listener] device key renewed deviceId=%q remote=%s user=%s", deviceID, remoteAddr(r), username)
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "device": device, "apiKey": apiKey})
 }
 
 // handleUpdateNotificationDevice updates an existing notification listener device.
@@ -232,7 +298,15 @@ func (s *Server) handleUpdateNotificationDevice(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	if req.Status != "" && !notificationDeviceStatuses[req.Status] {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "status must be active, inactive or blocked"})
+		return
+	}
 	device, err := s.database.UpdateNotificationDevice(deviceID, req.Status, req.PackageFilter)
+	if errors.Is(err, database.ErrNotificationDeviceNotFound) {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "this device is not registered yet: add it first"})
+		return
+	}
 	if err != nil {
 		log.Printf("[notif-listener] update device failed deviceId=%q remote=%s err=%v", deviceID, remoteAddr(r), err)
 		s.writeError(w, http.StatusInternalServerError, err)
@@ -295,25 +369,26 @@ func (s *Server) handleListCapturedNotifications(w http.ResponseWriter, r *http.
 func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	// Validate API key from header
-	apiKey := r.Header.Get("X-API-Key")
+	apiKey := webhookAPIKey(r)
 	if apiKey == "" {
-		apiKey = r.URL.Query().Get("api_key")
-	}
-	if apiKey == "" {
-		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "X-API-Key header required"})
+		s.notify.WebhookRejected(clientIP(r))
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "API key required: send it in the X-API-Key header (or as a Bearer token, or api_key in the address)"})
 		return
 	}
 
 	// Validate the device by API key
 	device, err := s.database.GetNotificationDeviceByAPIKey(apiKey)
 	if err != nil || device == nil {
+		s.notify.WebhookRejected(clientIP(r))
 		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid API key"})
 		return
 	}
 
+	// the phone is connected, whatever it sends next (the test of its app keeps nothing behind)
+	s.database.TouchNotificationDevice(device.ID)
+
 	if device.Status != "active" {
-		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "device is not active"})
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "device " + device.DeviceID + " is not active"})
 		return
 	}
 
@@ -322,11 +397,24 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 		AppName        string `json:"appName"`
 		Title          string `json:"title"`
 		Text           string `json:"text"`
+		BigText        string `json:"bigText"`
 		AmountDetected string `json:"amountDetected"`
+		// Message is all the "Uji Kirim" button of the listener app sends
+		Message string `json:"message"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&payload); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body"})
 		return
+	}
+	// a test of the app proves that the address and the key work; it is not a notification to keep
+	// an empty body is a ping the same way
+	if payload.PackageName == "" && (payload.Message != "" || (payload.Title == "" && payload.Text == "" && payload.BigText == "")) {
+		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "success": true, "message": "test received from " + device.DeviceID})
+		return
+	}
+	// a long notification keeps its full text in bigText
+	if payload.BigText != "" && len(payload.BigText) > len(payload.Text) {
+		payload.Text = payload.BigText
 	}
 
 	// Check package filter
@@ -339,7 +427,7 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 			}
 		}
 		if !allowed {
-			s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "package filtered out"})
+			s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "success": true, "message": "package filtered out"})
 			return
 		}
 	}
@@ -362,6 +450,12 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 	log.Printf("[notif-listener] captured notification pkg=%q title=%q amount=%q from device=%q",
 		payload.PackageName, payload.Title, payload.AmountDetected, device.DeviceID)
 
+	// A hosting order or app license order of exactly this total is paid by this notification
+	if payload.AmountDetected != "" {
+		s.matchHostingOrderPayment(payload.AmountDetected, captured.ID, captured.ReceivedAt)
+		s.matchAppLicenseOrderPayment(payload.AmountDetected, captured.ID, captured.ReceivedAt)
+	}
+
 	// Auto-match with pending payment_transactions if amount matches
 	if payload.AmountDetected != "" {
 		matched, err := s.database.MatchCapturedAmountToPendingTransaction(payload.AmountDetected)
@@ -379,8 +473,8 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 					matched.ID, captured.ID)
 				// Notify all admins about the successful match
 				s.notifyAllAdmins(
-					"Transaksi otomatis terverifikasi ✅",
-					fmt.Sprintf("Transaksi #%d (Rp %s) berhasil dicocokkan dengan notifikasi dari %s",
+					"Transaksi lunas",
+					fmt.Sprintf("Transaksi #%d (Rp %s) cocok dengan notifikasi dari %s dan ditandai lunas.",
 						matched.ID, payload.AmountDetected, payload.AppName),
 					"success",
 				)
@@ -393,13 +487,14 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 
 	// Send panel notification to superadmin
 	s.notifyAllAdmins(
-		"Notifikasi pembayaran masuk 💰",
-		fmt.Sprintf("Dari %s: %s — Rp %s", payload.AppName, payload.Title, payload.AmountDetected),
+		"Pembayaran masuk",
+		fmt.Sprintf("Dari %s: %s (Rp %s)", payload.AppName, payload.Title, payload.AmountDetected),
 		"info",
 	)
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":         true,
+		"success":    true,
 		"capturedId": captured.ID,
 		"message":    "notification captured",
 	})
@@ -424,4 +519,26 @@ func parseIntParam(s string) (int, error) {
 		result = result*10 + int(c-'0')
 	}
 	return result, nil
+}
+
+// webhookAPIKey is the key of a listener phone: the header the panel shows, the same as a Bearer token (what many HTTP
+// clients and automation apps offer), or in the address
+func webhookAPIKey(r *http.Request) string {
+	if key := strings.TrimSpace(r.Header.Get("X-API-Key")); key != "" {
+		return key
+	}
+	if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
+		for _, prefix := range []string{"Bearer ", "bearer ", "ApiKey ", "Api-Key "} {
+			if strings.HasPrefix(auth, prefix) {
+				return strings.TrimSpace(strings.TrimPrefix(auth, prefix))
+			}
+		}
+	}
+	query := r.URL.Query()
+	for _, name := range []string{"api_key", "apiKey", "key"} {
+		if key := strings.TrimSpace(query.Get(name)); key != "" {
+			return key
+		}
+	}
+	return ""
 }

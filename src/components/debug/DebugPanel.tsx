@@ -197,7 +197,7 @@ export function DebugPanel() {
                       fontWeight: 600,
                     }}
                   >
-                    {w.icon}
+                    {w.kind.charAt(0).toUpperCase()}
                   </div>
                 )
               })}

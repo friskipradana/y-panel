@@ -12,6 +12,7 @@ type Container struct {
 	ID           string                 `json:"Id"`
 	Names        []string               `json:"Names"`
 	Image        string                 `json:"Image"`
+	ImageID      string                 `json:"ImageId,omitempty"`
 	State        string                 `json:"State"`
 	Status       string                 `json:"Status"`
 	Ports        []ContainerPort        `json:"Ports"`
@@ -44,6 +45,12 @@ type ContainerPort struct {
 	PrivatePort int    `json:"PrivatePort"`
 	PublicPort  int    `json:"PublicPort,omitempty"`
 	Type        string `json:"Type"`
+}
+
+type DockerVersionInfo struct {
+	Docker  string `json:"docker"`
+	Buildx  string `json:"buildx"`
+	Compose string `json:"compose"`
 }
 
 type OwnerContext struct {
@@ -94,12 +101,14 @@ type DeployImageRequest struct {
 	EnvRaw       string          `json:"envRaw,omitempty"`
 	RegistryAuth *RegistryAuth   `json:"registryAuth,omitempty"`
 	Volumes      []VolumeBinding `json:"volumes"`
+	ForcePull    bool            `json:"forcePull,omitempty"`
 }
 
 type DeployComposeRequest struct {
 	Name         string        `json:"name"`
 	ComposeYAML  string        `json:"composeYaml"`
 	RegistryAuth *RegistryAuth `json:"registryAuth,omitempty"`
+	ForcePull    bool          `json:"forcePull,omitempty"`
 }
 
 type DeployResult struct {
@@ -110,12 +119,13 @@ type DeployResult struct {
 
 // ContainerConfig holds the editable configuration of a deployed container.
 type ContainerConfig struct {
-	Name    string          `json:"name"`
-	Image   string          `json:"image"`
-	Network string          `json:"network"`
-	Ports   []PortBinding   `json:"ports"`
-	Env     []EnvVar        `json:"env"`
-	EnvMode string          `json:"envMode,omitempty"`
-	EnvRaw  string          `json:"envRaw,omitempty"`
-	Volumes []VolumeBinding `json:"volumes"`
+	Name        string          `json:"name"`
+	Image       string          `json:"image"`
+	Network     string          `json:"network"`
+	Ports       []PortBinding   `json:"ports"`
+	Env         []EnvVar        `json:"env"`
+	EnvMode     string          `json:"envMode,omitempty"`
+	EnvRaw      string          `json:"envRaw,omitempty"`
+	Volumes     []VolumeBinding `json:"volumes"`
+	ComposeYaml string          `json:"composeYaml,omitempty"`
 }

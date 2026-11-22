@@ -1,0 +1,415 @@
+// Speed test
+.speed-gauge {
+  --speed-accent: var(--panel-primary-solid);
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.speed-gauge--upload {
+  --speed-accent: var(--panel-info-text);
+}
+
+.speed-gauge__svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.speed-gauge__track,
+.speed-gauge__value {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.speed-gauge__track {
+  stroke: var(--win-border);
+}
+
+.speed-gauge__value {
+  stroke: var(--speed-accent);
+  transition: stroke 200ms ease;
+}
+
+.speed-gauge__marker {
+  fill: var(--win-content-bg);
+  stroke: var(--speed-accent);
+  stroke-width: 3;
+}
+
+.speed-gauge__tick-line {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.speed-gauge__tick {
+  fill: var(--text-secondary);
+  font-size: 9px;
+  font-family: var(--font-mono);
+}
+
+.speed-gauge__center {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+}
+
+.speed-gauge__number {
+  font-family: var(--font-mono);
+  font-size: 2.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--win-text);
+}
+
+.speed-gauge__unit {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.speed-gauge__label {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--speed-accent);
+  text-align: center;
+}
+
+.speed-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface);
+  height: 100%;
+}
+
+.speed-hero__server {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin: 0;
+  padding-top: 10px;
+  width: 100%;
+  border-top: 1px solid var(--win-border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--win-text);
+}
+
+.speed-hero__server .panel-mono {
+  font-weight: 400;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.speed-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.speed-picker__host {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.speed-steps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.speed-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  transition: all 160ms ease;
+
+  &__dot {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 1.5px solid var(--win-border);
+    color: var(--color-white);
+    background: transparent;
+    transition: background 160ms ease, border-color 160ms ease;
+  }
+
+  &--active {
+    color: var(--panel-primary-text);
+    font-weight: 600;
+
+    .speed-step__dot {
+      border-color: var(--panel-primary-solid);
+      background: color-mix(in srgb, var(--panel-primary-solid) 30%, transparent);
+      animation: speed-pulse 1.1s ease-in-out infinite;
+    }
+  }
+
+  &--done {
+    color: var(--win-text);
+
+    .speed-step__dot {
+      background: var(--panel-success-text);
+      border-color: var(--panel-success-text);
+    }
+  }
+}
+
+// Right metrics card: a single cohesive card matching the left hero card
+.speed-stats-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 14px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface);
+  overflow: hidden;
+  height: 100%;
+}
+
+.speed-stat-row {
+  --speed-accent: var(--panel-primary-solid);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1 1 0;
+  min-height: 72px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--win-border);
+  border-left: 3px solid transparent;
+  transition: background 160ms ease, border-left-color 160ms ease;
+
+  &--upload {
+    --speed-accent: var(--panel-info-text);
+  }
+
+  &--active {
+    background: color-mix(in srgb, var(--speed-accent) 8%, var(--panel-surface));
+    border-left-color: var(--speed-accent);
+  }
+}
+
+.speed-stats-card__bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 0 0 auto;
+}
+
+.speed-stat-mini {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 10px 16px;
+  border-left: 3px solid transparent;
+  transition: background 160ms ease, border-left-color 160ms ease;
+
+  &:first-child {
+    border-right: 1px solid var(--win-border);
+  }
+
+  &--active {
+    background: color-mix(in srgb, var(--panel-primary-solid) 8%, var(--panel-surface));
+    border-left-color: var(--panel-primary-solid);
+  }
+}
+
+.speed-stat__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.speed-stat__value {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--win-text);
+
+  &--compact {
+    font-size: 1.125rem;
+  }
+}
+
+.speed-stat__hint {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.speed-stat__unit {
+  margin-left: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.speed-stat__chart-wrap {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 44px;
+  margin-left: 20px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.speed-stat__trace {
+  display: block;
+  width: 100%;
+  height: 44px;
+}
+
+.speed-stat__trace-empty {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.speed-stat__trace-baseline {
+  width: 100%;
+  height: 1px;
+  border-bottom: 1px dashed var(--win-border);
+  opacity: 0.4;
+}
+
+.speed-stat__area {
+  fill: color-mix(in srgb, var(--speed-accent) 16%, transparent);
+}
+
+.speed-stat__line {
+  fill: none;
+  stroke: var(--speed-accent);
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+}
+
+.docker-table--speed .docker-table-scroll {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+@keyframes speed-pulse {
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-primary-solid) 22%, transparent);
+  }
+}
+
+@media (max-width: 639px) {
+  .speed-hero {
+    padding: 12px 10px;
+    gap: 10px;
+    border-radius: 12px;
+  }
+
+  .speed-gauge {
+    max-width: 210px;
+  }
+
+  .speed-gauge__number {
+    font-size: 1.875rem;
+  }
+
+  .speed-gauge__unit {
+    font-size: 0.6875rem;
+  }
+
+  .speed-gauge__label {
+    margin-top: 4px;
+    font-size: 0.6875rem;
+  }
+
+  .speed-steps {
+    gap: 6px 12px;
+    font-size: 0.6875rem;
+  }
+
+  .speed-hero__server {
+    padding-top: 8px;
+    gap: 2px;
+  }
+
+  .speed-stats-card {
+    border-radius: 12px;
+  }
+
+  .speed-stat-row {
+    min-height: 56px;
+    padding: 8px 12px;
+    gap: 8px;
+
+    .speed-stat__value {
+      font-size: 1.25rem;
+    }
+
+    .speed-stat__chart-wrap {
+      height: 36px;
+      margin-left: 10px;
+    }
+
+    .speed-stat__trace,
+    .speed-stat__trace-empty {
+      height: 36px;
+    }
+  }
+
+  .speed-stat-mini {
+    min-height: 48px;
+    padding: 8px 12px;
+    gap: 8px;
+
+    .speed-stat__value--compact {
+      font-size: 1rem;
+    }
+  }
+
+  .docker-table--speed .docker-table-scroll {
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speed-gauge__value,
+  .speed-step__dot {
+    transition: none;
+    animation: none;
+  }
+}

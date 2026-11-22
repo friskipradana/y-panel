@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Reneo SIDesa">
+  <rect x="40" y="40" width="432" height="432" rx="92" fill="#0B2A57" />
+  <path d="M96 352C148 310 212 296 276 314C324 328 370 314 416 278V376C416 398.1 398.1 416 376 416H136C113.9 416 96 398.1 96 376V352Z" fill="#10B981" />
+  <circle cx="372" cy="144" r="26" fill="#10B981" />
+  <path d="M256 104L336 162H176L256 104Z" fill="#FFFFFF" stroke="#0B2A57" stroke-width="10" stroke-linejoin="round" />
+  <path d="M114 216L176 162H336L398 216H114Z" fill="#FFFFFF" stroke="#0B2A57" stroke-width="10" stroke-linejoin="round" />
+  <rect x="148" y="224" width="216" height="148" rx="22" fill="#FFFFFF" stroke="#0B2A57" stroke-width="10" />
+  <g transform="translate(130.2, 174.2) scale(0.48)">
+    <rect x="146.0" y="150.0" width="220.0" height="152.0" rx="62.0" fill="#0B2A57" />
+    <rect x="146.0" y="150.0" width="62.0" height="62.0" fill="#0B2A57" />
+    <rect x="146.0" y="240.0" width="62.0" height="62.0" fill="#0B2A57" />
+    <rect x="146.0" y="150.0" width="60.0" height="216.0" fill="#0B2A57" />
+    <polygon points="238.0,296.0 300.0,296.0 378.0,366.0 310.0,366.0" fill="#0B2A57" />
+    <rect x="146.0" y="212.0" width="160.0" height="16.0" rx="8.0" fill="#FFFFFF" />
+    <rect x="146.0" y="212.0" width="8.0" height="8.0" fill="#FFFFFF" />
+    <rect x="146.0" y="220.0" width="8.0" height="8.0" fill="#FFFFFF" />
+    <polygon points="206.0,302.0 244.0,302.0 300.0,366.0 206.0,366.0" fill="#FFFFFF" />
+  </g>
+  <rect x="128" y="366" width="256" height="18" rx="9" fill="#FFFFFF" />
+</svg>

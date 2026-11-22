@@ -2,22 +2,20 @@ package httpserver
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 	"github.com/gorilla/websocket"
 )
 
 // ─── Middleware ──────────────────────────────────────────────────────────────
-
-// requireAuth is a legacy alias for requireAuthV2.
-func (s *Server) requireAuth(next http.Handler) http.Handler {
-	return s.requireAuthV2(next)
-}
 
 // currentUser returns the username from the session cookie, if authenticated.
 func (s *Server) currentUser(r *http.Request) (string, bool) {
@@ -30,7 +28,7 @@ func (s *Server) currentUser(r *http.Request) (string, bool) {
 
 // currentUserRecord returns the full User record from the session cookie.
 func (s *Server) currentUserRecord(r *http.Request) *database.User {
-	cookie, err := r.Cookie(sessionCookieName)
+	cookie, err := requestSessionCookie(r)
 	if err != nil {
 		return nil
 	}
@@ -41,17 +39,12 @@ func (s *Server) currentUserRecord(r *http.Request) *database.User {
 	return u
 }
 
-// requireHTMLAuth is a legacy alias for requireHTMLAuthV2.
-func (s *Server) requireHTMLAuth(next http.Handler) http.Handler {
-	return s.requireHTMLAuthV2(next)
-}
-
 // requireHTMLAuthV2 protects HTML page routes by redirecting unauthenticated
 // users to /login.
 func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if strings.HasPrefix(path, "/api/") || path == "/healthz" {
+		if strings.HasPrefix(path, "/api/") || path == "/healthz" || path == "/mcp" || strings.HasPrefix(path, "/mcp/") || path == "/sse" || strings.HasPrefix(path, "/sse/") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -61,26 +54,102 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 			return
 		}
 
-		_, authed := s.currentUser(r)
-		if !authed && path != "/" && path != "/login" {
-			if acceptsHTML(r) {
-				http.Redirect(w, r, "/login", http.StatusFound)
+		// With the public site off only the login form stays open. "/" sends a visitor to the
+		// login form (or the app when signed in), every other public address does not exist.
+		if !s.landingFor(r) && isPublicSitePath(path) {
+			if path == "/" {
+				if _, authed := s.currentUser(r); authed {
+					http.Redirect(w, r, "/home", http.StatusFound)
+				} else {
+					http.Redirect(w, r, "/login", http.StatusFound)
+				}
 				return
 			}
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			if path == "/robots.txt" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if acceptsHTML(r) {
+				s.writeStatusPage(w, r, http.StatusNotFound, "Halaman tidak ditemukan", "Alamat yang Anda buka tidak tersedia.", "Periksa kembali alamatnya, atau masuk ke panel.", false)
+				return
+			}
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+
+		// Public pages: Landing (/), Login (/login), and Public MCP Tutorial (/docs/mcp, /mcp/guide)
+		isPublicPage := path == "/" || path == "/login" || path == "/docs/mcp" || strings.HasPrefix(path, "/docs/") || path == "/mcp/guide" ||
+			path == "/articles" || strings.HasPrefix(path, "/articles/") || path == "/install" || path == "/terms" || path == "/privacy" || path == "/order" || strings.HasPrefix(path, "/order/") ||
+			path == "/robots.txt" || path == "/sitemap.xml" || path == "/llms.txt"
+
+		// Files the login and landing pages need before any session exists
+		if isPublicStaticFile(path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		_, authed := s.currentUser(r)
+		if !authed && !isPublicPage {
+			// Only the application's own pages send a visitor to the login form. Any other
+			// address does not exist for them: a plain 404, the same as for a signed-in user.
+			if isProtectedPagePath(path) {
+				if acceptsHTML(r) {
+					http.Redirect(w, r, "/login", http.StatusFound)
+					return
+				}
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			if acceptsHTML(r) {
+				s.writeStatusPage(w, r, http.StatusNotFound, "Halaman tidak ditemukan", "Alamat yang Anda buka tidak tersedia.", "Periksa kembali alamatnya, atau kembali ke halaman utama.", false)
+				return
+			}
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		if authed && path == "/login" {
 			http.Redirect(w, r, "/home", http.StatusFound)
 			return
 		}
+		if authed && (path == "/kvm" || strings.HasPrefix(path, "/kvm/")) {
+			u := s.currentUserRecord(r)
+			if u == nil || !auth.HasRole(u.Role, auth.SuperadminRole) {
+				if acceptsHTML(r) {
+					s.writeStatusPage(w, r, http.StatusForbidden, "Akses ditolak", "Halaman layar host KVM hanya tersedia untuk superadmin.", "Masuk menggunakan akun superadmin untuk mengakses KVM.", false)
+				} else {
+					http.Error(w, "forbidden", http.StatusForbidden)
+				}
+				return
+			}
+			if !s.validateKvmToken(r.URL.Query().Get("token"), u.ID) {
+				if acceptsHTML(r) {
+					s.writeStatusPage(w, r, http.StatusForbidden, "Token KVM tidak valid atau kedaluwarsa", "Tautan tab KVM harus memiliki token aktif yang valid milik akun superadmin Anda.", "Buka ulang tab baru KVM langsung dari jendela KVM atau menu Pengaturan di panel.", false)
+				} else {
+					http.Error(w, "invalid kvm token", http.StatusForbidden)
+				}
+				return
+			}
+		}
 
 		next.ServeHTTP(w, r)
 	})
 }
 
+// isPublicSitePath is a page of the public site: landing, articles, install and MCP guides, and
+// the files crawlers ask for. /login is not one of them.
+func isPublicSitePath(path string) bool {
+	return path == "/" || path == "/docs/mcp" || strings.HasPrefix(path, "/docs/") || path == "/mcp/guide" ||
+		path == "/articles" || strings.HasPrefix(path, "/articles/") || path == "/install" || path == "/terms" || path == "/privacy" || path == "/order" || strings.HasPrefix(path, "/order/") ||
+		path == "/robots.txt" || path == "/sitemap.xml" || path == "/llms.txt"
+}
+
 // ServeHTTP applies the middleware chain: access log → host guard → CORS → rate limit → mux.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// the address of the WAHA dashboard answers with nothing but WAHA, behind its own cookie
+	if s.wahaDashboardRequest(r) {
+		s.serveWahaDashboard(w, r)
+		return
+	}
 	s.withAccessLog(s.withHostGuard(s.withCORS(s.withRateLimit(s.mux)))).ServeHTTP(w, r)
 }
 
@@ -99,7 +168,7 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				w.Header().Set("Vary", "Origin")
 			}
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-KVM-Token")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
@@ -134,6 +203,19 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 
 func (s *Server) withHostGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		// MCP endpoints (/mcp, /sse) and public guide docs (/docs/mcp) are machine/public integrations
+		if path == "/mcp" || strings.HasPrefix(path, "/mcp/") || path == "/sse" || strings.HasPrefix(path, "/sse/") || path == "/docs/mcp" || strings.HasPrefix(path, "/docs/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Authenticated API token requests (ypat_...) bypass host guard because Bearer tokens cannot be forged via ambient browser credentials (DNS rebinding)
+		if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ypat_") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		if !s.isHostAllowed(r.Host) {
 			if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
 				http.Error(w, "host not allowed", http.StatusForbidden)
@@ -148,12 +230,22 @@ func (s *Server) withHostGuard(next http.Handler) http.Handler {
 
 func (s *Server) isHostAllowed(hostport string) bool {
 	host := normalizeHost(hostport)
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0" || host == "host.docker.internal" {
 		return true
 	}
 	if host == "" {
 		return false
 	}
+	// Allow loopback, private LAN (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), and Tailscale CGNAT IP (100.64.0.0/10)
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() {
+			return true
+		}
+		if ip4 := ip.To4(); ip4 != nil && ip4[0] == 100 && (ip4[1]&0xc0) == 64 {
+			return true
+		}
+	}
+
 	hosts := s.allowedHosts()
 	origins := s.allowedOrigins()
 	if len(hosts) == 0 && len(origins) == 0 {
@@ -178,6 +270,12 @@ func (s *Server) isHostAllowed(hostport string) bool {
 			return true
 		}
 	}
+
+	// Dynamically check if the host matches any configured Cloudflare tunnel, project domain, or base domain
+	if s.isKnownWorkloadHost(host) {
+		return true
+	}
+
 	return false
 }
 
@@ -185,21 +283,107 @@ func (s *Server) isOriginAllowed(origin string) bool {
 	if origin == "" {
 		return true
 	}
+	normalizedOrigin, ok := normalizeOrigin(origin)
+	if !ok {
+		return false
+	}
+	// Always allow loopback, private LAN, and Tailscale origins
+	var originHost string
+	if parsed, err := url.Parse(normalizedOrigin); err == nil {
+		originHost = normalizeHost(parsed.Host)
+		if originHost == "localhost" || originHost == "127.0.0.1" || originHost == "::1" || originHost == "0.0.0.0" {
+			return true
+		}
+		if ip := net.ParseIP(originHost); ip != nil {
+			if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() {
+				return true
+			}
+			if ip4 := ip.To4(); ip4 != nil && ip4[0] == 100 && (ip4[1]&0xc0) == 64 {
+				return true
+			}
+		}
+	}
+
 	origins := s.allowedOrigins()
 	if len(origins) == 0 {
 		return true
 	}
 
-	normalizedOrigin, ok := normalizeOrigin(origin)
-	if !ok {
-		return false
-	}
 	for _, candidate := range origins {
 		normalizedCandidate, candidateOK := normalizeOrigin(candidate)
 		if !candidateOK {
 			continue
 		}
 		if normalizedOrigin == normalizedCandidate {
+			return true
+		}
+	}
+	if originHost != "" && s.isKnownWorkloadHost(originHost) {
+		return true
+	}
+	return false
+}
+
+const workloadHostCacheTTL = 15 * time.Second
+
+func (s *Server) invalidateWorkloadHosts() {
+	s.workloadHostsMu.Lock()
+	s.workloadHostsAt = time.Time{}
+	s.workloadHosts = nil
+	s.workloadHostsMu.Unlock()
+}
+
+func (s *Server) tunnelWorkloadHostSet() map[string]struct{} {
+	now := time.Now()
+	s.workloadHostsMu.RLock()
+	if s.workloadHosts != nil && now.Sub(s.workloadHostsAt) < workloadHostCacheTTL {
+		hosts := s.workloadHosts
+		s.workloadHostsMu.RUnlock()
+		return hosts
+	}
+	s.workloadHostsMu.RUnlock()
+
+	tunnels, _, err := s.database.ListTunnelsFiltered(0, "", 500, 0)
+	if err != nil {
+		return nil
+	}
+	hosts := make(map[string]struct{}, len(tunnels))
+	for _, t := range tunnels {
+		if h := strings.ToLower(normalizeHost(t.CFHostname)); h != "" {
+			hosts[h] = struct{}{}
+		}
+	}
+	s.workloadHostsMu.Lock()
+	s.workloadHosts = hosts
+	s.workloadHostsAt = now
+	s.workloadHostsMu.Unlock()
+	return hosts
+}
+
+// isKnownWorkloadHost dynamically checks if a host matches any active Cloudflare tunnel ingress or project domain.
+func (s *Server) isKnownWorkloadHost(host string) bool {
+	if host == "" || s.database == nil {
+		return false
+	}
+	// the address of a buyer's panel
+	if s.hostingHostOwner(host) != 0 {
+		return true
+	}
+	// a domain registered to show the panel through the public proxy
+	if s.isPublicPanelHost(host) {
+		return true
+	}
+	// Check base domain & its subdomains (covers slug.BaseDomain projects too)
+	if s.cfg.BaseDomain != "" {
+		bd := strings.ToLower(s.cfg.BaseDomain)
+		hl := strings.ToLower(host)
+		if hl == bd || strings.HasSuffix(hl, "."+bd) {
+			return true
+		}
+	}
+	// Check configured Cloudflare tunnels (ingress hostnames like antrian.aknalre.my.id)
+	if hosts := s.tunnelWorkloadHostSet(); len(hosts) > 0 {
+		if _, ok := hosts[strings.ToLower(normalizeHost(host))]; ok {
 			return true
 		}
 	}
@@ -249,8 +433,15 @@ func (s *Server) withRateLimit(next http.Handler) http.Handler {
 		}
 
 		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
-		log.Printf("[security] rate limit hit path=%s method=%s remote=%s retry_after=%s", r.URL.Path, r.Method, remoteAddr(r), retryAfter)
-		s.recordRuntimeLog("warning", "request rate limited", map[string]any{"path": r.URL.Path, "method": r.Method, "remote": remoteAddr(r), "retryAfter": retryAfter.String()})
+		// refusals are counted (and told to the seller when they pile up); only a few a minute are written down
+		s.notify.RequestRefused(clientIP(r))
+		if strings.HasPrefix(r.URL.Path, "/api/v1/public/hosting") {
+			s.notify.OrderRefused(clientIP(r))
+		}
+		if rateLogSampler.Allow() {
+			log.Printf("[security] rate limit hit path=%s method=%s remote=%s retry_after=%s", r.URL.Path, r.Method, remoteAddr(r), retryAfter)
+			s.recordRuntimeLog("warning", "request rate limited", map[string]any{"path": r.URL.Path, "method": r.Method, "remote": remoteAddr(r), "retryAfter": retryAfter.String()})
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
 			s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many requests"})
 			return
@@ -261,7 +452,7 @@ func (s *Server) withRateLimit(next http.Handler) http.Handler {
 
 func (s *Server) rateLimitRuleForRequest(r *http.Request) (rateLimitRule, string, bool) {
 	path := r.URL.Path
-	remote := remoteAddr(r)
+	remote := clientIP(r)
 	if remote == "" {
 		remote = "unknown"
 	}
@@ -269,6 +460,12 @@ func (s *Server) rateLimitRuleForRequest(r *http.Request) (rateLimitRule, string
 	switch {
 	case path == "/healthz" || strings.HasPrefix(path, "/assets/") || path == "/favicon.ico":
 		return rateLimitRule{}, "", false
+	case isSpeedtestPath(path):
+		// a test opens a few dozen short requests in seconds
+		return rateLimitRule{Window: time.Minute, Limit: 600}, "speedtest:" + remote, true
+	case strings.HasPrefix(path, appCatalogProxyPrefix) || strings.HasPrefix(path, "/app/"):
+		// embedded web apps load assets and API calls through the proxy
+		return rateLimitRule{Window: time.Minute, Limit: 1200}, "appproxy:" + remote, true
 	case path == "/api/v1/auth/login" || path == "/api/v1/setup/initialize":
 		return rateLimitRule{Window: time.Minute, Limit: 12}, "auth:" + remote, true
 	case websocket.IsWebSocketUpgrade(r):
@@ -285,10 +482,16 @@ func (s *Server) allowRateLimit(key string, rule rateLimitRule) (bool, time.Dura
 	s.rateLimitMu.Lock()
 	defer s.rateLimitMu.Unlock()
 
-	for candidate, entry := range s.rateLimits {
-		if now.Sub(entry.LastSeenAt) > 10*time.Minute {
-			delete(s.rateLimits, candidate)
+	if s.rateLimits == nil {
+		s.rateLimits = make(map[string]*rateLimitEntry)
+	}
+	if s.rateLimitsLastSweep.IsZero() || now.Sub(s.rateLimitsLastSweep) >= time.Minute {
+		for candidate, entry := range s.rateLimits {
+			if now.Sub(entry.LastSeenAt) > 10*time.Minute {
+				delete(s.rateLimits, candidate)
+			}
 		}
+		s.rateLimitsLastSweep = now
 	}
 
 	entry := s.rateLimits[key]
@@ -313,9 +516,25 @@ func (s *Server) withAccessLog(next http.Handler) http.Handler {
 		started := time.Now()
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(recorder, r)
-		duration := time.Since(started).Round(time.Millisecond)
-		log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, duration, remoteAddr(r))
-		s.recordRuntimeLog("info", "http request served", map[string]any{"type": requestKind(r), "method": r.Method, "path": r.URL.Path, "status": recorder.status, "duration": duration.String(), "remote": remoteAddr(r)})
+		duration := time.Since(started)
+		performance.DefaultRegistry.RecordAPIRequest(duration, recorder.status)
+		if isSpeedtestPath(r.URL.Path) {
+			// each test is dozens of requests; they would flood the runtime log
+			return
+		}
+		// Skip PostgreSQL runtime_logs writes for routine healthy requests; log errors and slow requests only.
+		if recorder.status >= http.StatusInternalServerError || duration >= 2*time.Second {
+			durationRounded := duration.Round(time.Millisecond)
+			log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, durationRounded, remoteAddr(r))
+			level := "warn"
+			if recorder.status >= http.StatusInternalServerError {
+				level = "error"
+			}
+			s.recordRuntimeLog(level, "http request served", map[string]any{"type": requestKind(r), "method": r.Method, "path": r.URL.Path, "status": recorder.status, "duration": durationRounded.String(), "remote": remoteAddr(r)})
+		} else if recorder.status >= http.StatusBadRequest || duration >= time.Second {
+			durationRounded := duration.Round(time.Millisecond)
+			log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, durationRounded, remoteAddr(r))
+		}
 	})
 }
 
@@ -325,7 +544,7 @@ func (s *Server) recordRuntimeLog(level, message string, metadata map[string]any
 	if s.database == nil {
 		return
 	}
-	s.database.RecordRuntimeLog("ypanel", level, message, metadata)
+	s.database.RecordRuntimeLog("reneo", level, message, metadata)
 }
 
 func (s *Server) auditSensitiveAction(r *http.Request, user *database.User, action, result string, metadata map[string]any) {
@@ -360,4 +579,24 @@ func (s *Server) auditSensitiveAction(r *http.Request, user *database.User, acti
 
 func (s *Server) auditFileAction(r *http.Request, action, result string, metadata map[string]any) {
 	s.auditSensitiveAction(r, s.currentUserRecord(r), action, result, metadata)
+}
+
+// isProtectedPagePath lists the application's pages that need a session.
+func isProtectedPagePath(path string) bool {
+	return path == "/home" || strings.HasPrefix(path, "/home/") ||
+		path == "/database" || strings.HasPrefix(path, "/database/") ||
+		path == "/kvm" || strings.HasPrefix(path, "/kvm/") ||
+		path == "/adminer" || strings.HasPrefix(path, "/adminer/") ||
+		path == "/dbx" || strings.HasPrefix(path, "/dbx/")
+}
+
+// isPublicStaticFile reports files served without a session (PWA manifest, service worker,
+// icons, brand and wallpaper images).
+func isPublicStaticFile(path string) bool {
+	switch path {
+	case "/manifest.webmanifest", "/sw.js", "/apple-touch-icon.png", "/favicon-16x16.png", "/favicon-32x32.png",
+		"/favicon-48x48.png", "/pwa-maskable.svg":
+		return true
+	}
+	return strings.HasPrefix(path, "/brand/") || strings.HasPrefix(path, "/wallpapers/")
 }

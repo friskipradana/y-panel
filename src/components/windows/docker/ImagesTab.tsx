@@ -1,160 +1,180 @@
-import { useMemo } from 'react'
-import { Boxes, FileDown, HardDrive, Image as ImageIcon, RefreshCw, Search, Trash2 } from 'lucide-react'
-import type { DockerImage } from '@/types'
-import { useI18n } from '@/lib/i18n'
+import { toast } from 'sonner'
+import { Box, CircleArrowUp, LoaderCircle, Play, Trash2 } from 'lucide-react'
+import { alertLib } from '@/lib/alert'
+import { Button } from '@/components/ui/Button'
+import { Checkbox } from '@/components/ui/Checkbox'
+import { Field, TextInput } from '@/components/ui/Field'
+import { Modal } from '@/components/ui/Modal'
+import { ListState, ListRowIcon, ListTable } from '@/components/ui/ListTable'
+import { formatDockerDate } from './constants'
+import type { DockerWindowState } from './useDockerWindow'
 
-interface ImagesTabProps {
-  images: DockerImage[]
-  isLoading: boolean
-  isError: boolean
-  error: Error | null
-  search: string
-  setSearch: (v: string) => void
-  query: string
-  setQuery: (v: string) => void
-  deleteImageMutation: any
-  pruneImagesMutation: any
-  onPullImage: () => void
-}
+const apiError = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
-export function ImagesTab({
-  images,
-  isLoading,
-  isError,
-  error,
-  search,
-  setSearch,
-  query,
-  setQuery,
-  deleteImageMutation,
-  pruneImagesMutation,
-  onPullImage,
-}: ImagesTabProps) {
-  const { t } = useI18n()
-  const filteredImages = useMemo(() => {
-    const needle = search.trim().toLowerCase()
-    if (!needle) return images
-    return images.filter((image) => {
-      return [image.Repository, image.Tag, image.Size, image.Id, image.CreatedAt].some(
-        (value) => value?.toLowerCase().includes(needle)
-      )
+export function ImagesTab({ docker }: { docker: DockerWindowState }) {
+  const {
+    t,
+    imagesQuery,
+    filteredImages,
+    narrowed,
+    lists,
+    refetchImages,
+    showPullImage,
+    resetPullImageModal,
+    pullImageForm,
+    setPullImageForm,
+    setUpdateTarget,
+    deleteImageMut,
+    deployFromImage,
+  } = docker
+
+  const facets = imagesQuery.data?.facets
+
+  const pull = () => {
+    const image = pullImageForm.image.trim()
+    const auth = pullImageForm.registryAuth
+    // the download is shown with what Docker prints, in the update window
+    setUpdateTarget({
+      kind: 'image',
+      image,
+      registryAuth: auth.enabled ? { enabled: true, registry: auth.registry || undefined, usernameOrEmail: auth.usernameOrEmail, password: auth.password } : undefined,
+      autoStart: true,
     })
-  }, [images, search])
+    resetPullImageModal()
+  }
+
+  const remove = async (id: string, label: string) => {
+    const ok = await alertLib.confirm(t('docker.deleteImage'), t('docker.deleteImageConfirm', { image: label }), t('docker.delete'), t('common.cancel'), 'warning', 'apps')
+    if (!ok) return
+    deleteImageMut.mutate(id, {
+      onSuccess: () => {
+        toast.success(t('docker.imageDeleted', { image: label }))
+        void refetchImages()
+      },
+      onError: (e) => alertLib.fire(t('docker.deleteImageFailed'), apiError(e, t('docker.imageDeleteFailed')), 'error', 'apps'),
+    })
+  }
 
   return (
-    <div className="panel-window__stack">
-      <div className="panel-table-container">
-        <div className="panel-toolbar panel-toolbar--search docker-toolbar-card">
-          <form
-            className="panel-search"
-            onSubmit={(e) => {
-              e.preventDefault()
-              setSearch(query.trim())
-            }}
-          >
-            <Search className="h-4 w-4" />
-            <input
-              id="docker-images-search-input"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="panel-search__input"
-              placeholder={t('docker.searchImages')}
-            />
-            <button type="submit" className="panel-btn panel-btn--primary-soft">{t('docker.search')}</button>
-          </form>
-          <div className="docker-toolbar-buttons">
-            <button
-              type="button"
-              className="panel-btn panel-btn--primary-soft"
-              onClick={onPullImage}
-            >
-              <FileDown className="h-3.5 w-3.5" />
+    <>
+      <Modal
+        open={showPullImage}
+        onClose={resetPullImageModal}
+        title={t('docker.pullDockerImage')}
+        size="lg"
+        footer={
+          <>
+            <Button type="button" variant="ghost" onClick={resetPullImageModal}>{t('common.cancel')}</Button>
+            <Button type="button" variant="primary" disabled={!pullImageForm.image.trim()} onClick={pull}>
               {t('docker.pullImage')}
-            </button>
-            <button
-              type="button"
-              className="panel-btn panel-btn--ghost"
-              onClick={() => pruneImagesMutation.mutate()}
-              disabled={pruneImagesMutation.isPending}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              {t('docker.pruneUnused')}
-            </button>
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Field label={t('docker.imageRequired')}>
+            <TextInput mono placeholder={t('docker.pullImagePlaceholder')} value={pullImageForm.image} onChange={(e) => setPullImageForm((c) => ({ ...c, image: e.target.value }))} />
+          </Field>
+          <div className="docker-auth-block">
+            <Checkbox
+              checked={pullImageForm.registryAuth.enabled}
+              onChange={(checked) => setPullImageForm((c) => ({ ...c, registryAuth: { ...c.registryAuth, enabled: checked } }))}
+              label={t('docker.useRegistryAuth')}
+            />
+            {pullImageForm.registryAuth.enabled && (
+              <div className="docker-auth-grid">
+                <Field label={`${t('docker.registry')} ${t('docker.optional')}`}>
+                  <TextInput mono placeholder={t('docker.registryPlaceholder')} value={pullImageForm.registryAuth.registry} onChange={(e) => setPullImageForm((c) => ({ ...c, registryAuth: { ...c.registryAuth, registry: e.target.value } }))} />
+                </Field>
+                <Field label={t('docker.usernameEmailRequired')}>
+                  <TextInput placeholder={t('docker.usernameEmailPlaceholder')} value={pullImageForm.registryAuth.usernameOrEmail} onChange={(e) => setPullImageForm((c) => ({ ...c, registryAuth: { ...c.registryAuth, usernameOrEmail: e.target.value } }))} />
+                </Field>
+                <div className="docker-auth-grid__full">
+                  <Field label={t('docker.passwordRequired')}>
+                    <TextInput type="password" autoComplete="off" placeholder={t('docker.passwordPlaceholder')} value={pullImageForm.registryAuth.password} onChange={(e) => setPullImageForm((c) => ({ ...c, registryAuth: { ...c.registryAuth, password: e.target.value } }))} />
+                  </Field>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+      </Modal>
 
-        {isLoading ? (
-          <div className="panel-loading">
-            <RefreshCw className="h-4 w-4 animate-spin" />
-            {t('docker.loadingImages')}
-          </div>
-        ) : isError ? (
-          <div className="panel-error-state">
-            <ImageIcon className="h-5 w-5" />
-            <div>
-              <p className="font-semibold">{t('docker.imagesLoadFailed')}</p>
-              <p className="mt-1 text-[12px] leading-6 opacity-90">{(error as Error).message}</p>
-              <p className="mt-1 text-[12px] leading-6 opacity-80">{t('docker.runtimeAccessHint')}</p>
-            </div>
-          </div>
-        ) : filteredImages.length === 0 ? (
-          <div className="panel-empty panel-empty--wide">
-            <Boxes className="h-8 w-8" />
-            <div className="space-y-1">
-              <div className="text-sm font-medium text-[var(--win-text)]">{t('docker.noImagesMatch')}</div>
-              <div>{t('docker.emptyImagesHint')}</div>
-            </div>
-          </div>
-        ) : (
-          <>
-            {filteredImages.map((image) => {
-              return (
-                <div key={image.Id} className="panel-table-row">
-                  <div className="docker-image-row__main">
-                    <div className="docker-container-row__header">
-                      <div className="docker-container-card__title-wrap">
-                        <div className="docker-container-card__title-row">
-                          <span className="docker-container-card__title">{image.Repository}:{image.Tag}</span>
-                          <span className="docker-inline-code">ID {image.Id.slice(7, 19)}</span>
-                        </div>
-                        <div className="docker-container-card__meta-row">
-                          <HardDrive className="h-3.5 w-3.5 opacity-70" />
-                          <span className="docker-inline-code">{image.Size}</span>
-                          <span className="docker-inline-dot" />
-                          <span>{image.CreatedAt || '-'}</span>
-                          {(image.OwnerNames ?? []).length > 0 && (
-                            <>
-                              <span className="docker-inline-dot" />
-                              <span className="docker-inline-code">
-                                {t('docker.owner')}: {(image.OwnerNames ?? []).join(', ')}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="docker-container-row__actions">
-                        <button
-                          type="button"
-                          className="panel-icon-btn text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-hover)]"
-                          onClick={() => deleteImageMutation.mutate(image.Id)}
-                          disabled={deleteImageMutation.isPending}
-                          title={t('docker.deleteImage')}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
+      <ListTable
+        variant="images"
+        empty={imagesQuery.isLoading || imagesQuery.isError || filteredImages.length === 0}
+        columns={[
+          { label: t('docker.colIndex') },
+          lists.images.column('name', t('docker.col.image'), facets?.name),
+          lists.images.column('usage', t('docker.col.usage'), facets?.usage, { labelOf: (v) => (v === 'in-use' ? t('docker.inUse') : t('docker.unused')) }),
+          lists.images.column('size', t('docker.col.size'), facets?.size),
+          lists.images.column('created', t('docker.col.created'), facets?.created),
+          { label: t('docker.colActions'), actions: true },
+        ]}
+      >
+        <ListState
+          loading={imagesQuery.isLoading}
+          error={imagesQuery.isError}
+          errorTitle={t('docker.imagesLoadFailed')}
+          errorHint={t('docker.agentAccessHint')}
+          loadingText={t('docker.loadingList')}
+          empty={filteredImages.length === 0}
+          emptyIcon={<Box />}
+          emptyTitle={narrowed ? t('docker.noResults') : t('docker.noLocalImages')}
+          emptyHint={narrowed ? undefined : t('docker.noLocalImagesHint')}
+        >
+          {filteredImages.map((img, idx) => {
+            const label = `${img.Repository}:${img.Tag}`
+            const inUse = !!img.inUse
+            const untagged = img.Repository === '<none>' || img.Tag === '<none>'
+            const deleting = deleteImageMut.isPending && deleteImageMut.variables === img.Id
+            return (
+              <div key={img.Id} className="docker-row">
+                <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+                <div className="docker-row__app">
+                  <ListRowIcon><Box className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+                  <div className="docker-row__text">
+                    <span className="docker-app-name" title={label}>{img.Repository}</span>
+                    <span className="docker-row__sub">{img.Tag} · {img.Id.replace('sha256:', '').slice(0, 12)}</span>
+                    <span className="docker-row__meta">{img.Tag} · {img.Size}</span>
                   </div>
                 </div>
-              )
-            })}
-          </>
-        )}
-      </div>
-    </div>
+                <div className="docker-cell docker-cell--keep">
+                  <span className={`docker-status-pill ${inUse ? 'docker-status-pill--running' : 'docker-status-pill--exited'}`}>
+                    <span className="docker-status-dot" />
+                    <span>{inUse ? t('docker.inUse') : t('docker.unused')}</span>
+                  </span>
+                </div>
+                <div className="docker-cell docker-cell--mono">{img.Size}</div>
+                <div className="docker-cell">{formatDockerDate(img.CreatedAt)}</div>
+                <div className="docker-action-btns">
+                  <button type="button" className="docker-act-btn" title={t('docker.update.imageAction')} aria-label={t('docker.update.imageAction')} disabled={untagged} onClick={() => setUpdateTarget({ kind: 'image', image: label })}>
+                    <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                  <button type="button" className="docker-act-btn docker-act-btn--start" title={t('docker.deployFromImage')} aria-label={t('docker.deployFromImage')} disabled={untagged} onClick={() => deployFromImage(label)}>
+                    <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                  <button
+                    type="button"
+                    className="docker-act-btn docker-act-btn--danger"
+                    title={inUse ? t('docker.imageInUseHint') : t('docker.deleteImage')}
+                    aria-label={t('docker.deleteImage')}
+                    aria-busy={deleting || undefined}
+                    disabled={deleteImageMut.isPending || inUse}
+                    onClick={() => void remove(img.Id, label)}
+                  >
+                    {deleting ? (
+                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </ListState>
+      </ListTable>
+    </>
   )
 }
-
-
-
-

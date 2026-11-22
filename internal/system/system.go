@@ -4,20 +4,29 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type UsageStat struct {
 	Total uint64 `json:"total"`
 	Used  uint64 `json:"used"`
+}
+
+type NetworkIO struct {
+	BytesRecv uint64  `json:"bytesRecv"`
+	BytesSent uint64  `json:"bytesSent"`
+	RxBps     float64 `json:"rxBps,omitempty"`
+	TxBps     float64 `json:"txBps,omitempty"`
 }
 
 type Summary struct {
@@ -29,10 +38,10 @@ type Summary struct {
 	CPUTemp            float64   `json:"cpuTemp"`
 	Memory             UsageStat `json:"memory"`
 	Storage            UsageStat `json:"storage"`
+	NetworkIO          NetworkIO `json:"networkIO"`
 	DockerInstalled    bool      `json:"dockerInstalled"`
 	DockerReachable    bool      `json:"dockerReachable"`
 	DockerStatus       string    `json:"dockerStatus"`
-	PortainerReachable bool      `json:"portainerReachable"`
 	IPAddresses        []string  `json:"ipAddresses"`
 }
 
@@ -40,44 +49,40 @@ type LogEntry struct {
 	Line string `json:"line"`
 }
 
-func Inspect(portainerURL, stateDir string) Summary {
-	hostname, _ := os.Hostname()
-	dockerInstalled := hasCommand("docker")
-	dockerReachable := dockerReachable()
+var (
+	defaultCollectorMu sync.Mutex
+	defaultCollector   *Collector
+)
 
-	portainerReachable := false
-	if strings.TrimSpace(portainerURL) != "" {
-		portainerReachable = urlReachable(strings.TrimRight(portainerURL, "/") + "/api/status")
+// DefaultCollector returns the shared background telemetry collector for non-blocking Inspect calls.
+func DefaultCollector(stateDir string) *Collector {
+	defaultCollectorMu.Lock()
+	defer defaultCollectorMu.Unlock()
+	if defaultCollector == nil {
+		defaultCollector = NewCollector(stateDir, time.Second, 15*time.Second)
+		defaultCollector.Start()
 	}
+	return defaultCollector
+}
 
-	return Summary{
-		Hostname:           hostname,
-		OSName:             readOSName(),
-		Kernel:             readKernel(),
-		UptimeSeconds:      readUptimeSeconds(),
-		CPUUsagePercent:    readCPUUsagePercent(),
-		CPUTemp:            readCPUTemp(),
-		Memory:             readMemoryUsage(),
-		Storage:            readStorageUsage(stateDir),
-		DockerInstalled:    dockerInstalled,
-		DockerReachable:    dockerReachable,
-		DockerStatus:       resolveDockerStatus(dockerInstalled, dockerReachable),
-		PortainerReachable: portainerReachable,
-		IPAddresses:        readIPAddresses(),
+// ShutdownCollector cleanly terminates the shared background telemetry collector.
+func ShutdownCollector() {
+	defaultCollectorMu.Lock()
+	c := defaultCollector
+	defaultCollector = nil
+	defaultCollectorMu.Unlock()
+	if c != nil {
+		c.Close()
 	}
+}
+
+func Inspect(stateDir string) Summary {
+	return DefaultCollector(stateDir).GetSnapshot().Summary
 }
 
 func hasCommand(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
-}
-
-func dockerReachable() bool {
-	if !hasCommand("docker") {
-		return false
-	}
-	cmd := exec.Command("docker", "info")
-	return cmd.Run() == nil
 }
 
 func resolveDockerStatus(installed, reachable bool) string {
@@ -89,16 +94,6 @@ func resolveDockerStatus(installed, reachable bool) string {
 	default:
 		return "Docker aktif dan merespons"
 	}
-}
-
-func urlReachable(url string) bool {
-	client := http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get(url)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode >= 200 && resp.StatusCode < 500
 }
 
 func readOSName() string {
@@ -115,6 +110,11 @@ func readOSName() string {
 }
 
 func readKernel() string {
+	if data, err := os.ReadFile("/proc/sys/kernel/osrelease"); err == nil {
+		if k := strings.TrimSpace(string(data)); k != "" {
+			return k
+		}
+	}
 	out, err := exec.Command("uname", "-r").Output()
 	if err != nil {
 		return runtime.GOARCH
@@ -135,59 +135,80 @@ func readUptimeSeconds() float64 {
 	return value
 }
 
-func readCPUTemp() float64 {
-	// 1. Scan seluruh hardware monitor (Intel/AMD/SuperIO)
-	// Mencari file temp*_input di semua subfolder hwmon
-	hwmons, err := filepath.Glob("/sys/class/hwmon/hwmon*/temp*_input")
-	if err == nil {
-		for _, path := range hwmons {
-			data, err := os.ReadFile(path)
-			if err == nil {
-				tempStr := strings.TrimSpace(string(data))
-				tempInt, err := strconv.ParseFloat(tempStr, 64)
-				// Validasi: Suhu komputer biasanya antara 10C sampai 110C (10000-110000)
-				if err == nil && tempInt > 5000 && tempInt < 150000 {
-					return tempInt / 1000.0
-				}
-			}
-		}
-	}
+const cpuTempSensorRescanInterval = 5 * time.Minute
 
-	// 2. Scan thermal zones (ARM/Mobile/ACPI Generic)
-	zones, err := filepath.Glob("/sys/class/thermal/thermal_zone*/temp")
-	if err == nil {
-		for _, path := range zones {
-			data, err := os.ReadFile(path)
-			if err == nil {
-				tempStr := strings.TrimSpace(string(data))
-				tempInt, err := strconv.ParseFloat(tempStr, 64)
-				if err == nil && tempInt > 5000 && tempInt < 150000 {
-					return tempInt / 1000.0
-				}
-			}
-		}
-	}
-
-	return 0
+var cpuTempCache struct {
+	mu      sync.Mutex
+	hwmons  []string
+	zones   []string
+	scanned time.Time
 }
 
-func readCPUUsagePercent() float64 {
-	first, err := readCPUStat()
-	if err != nil {
-		return 0
+func cpuTempSensorPaths(forceRescan bool) (hwmons, zones []string) {
+	cpuTempCache.mu.Lock()
+	defer cpuTempCache.mu.Unlock()
+	if !forceRescan && !cpuTempCache.scanned.IsZero() && time.Since(cpuTempCache.scanned) < cpuTempSensorRescanInterval {
+		return cpuTempCache.hwmons, cpuTempCache.zones
 	}
-	time.Sleep(180 * time.Millisecond)
-	second, err := readCPUStat()
+	if h, err := filepath.Glob("/sys/class/hwmon/hwmon*/temp*_input"); err == nil {
+		hwmons = h
+	}
+	if z, err := filepath.Glob("/sys/class/thermal/thermal_zone*/temp"); err == nil {
+		zones = z
+	}
+	cpuTempCache.hwmons = hwmons
+	cpuTempCache.zones = zones
+	cpuTempCache.scanned = time.Now()
+	return hwmons, zones
+}
+
+func readValidCPUTempFile(path string) (float64, bool, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return 0
+		return 0, false, err
+	}
+	tempStr := strings.TrimSpace(string(data))
+	tempInt, parseErr := strconv.ParseFloat(tempStr, 64)
+	// Validasi: Suhu komputer biasanya antara 10C sampai 110C (10000-110000)
+	if parseErr == nil && tempInt > 5000 && tempInt < 150000 {
+		return tempInt / 1000.0, true, nil
+	}
+	return 0, false, nil
+}
+
+func readCPUTemp() float64 {
+	hwmons, zones := cpuTempSensorPaths(false)
+	readFrom := func(paths []string) (float64, bool, bool) {
+		var missing bool
+		for _, path := range paths {
+			val, ok, err := readValidCPUTempFile(path)
+			if ok {
+				return val, true, false
+			}
+			if os.IsNotExist(err) {
+				missing = true
+			}
+		}
+		return 0, false, missing
 	}
 
-	idle := second.idle - first.idle
-	total := second.total - first.total
-	if total == 0 {
-		return 0
+	if v, ok, missing := readFrom(hwmons); ok {
+		return v
+	} else if missing {
+		hwmons, zones = cpuTempSensorPaths(true)
+		if v, ok, _ := readFrom(hwmons); ok {
+			return v
+		}
 	}
-	return float64(total-idle) / float64(total) * 100
+	if v, ok, missing := readFrom(zones); ok {
+		return v
+	} else if missing {
+		_, zones = cpuTempSensorPaths(true)
+		if v, ok, _ := readFrom(zones); ok {
+			return v
+		}
+	}
+	return 0
 }
 
 type cpuTimes struct {
@@ -245,16 +266,16 @@ func readMemoryUsage() UsageStat {
 	}
 
 	total := stats["MemTotal"]
-	free := stats["MemFree"]
-	buffers := stats["Buffers"]
-	cached := stats["Cached"]
-	reclaimable := stats["SReclaimable"]
-
-	// Di Linux, 'Used' yang sebenarnya (seperti di perintah free) adalah:
-	// Total - Free - Buffers - Cache
-	// SReclaimable juga merupakan bagian dari cache yang bisa diambil kembali
-	used := total - free - buffers - cached - reclaimable
-
+	// MemAvailable is what the kernel itself says can be given to a program without swapping; older kernels lack it
+	used := uint64(0)
+	if available, ok := stats["MemAvailable"]; ok && available <= total {
+		used = total - available
+	} else {
+		reclaimable := stats["Buffers"] + stats["Cached"] + stats["SReclaimable"]
+		if stats["MemFree"]+reclaimable <= total {
+			used = total - stats["MemFree"] - reclaimable
+		}
+	}
 	return UsageStat{Total: total, Used: used}
 }
 
@@ -296,11 +317,79 @@ func readIPAddresses() []string {
 	return result
 }
 
+// ReadNetworkIO returns cumulative bytes received and transmitted across physical/primary host NICs.
+func ReadNetworkIO() NetworkIO {
+	data, err := os.ReadFile("/proc/net/dev")
+	if err != nil {
+		return NetworkIO{}
+	}
+	return parseNetDev(data)
+}
+
+func readNetworkIO() NetworkIO {
+	return ReadNetworkIO()
+}
+
+// isVirtualInterface reports interfaces whose traffic is already counted on a
+// physical NIC (container bridges, veth pairs, VM taps, VPN tunnels) or never leaves the host (lo).
+func isVirtualInterface(name string) bool {
+	if name == "lo" {
+		return true
+	}
+	for _, prefix := range []string{
+		"docker", "veth", "br-", "virbr", "cni", "flannel", "cali",
+		"cilium", "kube-", "weave", "podman", "vnet", "tun", "tap",
+		"wg", "tailscale", "zt", "lxdbr", "incusbr", "dummy", "sit",
+		"gre", "ip6tnl", "macvtap",
+	} {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// parseNetDev sums rx/tx bytes of the physical interfaces in /proc/net/dev.
+func parseNetDev(data []byte) NetworkIO {
+	var totalRx, totalTx uint64
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := scanner.Text()
+		colon := strings.Index(line, ":")
+		if colon == -1 {
+			continue // header lines
+		}
+		if isVirtualInterface(strings.TrimSpace(line[:colon])) {
+			continue
+		}
+		fields := strings.Fields(line[colon+1:])
+		if len(fields) < 9 {
+			continue
+		}
+		rx, errRx := strconv.ParseUint(fields[0], 10, 64)
+		tx, errTx := strconv.ParseUint(fields[8], 10, 64)
+		if errRx != nil || errTx != nil {
+			continue
+		}
+		totalRx += rx
+		totalTx += tx
+	}
+	return NetworkIO{BytesRecv: totalRx, BytesSent: totalTx}
+}
+
+var serviceNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9@._-]{0,63}$`)
+
 func ReadServiceLogs(service string, limit int) ([]LogEntry, error) {
 	service = strings.TrimSpace(service)
 	if service == "" {
-		service = "ypanel"
+		service = runtimepath.Name
 	}
+	// only plain unit names: the value goes to journalctl -u
+	if !serviceNameRe.MatchString(service) {
+		return nil, fmt.Errorf("nama service tidak valid")
+	}
+	// "reneo" and "ypanel" both mean the panel unit, whichever name is installed
+	service = runtimepath.ResolveServiceAlias(service)
 	if limit <= 0 {
 		limit = 120
 	}

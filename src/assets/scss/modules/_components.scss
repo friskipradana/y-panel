@@ -1,0 +1,1256 @@
+// Shared UI Components & Modals
+
+.docker-tab-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface);
+}
+
+.docker-tab-toolbar__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.docker-tab-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.docker-tab-toolbar__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--win-text);
+}
+
+.docker-tab-toolbar__search {
+  min-width: 200px;
+}
+
+
+.tunnel-flat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--win-border) 80%, transparent);
+  transition: background 0.12s;
+}
+
+.tunnel-flat-row:last-child {
+  border-bottom: none;
+}
+
+.tunnel-flat-row:hover {
+  background: color-mix(in srgb, var(--panel-surface-hover) 60%, transparent);
+}
+
+.tunnel-flat-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tunnel-flat-row__name-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.tunnel-flat-row__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--win-text);
+  white-space: nowrap;
+}
+
+.tunnel-flat-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.tunnel-flat-row__hostname {
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--panel-primary-text);
+  white-space: nowrap;
+}
+
+.tunnel-flat-row__arrow {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.tunnel-flat-row__target {
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.tunnel-flat-row__pending {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  opacity: 0.75;
+}
+
+.tunnel-flat-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+
+.docker-window-root {
+  position: relative;
+}
+
+.docker-modal__yaml {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  resize: vertical;
+}
+
+.docker-log-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-shrink: 0;
+}
+
+.docker-log-toolbar__left,
+.docker-log-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.docker-log-toolbar__right {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+// status: a dot and a word, no pill
+.docker-log-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.docker-log-status__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-offline);
+}
+
+.docker-log-status--live .docker-log-status__dot {
+  background: var(--status-online);
+}
+
+.docker-log-status--connecting .docker-log-status__dot {
+  background: var(--panel-warning-text);
+  animation: ht-dot-pulse 1.1s ease-in-out infinite;
+}
+
+.docker-log-status--error .docker-log-status__dot {
+  background: var(--status-error);
+}
+
+.docker-log-count {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.docker-log-search {
+  flex: 0 1 16rem;
+  min-width: 8rem;
+}
+
+.docker-log-menu {
+  position: relative;
+}
+
+.docker-log-menu__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 15rem;
+  max-width: calc(100vw - 3rem);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--menu-bg);
+  box-shadow: var(--win-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.docker-log-menu__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+// The log surface follows the terminal palette, so a line reads the same here and in the terminal
+.docker-log-viewer {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 8px 0;
+  border: 1px solid var(--win-border);
+  border-radius: 12px;
+  background: var(--terminal-bg);
+  color: var(--terminal-fg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  scrollbar-width: thin;
+  scrollbar-color: var(--terminal-scroll) transparent;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.docker-log-line {
+  display: flex;
+  gap: 12px;
+  padding: 0 14px;
+  white-space: pre;
+
+  &:hover {
+    background: color-mix(in srgb, var(--terminal-chrome-fg-strong) 6%, transparent);
+  }
+
+  &--wrap {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+.docker-log-time {
+  flex-shrink: 0;
+  color: var(--terminal-chrome-dim);
+  user-select: none;
+}
+
+.docker-log-msg {
+  min-width: 0;
+}
+
+.docker-log-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 14px;
+  text-align: center;
+  color: var(--terminal-chrome-dim);
+
+  p {
+    margin: 0;
+  }
+}
+
+// after the last line of a stream that is over
+.docker-log-end {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 8px 0;
+  padding: 6px 10px;
+  border-top: 1px solid var(--win-border);
+  color: var(--terminal-chrome-dim);
+  font-size: 0.75rem;
+}
+
+.docker-log-mark {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--terminal-yellow) 45%, transparent);
+  color: inherit;
+}
+
+// Colors a program wrote with ANSI codes: the 16 colors come from the terminal palette
+.ansi-fg-0 { color: var(--terminal-chrome-dim); }
+.ansi-fg-1 { color: var(--terminal-red); }
+.ansi-fg-2 { color: var(--terminal-green); }
+.ansi-fg-3 { color: var(--terminal-yellow); }
+.ansi-fg-4 { color: var(--terminal-blue); }
+.ansi-fg-5 { color: var(--terminal-magenta); }
+.ansi-fg-6 { color: var(--terminal-cyan); }
+.ansi-fg-7 { color: var(--terminal-white); }
+.ansi-fg-8 { color: var(--terminal-bright-black); }
+.ansi-fg-9 { color: var(--terminal-bright-red); }
+.ansi-fg-10 { color: var(--terminal-bright-green); }
+.ansi-fg-11 { color: var(--terminal-bright-yellow); }
+.ansi-fg-12 { color: var(--terminal-bright-blue); }
+.ansi-fg-13 { color: var(--terminal-bright-magenta); }
+.ansi-fg-14 { color: var(--terminal-bright-cyan); }
+.ansi-fg-15 { color: var(--terminal-bright-white); }
+.ansi-bg-0 { background: color-mix(in srgb, var(--terminal-chrome-dim) 40%, transparent); }
+.ansi-bg-1 { background: color-mix(in srgb, var(--terminal-red) 35%, transparent); }
+.ansi-bg-2 { background: color-mix(in srgb, var(--terminal-green) 35%, transparent); }
+.ansi-bg-3 { background: color-mix(in srgb, var(--terminal-yellow) 35%, transparent); }
+.ansi-bg-4 { background: color-mix(in srgb, var(--terminal-blue) 35%, transparent); }
+.ansi-bg-5 { background: color-mix(in srgb, var(--terminal-magenta) 35%, transparent); }
+.ansi-bg-6 { background: color-mix(in srgb, var(--terminal-cyan) 35%, transparent); }
+.ansi-bg-7 { background: color-mix(in srgb, var(--terminal-white) 35%, transparent); }
+.ansi-bg-8 { background: color-mix(in srgb, var(--terminal-bright-black) 40%, transparent); }
+.ansi-bg-9 { background: color-mix(in srgb, var(--terminal-bright-red) 35%, transparent); }
+.ansi-bg-10 { background: color-mix(in srgb, var(--terminal-bright-green) 35%, transparent); }
+.ansi-bg-11 { background: color-mix(in srgb, var(--terminal-bright-yellow) 35%, transparent); }
+.ansi-bg-12 { background: color-mix(in srgb, var(--terminal-bright-blue) 35%, transparent); }
+.ansi-bg-13 { background: color-mix(in srgb, var(--terminal-bright-magenta) 35%, transparent); }
+.ansi-bg-14 { background: color-mix(in srgb, var(--terminal-bright-cyan) 35%, transparent); }
+.ansi-bg-15 { background: color-mix(in srgb, var(--terminal-bright-white) 35%, transparent); }
+.ansi-bold { font-weight: 700; }
+.ansi-dim { opacity: 0.7; }
+.ansi-italic { font-style: italic; }
+.ansi-underline { text-decoration: underline; }
+
+.docker-deploy-modal__title {
+  margin: 0 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--win-text);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.docker-deploy-tabs {
+  margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 6px;
+  border-radius: 18px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface);
+}
+
+.docker-deploy-modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding: 2px 8px 2px 2px;
+  scrollbar-gutter: stable;
+}
+
+@media (max-width: 760px) {
+
+  .docker-deploy-tabs,
+  .docker-deploy-modal-card .grid.grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .docker-auth-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.docker-image-combobox {
+  position: relative;
+}
+
+.docker-image-combobox__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.docker-image-combobox__input {
+  padding-right: 34px !important;
+  width: 100%;
+}
+
+// room for the clear button as well as the arrow
+.docker-image-combobox__input--clearable {
+  padding-right: 62px !important;
+}
+
+.docker-image-combobox--sm {
+  .docker-image-combobox__button {
+    min-height: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding-left: 8px;
+    padding-right: 26px;
+    border-radius: 6px;
+  }
+
+  .docker-image-combobox__toggle {
+    width: 22px;
+    height: 22px;
+    right: 2px;
+  }
+}
+
+.docker-image-combobox__button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: var(--control-h);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.docker-image-combobox__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.docker-image-combobox__button-label,
+.docker-image-combobox__button-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-image-combobox__button-label {
+  color: var(--win-text);
+}
+
+.docker-image-combobox__button-placeholder {
+  color: var(--text-secondary);
+}
+
+.docker-image-combobox__clear {
+  position: absolute;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.docker-image-combobox__clear:hover {
+  background: color-mix(in srgb, var(--panel-danger-hover) 80%, transparent);
+  color: var(--panel-danger-text);
+}
+
+.docker-image-combobox__toggle {
+  position: absolute;
+  right: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.docker-image-combobox__toggle:hover {
+  background: var(--panel-surface-hover);
+}
+
+.docker-image-combobox__dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 700;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--menu-bg);
+  box-shadow: var(--win-shadow);
+  backdrop-filter: blur(12px);
+  padding: 4px;
+  animation: combobox-in 120ms ease-out;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+}
+
+// A select's list is placed against the page by Select.tsx (portal), above windows and dialogs but under the taskbar
+.docker-image-combobox__dropdown--floating {
+  top: auto;
+  left: auto;
+  right: auto;
+  min-width: 10rem;
+  z-index: 59000;
+  box-sizing: border-box;
+}
+
+@keyframes combobox-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.docker-image-combobox__search-wrap {
+  position: sticky;
+  top: -4px;
+  z-index: 2;
+  margin: -4px -4px 4px -4px;
+  padding: 6px;
+  background: var(--menu-bg);
+  border-bottom: 1px solid var(--win-border);
+}
+
+.docker-image-combobox__search-input {
+  min-height: 32px;
+  padding-inline: 10px;
+  font-size: 0.75rem;
+}
+
+.docker-image-combobox__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 6px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+  color: var(--win-text);
+}
+
+.docker-image-combobox__item:hover,
+.docker-image-combobox__item--highlighted {
+  background: var(--tb-hover);
+}
+
+.docker-image-combobox__item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring-offset), 0 0 0 5px var(--focus-ring);
+}
+
+.docker-image-combobox__item--selected {
+  background: var(--panel-primary-bg);
+  color: var(--panel-primary-text);
+  font-weight: 600;
+}
+
+.docker-image-combobox__item-name {
+  font-size: 0.75rem;
+  font-weight: inherit;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-image-combobox__item-size {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-image-combobox__item--stacked {
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  min-height: 44px;
+
+  .docker-image-combobox__item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .docker-image-combobox__item-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .docker-image-combobox__item-name {
+    font-size: 0.78125rem;
+    font-weight: 600;
+    color: var(--win-text);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .docker-image-combobox__item-desc {
+    font-size: 0.6875rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono, monospace);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &.docker-image-combobox__item--selected {
+    .docker-image-combobox__item-name {
+      color: var(--panel-primary-text);
+    }
+
+    .docker-image-combobox__item-badge,
+    .panel-badge {
+      background: color-mix(in srgb, var(--panel-primary-solid) 16%, transparent);
+      color: var(--panel-primary-text);
+    }
+  }
+}
+
+.docker-image-combobox__item-badge,
+.docker-image-combobox__item .panel-badge {
+  flex-shrink: 0;
+  min-height: 0;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 18px;
+  border-radius: 4px;
+}
+
+.projects-attention-filter__item {
+  align-items: flex-start;
+  white-space: normal;
+}
+
+.projects-attention-filter__item .docker-image-combobox__item-size {
+  margin-left: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.docker-image-combobox__empty {
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+
+.panel-hint {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.panel-hint code {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--panel-surface-hover);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.docker-field-optional {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-left: 4px;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+.docker-auth-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.docker-auth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.docker-auth-grid__full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+  .docker-auth-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .docker-auth-grid__full {
+    grid-column: auto;
+  }
+}
+
+
+.docker-save-tpl-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  // padding: 8px 10px;
+  // border-radius: 12px;
+  // border: 1px solid var(--win-border);
+  // background: color-mix(in srgb, var(--panel-surface-hover) 70%, transparent);
+  font-size: 0.82rem;
+  color: var(--win-text);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.docker-save-tpl-check input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--panel-primary-text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.docker-save-tpl-check__name {
+  font-weight: 600;
+  color: var(--panel-primary-text);
+  font-size: 0.8rem;
+}
+
+.docker-inline-code {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: color-mix(in srgb, var(--panel-surface-hover) 92%, transparent);
+  color: var(--win-text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+}
+
+.docker-inline-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-secondary) 70%, transparent);
+}
+
+.docker-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--win-border);
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--panel-surface-hover) 94%, transparent);
+  color: var(--win-text);
+  font-size: 0.7rem;
+}
+
+.docker-meta-chip__label {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.docker-meta-chip__value {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.docker-meta-chip--primary {
+  background: color-mix(in srgb, var(--panel-primary-bg) 75%, transparent);
+  color: var(--panel-primary-text);
+  border-color: color-mix(in srgb, var(--panel-primary-text) 24%, var(--win-border));
+}
+
+.docker-meta-chip--info {
+  background: color-mix(in srgb, var(--panel-info-bg) 70%, transparent);
+  color: var(--panel-info-text);
+  border-color: color-mix(in srgb, var(--panel-info-text) 18%, var(--win-border));
+}
+
+.docker-meta-chip--success {
+  background: color-mix(in srgb, var(--panel-success-bg) 70%, transparent);
+  color: var(--panel-success-text);
+  border-color: color-mix(in srgb, var(--panel-success-text) 18%, var(--win-border));
+}
+
+.docker-meta-chip--warning {
+  background: color-mix(in srgb, var(--panel-warning-bg) 74%, transparent);
+  color: var(--panel-warning-text);
+  border-color: color-mix(in srgb, var(--panel-warning-text) 18%, var(--win-border));
+}
+
+.docker-port-section__block,
+.docker-token-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.docker-port-section__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.docker-token-groups {
+  display: grid;
+  gap: 8px;
+}
+
+.docker-token-groups--inline {
+  margin-top: 2px;
+}
+
+.docker-token-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.docker-token {
+  border-radius: 999px;
+  border: 1px solid var(--win-border);
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--panel-surface-hover) 96%, transparent);
+  color: var(--win-text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .docker-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .docker-port-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.panel-toolbar--search {
+  align-items: center;
+  gap: 10px;
+  padding-block: 2px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.panel-pagination-summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  // border-radius: 0;
+// border: none;
+  // background: tansparent;
+  // background: color-mix(in srgb, var(--panel-surface) 72%, transparent);
+  padding: 0;
+  font-size: 0.75rem;
+  // color: var(--text-secondary);
+  margin-right: 10px;
+}
+
+.panel-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+@media (min-width: 768px) {
+  .panel-grid-compact--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .panel-grid-compact--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+}
+
+// A spreadsheet column header and the menu behind it (components/ui/ColumnMenu)
+.column-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: -2px -4px;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover,
+  &[aria-expanded='true'] {
+    background: var(--tb-hover);
+    color: var(--win-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: 1px;
+  }
+
+  &--on {
+    color: var(--panel-primary-text);
+  }
+}
+
+.column-head__chevron {
+  opacity: 0.45;
+}
+
+.column-menu {
+  z-index: 59000;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--menu-bg);
+  box-shadow: var(--win-shadow);
+  backdrop-filter: blur(12px);
+  font-size: 0.75rem;
+  color: var(--win-text);
+  animation: combobox-in 120ms ease-out;
+}
+
+.column-menu__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+
+  & + & {
+    border-top: 1px solid var(--win-border);
+  }
+
+  &--filter {
+    min-height: 0;
+    flex: 1;
+  }
+}
+
+.column-menu__action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--tb-hover);
+    outline: none;
+  }
+
+  &--on {
+    color: var(--panel-primary-text);
+    font-weight: 600;
+  }
+}
+
+.column-menu__search {
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-field-bg);
+  color: inherit;
+  font: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: var(--panel-primary-text);
+  }
+}
+
+.column-menu__bulk {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 4px;
+
+  button {
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--panel-primary-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled {
+      color: var(--text-secondary);
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--panel-primary-text);
+      outline-offset: 2px;
+    }
+  }
+}
+
+.column-menu__list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.column-menu__item {
+  padding: 3px 4px;
+  border-radius: 6px;
+
+  &:hover {
+    background: var(--tb-hover);
+  }
+
+  .panel-check {
+    width: 100%;
+  }
+}
+
+.column-menu__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.column-menu__count {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.column-menu__empty {
+  margin: 0;
+  padding: 8px;
+  color: var(--text-secondary);
+}
+
+// Desktop Toast & Notifications (Sonner Native Integration)
+[data-sonner-toaster] {
+  z-index: 999999;
+  font-family: var(--font-sans);
+  --border-radius: 8px;
+
+  --normal-bg: color-mix(in srgb, var(--win-bg) 95%, var(--panel-surface));
+  --normal-border: var(--win-border);
+  --normal-text: var(--win-text);
+
+  --success-bg: color-mix(in srgb, var(--panel-success-bg) 24%, var(--win-bg));
+  --success-border: color-mix(in srgb, var(--panel-success-text) 30%, var(--win-border));
+  --success-text: var(--win-text);
+
+  --error-bg: color-mix(in srgb, var(--panel-danger-bg) 24%, var(--win-bg));
+  --error-border: color-mix(in srgb, var(--panel-danger-text) 30%, var(--win-border));
+  --error-text: var(--win-text);
+
+  --warning-bg: color-mix(in srgb, var(--panel-warning-bg) 24%, var(--win-bg));
+  --warning-border: color-mix(in srgb, var(--panel-warning-text) 30%, var(--win-border));
+  --warning-text: var(--win-text);
+
+  --info-bg: color-mix(in srgb, var(--panel-primary-bg) 24%, var(--win-bg));
+  --info-border: color-mix(in srgb, var(--panel-primary-text) 30%, var(--win-border));
+  --info-text: var(--win-text);
+
+  [data-close-button] {
+    display: none;
+  }
+}
+
+[data-sonner-toast][data-styled='true'] {
+  padding: 8px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-family: var(--font-sans);
+  gap: 8px;
+
+  [data-content] {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  [data-title] {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--win-text);
+  }
+
+  [data-description] {
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--text-secondary);
+  }
+
+  [data-button] {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: var(--panel-primary-solid);
+    color: var(--color-white);
+    cursor: pointer;
+  }
+
+  [data-cancel] {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--win-border);
+    background: var(--panel-surface);
+    color: var(--win-text);
+    cursor: pointer;
+  }
+}
+
+[data-sonner-toast][data-type='success'] [data-icon] {
+  color: var(--panel-success-text);
+}
+[data-sonner-toast][data-type='error'] [data-icon] {
+  color: var(--panel-danger-text);
+}
+[data-sonner-toast][data-type='warning'] [data-icon] {
+  color: var(--panel-warning-text);
+}
+[data-sonner-toast][data-type='info'] [data-icon] {
+  color: var(--panel-primary-text);
+}
+
+.docker-image-combobox__item--primary {
+  color: var(--panel-primary-text);
+}
+
+.docker-image-combobox__item--warning {
+  color: var(--panel-warning-text);
+}
+
+.docker-image-combobox__item--danger {
+  color: var(--panel-danger-text);
+}
+
+.docker-image-combobox__item--danger:hover {
+  background: var(--panel-danger-bg);
+}
+
+.panel-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--win-border);
+}

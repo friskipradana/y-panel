@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 )
 
 func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult, error) {
+	defer InvalidateAll()
 	projectName, projectDir, composePath, err := prepareProject(owner, req.Name)
 	if err != nil {
 		return nil, err
@@ -38,19 +40,56 @@ func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult,
 	if err != nil {
 		return nil, err
 	}
+	if !IsPolicyExempt(owner.Role) {
+		if err := CheckNetworkPolicy(req.Network); err != nil {
+			return nil, err
+		}
+		if err := CheckComposePolicy(composeYAML, owner.HomeDir); err != nil {
+			return nil, err
+		}
+	}
 	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		return nil, fmt.Errorf("prepare project dir: %w", err)
 	}
 	if err := os.WriteFile(composePath, []byte(composeYAML), 0644); err != nil {
 		return nil, fmt.Errorf("write compose file: %w", err)
 	}
+	if req.ForcePull {
+		if err := runComposePull(projectDir, composePath, projectName); err != nil {
+			return nil, err
+		}
+	}
 	if err := runComposeUp(projectDir, composePath, projectName); err != nil {
+		return nil, err
+	}
+	if err := enforceDeployedPolicy(owner, projectName, projectDir, composePath); err != nil {
 		return nil, err
 	}
 	return &DeployResult{ProjectName: projectName, ComposePath: composePath, ProjectDir: projectDir}, nil
 }
 
+// enforceDeployedPolicy judges the containers that really came up: a compose file can build a value
+// from a variable or an .env file, which no reading of its text would show. A container that breaks
+// the policy is taken down again with its project.
+func enforceDeployedPolicy(owner OwnerContext, projectName, projectDir, composePath string) error {
+	if IsPolicyExempt(owner.Role) {
+		return nil
+	}
+	violations, err := ProjectViolations(projectName, owner.HomeDir)
+	if err != nil || len(violations) == 0 {
+		return nil
+	}
+	down := exec.Command("docker", "compose", "-f", composePath, "-p", projectName, "down", "--remove-orphans")
+	down.Dir = projectDir
+	_ = down.Run()
+	return &PolicyError{Reason: fmt.Sprintf("container %q asks for %s", violations[0].Name, strings.Join(violations[0].Reasons, ", "))}
+}
+
 func PullImage(image string, auth *RegistryAuth) error {
+	defer func() {
+		imagesCache.Invalidate()
+		notifyInvalidators()
+	}()
 	image = strings.TrimSpace(image)
 	if image == "" {
 		return errors.New("image is required")
@@ -62,14 +101,56 @@ func PullImage(image string, auth *RegistryAuth) error {
 	if logout != nil {
 		defer logout()
 	}
-	cmd := exec.Command("docker", "pull", image)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultLongOpTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "docker", "pull", image)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("pull image: %s", strings.TrimSpace(string(output)))
 	}
 	return nil
 }
 
+func ValidateCompose(owner OwnerContext, rawName, composeYAML string) error {
+	projectName, projectDir, _, err := prepareProject(owner, rawName)
+	if err != nil {
+		return err
+	}
+	content := strings.TrimSpace(composeYAML)
+	if content == "" {
+		return errors.New("compose yaml is required")
+	}
+	if err := ensureComposeWithinOwnerRoot(content, owner.HomeDir); err != nil {
+		return err
+	}
+	if !IsPolicyExempt(owner.Role) {
+		if err := CheckComposePolicy(content, owner.HomeDir); err != nil {
+			return err
+		}
+	}
+	content = normalizeBuiltinNetworks(namespaceComposeContainerNames(content, projectName))
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		return fmt.Errorf("prepare project dir: %w", err)
+	}
+	return runComposeValidate(projectDir, content, projectName)
+}
+
+func runComposeValidate(projectDir, composeYAML, projectName string) error {
+	args := []string{"compose", "-f", "-"}
+	if strings.TrimSpace(projectName) != "" {
+		args = append(args, "-p", projectName)
+	}
+	args = append(args, "config", "-q")
+	cmd := exec.Command("docker", args...)
+	cmd.Dir = projectDir
+	cmd.Stdin = strings.NewReader(composeYAML)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("validate compose: %s", formatComposeError(string(output)))
+	}
+	return nil
+}
+
 func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployResult, error) {
+	defer InvalidateAll()
 	projectName, projectDir, composePath, err := prepareProject(owner, req.Name)
 	if err != nil {
 		return nil, err
@@ -81,9 +162,17 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 	if err := ensureComposeWithinOwnerRoot(content, owner.HomeDir); err != nil {
 		return nil, err
 	}
-	content = namespaceComposeContainerNames(content, projectName)
+	if !IsPolicyExempt(owner.Role) {
+		if err := CheckComposePolicy(content, owner.HomeDir); err != nil {
+			return nil, err
+		}
+	}
+	content = normalizeBuiltinNetworks(namespaceComposeContainerNames(content, projectName))
 	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		return nil, fmt.Errorf("prepare project dir: %w", err)
+	}
+	if err := runComposeValidate(projectDir, content, projectName); err != nil {
+		return nil, err
 	}
 	if err := os.WriteFile(composePath, []byte(content), 0644); err != nil {
 		return nil, fmt.Errorf("write compose file: %w", err)
@@ -97,7 +186,15 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 		defer logout()
 	}
 
+	if req.ForcePull {
+		if err := runComposePull(projectDir, composePath, projectName); err != nil {
+			return nil, err
+		}
+	}
 	if err := runComposeUp(projectDir, composePath, projectName); err != nil {
+		return nil, err
+	}
+	if err := enforceDeployedPolicy(owner, projectName, projectDir, composePath); err != nil {
 		return nil, err
 	}
 	return &DeployResult{ProjectName: projectName, ComposePath: composePath, ProjectDir: projectDir}, nil
@@ -157,9 +254,10 @@ func normalizeVolumes(owner OwnerContext, items []VolumeBinding) ([]VolumeBindin
 		if err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(resolved, 0755); err != nil {
+		if err := os.MkdirAll(resolved, 0777); err != nil {
 			return nil, fmt.Errorf("prepare volume path: %w", err)
 		}
+		_ = os.Chmod(resolved, 0777)
 		volumes = append(volumes, VolumeBinding{HostPath: resolved, ContainerPath: containerPath, ReadOnly: item.ReadOnly})
 	}
 	return volumes, nil
@@ -175,7 +273,43 @@ func resolveVolumeHostPath(owner OwnerContext, hostPath string) (string, error) 
 	if candidate != root && !strings.HasPrefix(candidate, root+string(filepath.Separator)) {
 		return "", fmt.Errorf("volume path %q berada di luar root user", hostPath)
 	}
-	return candidate, nil
+	// a symlink in the account's folder must not lead the mount somewhere else
+	real, err := realPathOf(candidate)
+	if err != nil {
+		return "", fmt.Errorf("volume path %q tidak dapat diverifikasi", hostPath)
+	}
+	realRoot, err := realPathOf(root)
+	if err != nil {
+		return "", fmt.Errorf("volume path %q tidak dapat diverifikasi", hostPath)
+	}
+	if real != realRoot && !strings.HasPrefix(real, realRoot+string(filepath.Separator)) {
+		return "", fmt.Errorf("volume path %q mengarah ke luar root user", hostPath)
+	}
+	return real, nil
+}
+
+// realPathOf resolves the symlinks of the deepest part of a path that exists
+func realPathOf(p string) (string, error) {
+	p = filepath.Clean(p)
+	rest := ""
+	for {
+		resolved, err := filepath.EvalSymlinks(p)
+		if err == nil {
+			if rest == "" {
+				return resolved, nil
+			}
+			return filepath.Join(resolved, rest), nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+		parent := filepath.Dir(p)
+		if parent == p {
+			return "", err
+		}
+		rest = filepath.Join(filepath.Base(p), rest)
+		p = parent
+	}
 }
 
 func ensureComposeWithinOwnerRoot(content, homeDir string) error {

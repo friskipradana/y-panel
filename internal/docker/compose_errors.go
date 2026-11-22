@@ -45,7 +45,11 @@ func formatComposeError(output string) string {
 	}
 
 	if strings.Contains(lower, "invalid compose") || strings.Contains(lower, "yaml") {
-		return "Format docker-compose.yml tidak valid. Periksa indentasi YAML, nama service, image, ports, volumes, dan env."
+		detail := message
+		if len(detail) > 180 {
+			detail = detail[:180] + "..."
+		}
+		return fmt.Sprintf("Format docker-compose.yml tidak valid (%s). Periksa indentasi YAML, nama service, image, ports, volumes, dan env.", detail)
 	}
 
 	if strings.Contains(lower, "berada di luar root user") {

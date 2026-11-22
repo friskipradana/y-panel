@@ -2,48 +2,129 @@
 set -euo pipefail
 
 # Error trap — print line number and failing command for diagnostics
-trap 'rc=$?; echo "[ypanel] FATAL (exit $rc) at line $BASH_LINENO: ${BASH_COMMAND}" >&2; exit $rc' ERR
+trap 'rc=$?; echo "[reneo] FATAL (exit $rc) at line $BASH_LINENO: ${BASH_COMMAND} (log: /tmp/reneo-install.log)" >&2; exit $rc' ERR
 
-APP_NAME="ypanel"
+APP_NAME="reneo"
+LEGACY_NAME="ypanel"
+LEGACY_INSTALL_ROOT="/opt/ypanel"
+LEGACY_STATE_DIR="/var/lib/ypanel"
+LEGACY_CONFIG_DIR="/etc/ypanel"
+LEGACY_SERVICE_FILE="/etc/systemd/system/ypanel.service"
+LEGACY_BIN_PATH="/usr/local/bin/ypanel-agent"
+LEGACY_CLI_PATH="/usr/local/bin/ypanel"
 APP_USER="root"
-INSTALL_ROOT="/opt/ypanel"
-STATE_DIR="/var/lib/ypanel"
-CONFIG_DIR="/etc/ypanel"
+INSTALL_ROOT="/opt/reneo"
+STATE_DIR="/var/lib/reneo"
+CONFIG_DIR="/etc/reneo"
 ENV_FILE="$CONFIG_DIR/agent.env"
-SERVICE_FILE="/etc/systemd/system/ypanel.service"
-BIN_PATH="/usr/local/bin/ypanel-agent"
-CLI_PATH="/usr/local/bin/ypanel"
+SERVICE_FILE="/etc/systemd/system/reneo.service"
+BIN_PATH="/usr/local/bin/reneo-agent"
+CLI_PATH="/usr/local/bin/reneo"
 FRONTEND_DIR="$INSTALL_ROOT/frontend"
-PORTAINER_CONTAINER="ypanel-portainer"
+PORTAINER_CONTAINERS=("reneo-portainer" "ypanel-portainer" "ui-panel-portainer")
 DEFAULT_BIND_ADDR="0.0.0.0:8787"
 DEFAULT_PORTAINER_URL=""
 DEFAULT_DB_HOST="127.0.0.1"
 DEFAULT_DB_PORT="5432"
-DEFAULT_DB_NAME="ypanel"
-DEFAULT_DB_USER="ypanel"
+DEFAULT_DB_NAME="reneo"
+DEFAULT_DB_USER="reneo"
 DEFAULT_ALLOWED_HOSTS=""
 DEFAULT_ALLOWED_ORIGINS=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="${YPANEL_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+REPO_ROOT="${RENEO_REPO_ROOT:-${YPANEL_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}}"
 
 INSTALL_LOG_FILE="/tmp/${APP_NAME}-install.log"
 MANAGED_ORIGINS_BLOCK_BEGIN="# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
 MANAGED_ORIGINS_BLOCK_END="# UI_PANEL_ALLOWED_ORIGINS_END"
 
+# ---- Output helpers ----------------------------------------------------------
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_DIM=$'\033[2m'
+  C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_RED=$'\033[31m'; C_CYAN=$'\033[36m'
+else
+  C_RESET=""; C_BOLD=""; C_DIM=""; C_GREEN=""; C_YELLOW=""; C_RED=""; C_CYAN=""
+fi
+
+TOTAL_STEPS=9
+STEP_NO=0
+INSTALL_STARTED_AT="$(date +%s)"
+
+# Major phase header: [3/9] Judul
+step() {
+  STEP_NO=$((STEP_NO + 1))
+  printf '\n%s[%d/%d]%s %s%s%s\n' "$C_CYAN" "$STEP_NO" "$TOTAL_STEPS" "$C_RESET" "$C_BOLD" "$1" "$C_RESET"
+}
+
+# Detail line within a phase
 log() {
-  printf '\n[%s] %s\n' "$APP_NAME" "$1"
+  printf '  %s•%s %s\n' "$C_DIM" "$C_RESET" "$1"
+}
+
+ok() {
+  printf '  %s✓%s %s\n' "$C_GREEN" "$C_RESET" "$1"
+}
+
+warn() {
+  printf '  %s!%s %s\n' "$C_YELLOW" "$C_RESET" "$1" >&2
+}
+
+usage() {
+  cat <<USAGE
+Reneo installer
+
+Penggunaan: bash reneo-installer.run [opsi]
+
+Opsi:
+  --bind ADDR       Alamat bind panel (default: 0.0.0.0:8787 atau nilai terpasang)
+  -y, --yes         Non-interaktif, pakai nilai default/terpasang tanpa bertanya
+  --skip-start      Pasang tanpa menjalankan/restart service
+  --no-color        Matikan warna output
+  -h, --help        Tampilkan bantuan ini
+
+Variabel lingkungan (awalan RENEO_ atau PANEL_): PANEL_BIND_ADDR, PANEL_DATABASE_DSN, PANEL_DB_PASSWORD,
+PANEL_ALLOWED_HOSTS, PANEL_ALLOWED_ORIGINS, PANEL_SESSION_TTL.
+Log lengkap instalasi: ${INSTALL_LOG_FILE}
+USAGE
+}
+
+ASSUME_YES=0
+SKIP_START=0
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --bind) PANEL_BIND_ADDR="${2:-}"; shift 2 ;;
+      --bind=*) PANEL_BIND_ADDR="${1#*=}"; shift ;;
+      -y|--yes) ASSUME_YES=1; shift ;;
+      --skip-start) SKIP_START=1; shift ;;
+      --no-color) C_RESET=""; C_BOLD=""; C_DIM=""; C_GREEN=""; C_YELLOW=""; C_RED=""; C_CYAN=""; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) printf 'Opsi tidak dikenal: %s\n\n' "$1" >&2; usage >&2; exit 2 ;;
+    esac
+  done
+}
+
+# Version of the bundle being installed (written by scripts/package-installer.ps1)
+read_bundle_version() {
+  local file
+  for file in "$REPO_ROOT/VERSION" "$SCRIPT_DIR/VERSION"; do
+    if [[ -f "$file" ]]; then
+      tr -d '\r\n[:space:]' <"$file"
+      return
+    fi
+  done
+  printf 'dev'
 }
 
 run_quiet() {
   if ! "$@" >>"$INSTALL_LOG_FILE" 2>&1; then
-    printf '\n[%s] ERROR: command gagal. Cek log: %s\n' "$APP_NAME" "$INSTALL_LOG_FILE" >&2
-    tail -n 40 "$INSTALL_LOG_FILE" >&2 || true
+    printf '\n%s✗ ERROR:%s perintah gagal: %s\n  Log lengkap: %s\n\n' "$C_RED" "$C_RESET" "$*" "$INSTALL_LOG_FILE" >&2
+    tail -n 25 "$INSTALL_LOG_FILE" >&2 || true
     exit 1
   fi
 }
 
 fail() {
-  printf '\n[%s] ERROR: %s\n' "$APP_NAME" "$1" >&2
+  printf '\n%s✗ ERROR:%s %s\n' "$C_RED" "$C_RESET" "$1" >&2
   exit 1
 }
 
@@ -52,7 +133,7 @@ random_string() {
   local value
 
   set +o pipefail
-  value="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$length")"
+  value="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c "$length")"
   set -o pipefail
 
   if [[ -z "$value" ]]; then
@@ -88,17 +169,19 @@ detect_pm() {
 }
 
 install_base_packages() {
-  log "memastikan package dasar tersedia"
-  eval "$PKG_UPDATE" >/dev/null 2>&1
-  eval "$PKG_INSTALL curl ca-certificates tar gzip sed grep coreutils systemd" >/dev/null 2>&1
+  log "memeriksa package dasar (curl, tar, gzip, systemd)"
+  eval "$PKG_UPDATE" >>"$INSTALL_LOG_FILE" 2>&1 || warn "pembaruan indeks package gagal; melanjutkan dengan cache yang ada"
+  eval "$PKG_INSTALL curl ca-certificates tar gzip sed grep coreutils systemd openssl" >>"$INSTALL_LOG_FILE" 2>&1 \
+    || fail "gagal memasang package dasar. Cek log: $INSTALL_LOG_FILE"
 }
 
 ensure_docker() {
   if command -v docker >/dev/null 2>&1; then
-    log "docker sudah tersedia"
+    ok "docker sudah tersedia ($(docker --version 2>/dev/null | cut -d, -f1))"
   else
-    log "menginstall docker"
-    curl -fsSL https://get.docker.com | sh >/dev/null 2>&1
+    log "menginstall docker (beberapa menit)"
+    curl -fsSL https://get.docker.com | sh >>"$INSTALL_LOG_FILE" 2>&1 \
+      || fail "gagal memasang docker. Cek log: $INSTALL_LOG_FILE"
   fi
 
   run_quiet systemctl enable docker
@@ -128,9 +211,24 @@ ensure_node_tooling() {
   fail "installer frontend saat ini membutuhkan Node.js modern (>=20). Pasang Node.js secara manual untuk distro ini."
 }
 
+# Prebuilt agent shipped inside the bundle for this CPU architecture ("" if none)
+prebuilt_agent_path() {
+  local arch name
+  arch="$(uname -m)"
+  case "$arch" in
+    x86_64) name="reneo-agent-linux-amd64" ;;
+    aarch64|arm64) name="reneo-agent-linux-arm64" ;;
+    armv7l|armv7|armhf|arm|armv8l) name="reneo-agent-linux-arm" ;;
+    *) return 0 ;;
+  esac
+  if [[ -f "$REPO_ROOT/bin/$name" ]]; then
+    printf '%s' "$REPO_ROOT/bin/$name"
+  fi
+}
+
 ensure_go() {
   if command -v go >/dev/null 2>&1; then
-    log "go sudah tersedia: $(go version)"
+    ok "go sudah tersedia: $(go version | awk '{print $3}')"
     return
   fi
 
@@ -150,7 +248,7 @@ ensure_go() {
     "https://go.dev/dl/${archive}"
   )
 
-  log "menginstall Go ${go_version}"
+  log "menginstall Go ${go_version} (untuk membangun agent dari source)"
   rm -rf /usr/local/go "$archive_path"
 
   local downloaded=0
@@ -172,7 +270,7 @@ ensure_go() {
       printf '[%s] fallback install Go via apt-get\n' "$APP_NAME" >>"$INSTALL_LOG_FILE"
       run_quiet apt-get update -y
       run_quiet apt-get install -y golang-go
-      log "go tersedia via apt: $(go version)"
+      ok "go tersedia via apt: $(go version | awk '{print $3}')"
       return
     fi
     fail "gagal mengunduh archive Go dari mirror mana pun"
@@ -183,12 +281,24 @@ ensure_go() {
   if [[ ! -x /usr/local/go/bin/go ]]; then
     fail "instalasi Go gagal: /usr/local/go/bin/go tidak ditemukan setelah ekstraksi"
   fi
-  log "go berhasil diinstall: $(/usr/local/go/bin/go version)"
+  ok "go terpasang: $(/usr/local/go/bin/go version | awk '{print $3}')"
+}
+
+# The agent limits who can reach a database opened to listed addresses with an iptables chain in DOCKER-USER, so the iptables command
+# must be there. Without it the databases simply stay on localhost.
+ensure_iptables() {
+  if command -v iptables >/dev/null 2>&1; then
+    ok "iptables sudah tersedia ($(iptables --version 2>/dev/null | head -n 1))"
+    return
+  fi
+
+  log "menginstall iptables (membatasi IP yang boleh mengakses database)"
+  eval "$PKG_INSTALL iptables" >>"$INSTALL_LOG_FILE" 2>&1     || warn "iptables gagal dipasang; database hanya bisa dibuka untuk localhost. Cek log: $INSTALL_LOG_FILE"
 }
 
 ensure_cloudflared() {
   if command -v cloudflared >/dev/null 2>&1; then
-    log "cloudflared sudah tersedia: $(cloudflared -V)"
+    ok "cloudflared sudah tersedia ($(cloudflared -V 2>&1 | head -n 1))"
     return
   fi
 
@@ -210,19 +320,17 @@ ensure_cloudflared() {
     fail "gagal mengunduh cloudflared"
   fi
   chmod +x "$bin_path"
-  log "cloudflared berhasil diinstall: $(cloudflared -V)"
+  ok "cloudflared terpasang ($(cloudflared -V 2>&1 | head -n 1))"
 }
 
-ypanel_config() {
-  log "konfigurasi YPanel"
-
+reneo_config() {
   local current_bind_addr=""
   local current_allowed_hosts=""
   local current_allowed_origins=""
   local current_hostname=""
   local primary_ip=""
   local interactive_mode=0
-  if [[ -t 0 && -t 1 ]]; then
+  if [[ -t 0 && -t 1 && "$ASSUME_YES" -eq 0 ]]; then
     interactive_mode=1
   fi
 
@@ -232,6 +340,8 @@ ypanel_config() {
     current_bind_addr="$(grep '^PANEL_BIND_ADDR=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)"
     current_allowed_hosts="$(grep '^PANEL_ALLOWED_HOSTS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)"
     current_allowed_origins="$(grep '^PANEL_ALLOWED_ORIGINS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)"
+    PANEL_DB_NAME="${PANEL_DB_NAME:-$(grep '^PANEL_DB_NAME=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
+    PANEL_DB_USER="${PANEL_DB_USER:-$(grep '^PANEL_DB_USER=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
     PANEL_DATABASE_DSN="${PANEL_DATABASE_DSN:-$(grep '^PANEL_DATABASE_DSN=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
     PANEL_ENCRYPTION_KEY="${PANEL_ENCRYPTION_KEY:-$(grep '^PANEL_ENCRYPTION_KEY=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
     PANEL_SESSION_SECRET="${PANEL_SESSION_SECRET:-$(grep '^PANEL_SESSION_SECRET=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
@@ -239,16 +349,28 @@ ypanel_config() {
 
   current_bind_addr="${current_bind_addr:-$DEFAULT_BIND_ADDR}"
 
+  # A DSN counts as "provided" only when it came from the environment or an existing
+  # agent.env. The generated default below must not skip local PostgreSQL setup.
+  if [[ -n "${PANEL_DATABASE_DSN:-}" ]]; then
+    DSN_PROVIDED=1
+  else
+    DSN_PROVIDED=0
+  fi
+
   if [[ -z "${PANEL_BIND_ADDR:-}" ]]; then
     if [[ "$interactive_mode" -eq 1 ]]; then
       read -r -p "Bind address panel [${current_bind_addr}]: " PANEL_BIND_ADDR || true
       PANEL_BIND_ADDR="${PANEL_BIND_ADDR:-$current_bind_addr}"
     else
       PANEL_BIND_ADDR="$current_bind_addr"
-      log "Bind address (otomatis): $PANEL_BIND_ADDR"
+      log "bind address: $PANEL_BIND_ADDR"
     fi
   else
-    log "Bind address (dari env): $PANEL_BIND_ADDR"
+    log "bind address: $PANEL_BIND_ADDR"
+  fi
+
+  if [[ ! "$PANEL_BIND_ADDR" =~ ^[^[:space:]]*:[0-9]{1,5}$ ]]; then
+    fail "bind address tidak valid: '$PANEL_BIND_ADDR' (format host:port, contoh 0.0.0.0:8787)"
   fi
 
   current_hostname="$(hostname 2>/dev/null || true)"
@@ -395,7 +517,7 @@ migrate_legacy_runtime() {
   local legacy_install_root="/opt/ui-panel"
 
   if [[ -f "$legacy_env_file" && ! -f "$ENV_FILE" ]]; then
-    log "migrasi konfigurasi legacy ui-panel ke ypanel"
+    log "migrasi konfigurasi legacy ui-panel ke reneo"
     mkdir -p "$CONFIG_DIR"
     cp "$legacy_env_file" "$ENV_FILE"
     # Strip \r (Windows CRLF compatibility)
@@ -403,7 +525,7 @@ migrate_legacy_runtime() {
   fi
 
   if [[ -d "$legacy_state_dir" && ! -d "$STATE_DIR" ]]; then
-    log "migrasi state legacy ui-panel ke ypanel"
+    log "migrasi state legacy ui-panel ke reneo"
     mkdir -p "$STATE_DIR"
     cp -a "$legacy_state_dir/." "$STATE_DIR/" 2>/dev/null || true
   fi
@@ -413,18 +535,113 @@ migrate_legacy_runtime() {
   fi
 }
 
+# Moves an existing ypanel layout to reneo and leaves symlinks so old paths, scripts and
+# cloudflared configs that mention /var/lib/ypanel keep working.
+migrate_ypanel_layout() {
+  local moved=0
+  local pair legacy current
+
+  for pair in \
+    "$LEGACY_CONFIG_DIR:$CONFIG_DIR" \
+    "$LEGACY_STATE_DIR:$STATE_DIR" \
+    "$LEGACY_INSTALL_ROOT:$INSTALL_ROOT"; do
+    legacy="${pair%%:*}"
+    current="${pair##*:}"
+    if [[ -d "$legacy" && ! -L "$legacy" && ! -e "$current" ]]; then
+      if [[ "$moved" -eq 0 ]]; then
+        log "mengganti nama instalasi ypanel menjadi reneo"
+        systemctl stop ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+        moved=1
+      fi
+      mv "$legacy" "$current"
+      ln -sfn "$current" "$legacy"
+      log "dipindahkan: $legacy -> $current (symlink lama dipertahankan)"
+    fi
+  done
+
+  if [[ -e "$LEGACY_SERVICE_FILE" && -f "$ENV_FILE" ]]; then
+    sed -i "s#/etc/ypanel/#/etc/reneo/#g; s#/var/lib/ypanel#/var/lib/reneo#g; s#/opt/ypanel#/opt/reneo#g" "$ENV_FILE" 2>/dev/null || true
+  fi
+}
+
+# ypanel/ypanel-agent/ypanel.service keep working as aliases of the reneo names
+install_ypanel_compat_links() {
+  ln -sfn "$BIN_PATH" "$LEGACY_BIN_PATH"
+  ln -sfn "$CLI_PATH" "$LEGACY_CLI_PATH"
+  if [[ -f "$LEGACY_SERVICE_FILE" && ! -L "$LEGACY_SERVICE_FILE" ]]; then
+    systemctl disable ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+    rm -f "$LEGACY_SERVICE_FILE"
+  fi
+  [[ -d "$LEGACY_CONFIG_DIR" || -L "$LEGACY_CONFIG_DIR" ]] || ln -sfn "$CONFIG_DIR" "$LEGACY_CONFIG_DIR"
+  [[ -d "$LEGACY_STATE_DIR" || -L "$LEGACY_STATE_DIR" ]] || ln -sfn "$STATE_DIR" "$LEGACY_STATE_DIR"
+  [[ -d "$LEGACY_INSTALL_ROOT" || -L "$LEGACY_INSTALL_ROOT" ]] || ln -sfn "$INSTALL_ROOT" "$LEGACY_INSTALL_ROOT"
+}
+
 install_legacy_aliases() {
-  log "menyiapkan alias compatibility ui-panel"
+  log "alias kompatibilitas ui-panel"
   ln -sfn "$BIN_PATH" /usr/local/bin/ui-panel-agent
   ln -sfn "$CLI_PATH" /usr/local/bin/ui-panel
   mkdir -p /etc/ui-panel
   ln -sfn "$ENV_FILE" /etc/ui-panel/agent.env
 }
 
+# Ookla's speedtest client for the Speedtest window. Installed from Ookla's official archive into
+# the panel's own folder (not apt: that package is also called `speedtest` and collides with the
+# Python speedtest-cli on /usr/bin/speedtest). Never fatal: the panel works without it, and the
+# Speedtest window can install it later. Accepting Ookla's licence stays a manual step in the panel.
+ensure_speedtest_cli() {
+  local dest="$STATE_DIR/bin/speedtest"
+  local version="1.2.0"
+  local name sum
+
+  if [[ -x "$dest" ]] && "$dest" --version 2>/dev/null | grep -qi 'by ookla'; then
+    ok "klien Speedtest Ookla sudah tersedia"
+    return 0
+  fi
+
+  case "$(uname -m)" in
+    x86_64)        name="x86_64";  sum="5690596c54ff9bed63fa3732f818a05dbc2db19ad36ed68f21ca5f64d5cfeeb7" ;;
+    aarch64|arm64) name="aarch64"; sum="3953d231da3783e2bf8904b6dd72767c5c6e533e163d3742fd0437affa431bd3" ;;
+    armv7l|armv7)  name="armhf";   sum="e45fcdebbd8a185553535533dd032d6b10bc8c64eee4139b1147b9c09835d08d" ;;
+    i386|i686)     name="i386";    sum="9ff7e18dbae7ee0e03c66108445a2fb6ceea6c86f66482e1392f55881b772fe8" ;;
+    *)
+      warn "klien Speedtest Ookla dilewati: arsitektur $(uname -m) tidak didukung"
+      return 0
+      ;;
+  esac
+
+  log "memasang klien Speedtest Ookla"
+  local work archive
+  work="$(mktemp -d)"
+  archive="$work/speedtest.tgz"
+  if ! curl --fail --silent --show-error --location --retry 3 --max-filesize 8388608 \
+    "https://install.speedtest.net/app/cli/ookla-speedtest-${version}-linux-${name}.tgz" -o "$archive" >>"$INSTALL_LOG_FILE" 2>&1; then
+    warn "klien Speedtest Ookla dilewati: unduhan gagal (bisa dipasang nanti dari jendela Speedtest)"
+    rm -rf "$work"
+    return 0
+  fi
+  if [[ "$(sha256sum "$archive" | cut -d' ' -f1)" != "$sum" ]]; then
+    warn "klien Speedtest Ookla dilewati: checksum arsip tidak cocok"
+    rm -rf "$work"
+    return 0
+  fi
+  # only the client is unpacked, into a folder of its own
+  if ! tar -xzf "$archive" -C "$work" speedtest >>"$INSTALL_LOG_FILE" 2>&1 || ! "$work/speedtest" --version 2>/dev/null | grep -qi 'by ookla'; then
+    warn "klien Speedtest Ookla dilewati: arsip tidak berisi klien yang bisa dijalankan"
+    rm -rf "$work"
+    return 0
+  fi
+  mkdir -p "$STATE_DIR/bin"
+  install -m 755 "$work/speedtest" "$dest"
+  rm -rf "$work"
+  ok "klien Speedtest Ookla terpasang (lisensi disetujui manual di jendela Speedtest)"
+}
+
 setup_directories() {
   log "menyiapkan direktori runtime"
   mkdir -p "$INSTALL_ROOT" "$STATE_DIR" "$CONFIG_DIR" "$FRONTEND_DIR"
   chmod 700 "$CONFIG_DIR"
+  read_bundle_version >"$INSTALL_ROOT/VERSION"
 }
 
 ensure_hostname_resolution() {
@@ -450,12 +667,31 @@ ensure_hostname_resolution() {
   fi
 }
 
-build_agent() {
-  log "membangun binary Go agent"
+install_agent() {
+  local prebuilt
+  prebuilt="$(prebuilt_agent_path)"
+
+  # Stop the running agent first so the binary can be replaced safely
+  local unit
+  for unit in reneo.service ypanel.service; do
+    if systemctl is-active --quiet "$unit" 2>/dev/null; then
+      log "menghentikan service ${unit%.service} untuk mengganti binary"
+      systemctl stop "$unit" >>"$INSTALL_LOG_FILE" 2>&1 || true
+    fi
+  done
+
+  if [[ -n "$prebuilt" ]]; then
+    log "memasang binary agent bawaan paket ($(basename "$prebuilt"))"
+    install -m 755 "$prebuilt" "$BIN_PATH"
+    return
+  fi
+
+  log "binary bawaan tidak tersedia untuk $(uname -m); membangun dari source"
+  ensure_go
   export PATH="/usr/local/go/bin:$PATH"
   cd "$REPO_ROOT"
   run_quiet go mod download
-  run_quiet go build -o "$BIN_PATH" ./cmd/panel-agent
+  run_quiet go build -trimpath -ldflags="-s -w" -o "$BIN_PATH" ./cmd/panel-agent
   chmod 755 "$BIN_PATH"
 }
 
@@ -474,7 +710,11 @@ extract_managed_origins_block() {
 write_env_file() {
   local preserved_origins_block
 
-  log "menulis file konfigurasi $ENV_FILE"
+  if [[ -f "$ENV_FILE" ]]; then
+    cp -p "$ENV_FILE" "${ENV_FILE}.bak"
+    log "cadangan konfigurasi lama: ${ENV_FILE}.bak"
+  fi
+  log "menulis konfigurasi $ENV_FILE"
   preserved_origins_block="$(extract_managed_origins_block || true)"
   cat > "$ENV_FILE" <<EOF
 PANEL_BIND_ADDR=${PANEL_BIND_ADDR}
@@ -502,7 +742,6 @@ EOF
 }
 
 prepare_frontend() {
-  log "menyiapkan frontend panel"
   cd "$REPO_ROOT"
 
   if [[ ! -d "$REPO_ROOT/dist" ]]; then
@@ -518,7 +757,7 @@ prepare_frontend() {
       fail "npm atau bun diperlukan untuk build frontend"
     fi
   else
-    log "menggunakan frontend build yang sudah tersedia"
+    log "memakai frontend build bawaan paket"
   fi
 
   rm -rf "$FRONTEND_DIR"
@@ -527,13 +766,19 @@ prepare_frontend() {
 }
 
 install_service() {
-  log "menginstall systemd service"
+  log "memasang unit systemd reneo.service"
 
-  if [[ ! -f "$REPO_ROOT/installer/linux/ypanel.service.tpl" ]]; then
-    fail "template systemd tidak ditemukan: $REPO_ROOT/installer/linux/ypanel.service.tpl"
+  if [[ -f "$LEGACY_SERVICE_FILE" && ! -L "$LEGACY_SERVICE_FILE" ]]; then
+    systemctl stop ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+    systemctl disable ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+    rm -f "$LEGACY_SERVICE_FILE"
   fi
 
-  cp "$REPO_ROOT/installer/linux/ypanel.service.tpl" "$SERVICE_FILE" || fail "gagal menyalin template service ke $SERVICE_FILE"
+  if [[ ! -f "$REPO_ROOT/installer/linux/reneo.service.tpl" ]]; then
+    fail "template systemd tidak ditemukan: $REPO_ROOT/installer/linux/reneo.service.tpl"
+  fi
+
+  cp "$REPO_ROOT/installer/linux/reneo.service.tpl" "$SERVICE_FILE" || fail "gagal menyalin template service ke $SERVICE_FILE"
   chmod 644 "$SERVICE_FILE" || fail "gagal chmod service file $SERVICE_FILE"
 
   if ! command -v systemctl >/dev/null 2>&1; then
@@ -543,29 +788,94 @@ install_service() {
   run_quiet systemctl daemon-reload
   systemctl stop ui-panel.service >/dev/null 2>&1 || true
   systemctl disable ui-panel.service >/dev/null 2>&1 || true
-  run_quiet systemctl enable ypanel.service
+  run_quiet systemctl enable reneo.service
+}
+
+bind_port() {
+  printf '%s' "${PANEL_BIND_ADDR##*:}"
+}
+
+# Is something other than reneo already listening on the panel port?
+port_conflict() {
+  local port
+  port="$(bind_port)"
+  command -v ss >/dev/null 2>&1 || return 1
+  ss -ltnpH "sport = :${port}" 2>/dev/null | grep -Ev 'reneo-agent|ypanel-agent' | grep -q .
+}
+
+start_service() {
+  if [[ "$SKIP_START" -eq 1 ]]; then
+    warn "--skip-start: service tidak dijalankan. Jalankan: systemctl restart reneo"
+    SERVICE_STATE="dilewati"
+    return
+  fi
+
+  if port_conflict; then
+    warn "port $(bind_port) sudah dipakai proses lain; service mungkin gagal start (cek: ss -ltnp | grep :$(bind_port))"
+  fi
+
+  log "menjalankan service reneo"
+  systemctl restart reneo.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+
+  local port tries=0 max=40
+  port="$(bind_port)"
+  while [[ "$tries" -lt "$max" ]]; do
+    if curl -fsS --max-time 2 "http://127.0.0.1:${port}/healthz" >/dev/null 2>&1; then
+      SERVICE_STATE="berjalan"
+      ok "panel merespons di 127.0.0.1:${port} (/healthz)"
+      return
+    fi
+    if ! systemctl is-active --quiet reneo.service; then
+      break
+    fi
+    tries=$((tries + 1))
+    sleep 1
+  done
+
+  SERVICE_STATE="gagal"
+  printf '\n%s✗ Service reneo tidak sehat setelah %ss.%s Log terakhir:\n' "$C_RED" "$tries" "$C_RESET" >&2
+  journalctl -u reneo -n 25 --no-pager >&2 || true
+  fail "panel tidak merespons. Periksa: journalctl -u reneo -n 100 --no-pager"
 }
 
 install_cli() {
-  log "menginstall command line ypanel"
-  cat > "$CLI_PATH" <<'EOF'
+  log "memasang CLI /usr/local/bin/reneo"
+  cat > "${CLI_PATH}.new" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
 # Error trap — shows exact failing line and command for debugging
-trap 'echo "[ypanel] FATAL ERROR at line $BASH_LINENO: $(sed -n "${BASH_LINENO}p" "$0" 2>/dev/null || echo "?")" >&2' ERR
+trap 'echo "[reneo] FATAL ERROR at line $BASH_LINENO: $(sed -n "${BASH_LINENO}p" "$0" 2>/dev/null || echo "?")" >&2' ERR
 
-ENV_FILE="/etc/ypanel/agent.env"
-SERVICE_NAME="ypanel.service"
-PASSWORD_HISTORY_FILE="/var/lib/ypanel/password-history.log"
-AGENT_BIN="/usr/local/bin/ypanel-agent"
+ENV_FILE="/etc/reneo/agent.env"
+SERVICE_NAME="reneo.service"
+PASSWORD_HISTORY_FILE="/var/lib/reneo/password-history.log"
+AGENT_BIN="/usr/local/bin/reneo-agent"
 
 require_root_cli() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-    printf '\nypanel harus dijalankan dengan sudo atau sebagai root.\n' >&2
-    printf 'Contoh: sudo ypanel\n\n' >&2
+    printf '\nreneo harus dijalankan dengan sudo atau sebagai root.\n' >&2
+    printf 'Contoh: sudo reneo\n\n' >&2
     exit 1
   fi
+}
+
+# Who may use the CLI: root, or a superadmin of the panel through sudo. The accounts the panel makes for its admins and users
+# (panel-*) get no sudo, so they never get this far; one that was given sudo some other way is refused here, because the panel
+# grants sudo to superadmins only (the drop-in /etc/sudoers.d/<account> it writes for them).
+authorize_caller() {
+  local caller="${SUDO_USER:-}"
+  if [[ -z "$caller" || "$caller" == "root" ]]; then
+    return 0
+  fi
+  if [[ "$caller" == panel-* && ! -f "/etc/sudoers.d/${caller}" ]]; then
+    logger -t reneo-cli "ditolak: ${caller} bukan superadmin panel (perintah: $*)" 2>/dev/null || true
+    printf '
+reneo hanya untuk root dan superadmin panel. Akun %s bukan superadmin.
+' "$caller" >&2
+    exit 1
+  fi
+  return 0
 }
 
 env_file_exists() {
@@ -604,6 +914,118 @@ get_bind_port() {
   printf '%s' "${bind_addr##*:}"
 }
 
+RELEASE_REPO="${RENEO_UPDATE_REPO:-friskipradana/y-panel}"
+VERSION_FILE="/opt/reneo/VERSION"
+
+installed_version() {
+  local v=""
+  [[ -f "$VERSION_FILE" ]] && v="$(tr -d 'v \r\n' <"$VERSION_FILE")"
+  printf '%s' "${v:-unknown}"
+}
+
+latest_version() {
+  local json tag
+  json="$(curl -fsSL --max-time 10 -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/${RELEASE_REPO}/releases/latest" 2>/dev/null)" || return 1
+  tag="$(printf '%s' "$json" | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
+  [[ -n "$tag" ]] || return 1
+  printf '%s' "${tag#v}"
+}
+
+# true when $1 is a newer version than $2
+version_gt() {
+  [[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n1)" == "$1" ]]
+}
+
+# exit 0 up to date, 10 update available, 2 could not check
+check_update() {
+  local current latest
+  current="$(installed_version)"
+  printf 'Versi terpasang : v%s\n' "$current"
+  if ! latest="$(latest_version)"; then
+    printf 'Versi terbaru   : tidak dapat diperiksa (tanpa internet atau batas API GitHub)\n' >&2
+    return 2
+  fi
+  printf 'Versi terbaru   : v%s\n' "$latest"
+  if [[ "$current" == "unknown" ]]; then
+    printf '\nVersi terpasang tidak diketahui; jalankan: sudo reneo update\n'
+    return 10
+  fi
+  if version_gt "$latest" "$current"; then
+    printf '\nPembaruan tersedia. Jalankan: sudo reneo update\n'
+    printf 'Catatan rilis   : https://github.com/%s/releases/tag/v%s\n' "$RELEASE_REPO" "$latest"
+    return 10
+  fi
+  printf '\nSudah versi terbaru.\n'
+  return 0
+}
+
+# reneo update [--yes] [--check] [--version X.Y.Z]
+do_update() {
+  local assume_yes=0 check_only=0 target="" current answer asset url tmp_file
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -y|--yes) assume_yes=1 ;;
+      --check) check_only=1 ;;
+      --version) target="${2:-}"; shift ;;
+      --version=*) target="${1#*=}" ;;
+      *) printf 'Opsi update tidak dikenal: %s\n' "$1" >&2; return 1 ;;
+    esac
+    shift
+  done
+
+  current="$(installed_version)"
+  if [[ -z "$target" ]]; then
+    if ! target="$(latest_version)"; then
+      printf '\nTidak dapat memeriksa versi terbaru. Periksa koneksi internet.\n' >&2
+      return 2
+    fi
+  fi
+  target="${target#v}"
+  if [[ ! "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    printf '\nVersi tidak valid: %s (contoh: 1.28.0)\n' "$target" >&2
+    return 1
+  fi
+
+  printf 'Versi terpasang : v%s\nVersi tujuan    : v%s\n' "$current" "$target"
+  if [[ "$current" != "unknown" ]] && ! version_gt "$target" "$current"; then
+    printf '\nTidak ada pembaruan: v%s tidak lebih baru dari v%s.\n' "$target" "$current"
+    return 0
+  fi
+  if [[ "$check_only" -eq 1 ]]; then
+    printf '\nPembaruan tersedia ke v%s.\n' "$target"
+    return 10
+  fi
+
+  if [[ "$assume_yes" -ne 1 ]]; then
+    read -r -p "Perbarui ke v${target}? Service akan direstart sebentar. [y/N]: " answer || true
+    case "${answer,,}" in
+      y|ya|yes) ;;
+      *) printf 'Dibatalkan.\n'; return 0 ;;
+    esac
+  fi
+
+  asset="reneo-installer.run"
+  version_gt "0.23.0" "$target" && asset="ypanel-installer.run"
+  url="https://github.com/${RELEASE_REPO}/releases/download/v${target}/${asset}"
+  tmp_file="$(mktemp /tmp/reneo-update.XXXXXX.run)"
+  trap 'rm -f "$tmp_file" "$tmp_file.sha256"' RETURN
+
+  printf '\nMengunduh %s\n' "$url"
+  curl -fL --retry 3 --connect-timeout 15 -o "$tmp_file" "$url" || { printf 'Gagal mengunduh installer.\n' >&2; return 1; }
+  if curl -fsSL --connect-timeout 15 -o "$tmp_file.sha256" "https://github.com/${RELEASE_REPO}/releases/download/v${target}/reneo-installer.run.sha256" 2>/dev/null; then
+    local want have
+    want="$(cut -d' ' -f1 "$tmp_file.sha256")"
+    have="$(sha256sum "$tmp_file" | cut -d' ' -f1)"
+    if [[ "$want" != "$have" ]]; then
+      printf 'Checksum tidak cocok, pembaruan dibatalkan.\n' >&2
+      return 1
+    fi
+    printf 'Checksum sha256 cocok.\n'
+  fi
+
+  bash "$tmp_file" --yes
+}
+
 show_panel_info() {
   local bind_addr
   local bind_port
@@ -617,7 +1039,7 @@ show_panel_info() {
   hostname_value="$(hostname 2>/dev/null || true)"
   hostname_value="${hostname_value:-localhost}"
 
-  printf '\nYPanel Service Manager\n'
+  printf '\nReneo Service Manager  v%s\n' "$(installed_version)"
   printf 'Panel bind    : %s\n' "$bind_addr"
   printf 'Panel local   : http://127.0.0.1:%s\n' "$bind_port"
   printf 'Panel network : http://%s:%s\n' "$host_ip" "$bind_port"
@@ -652,14 +1074,14 @@ reset_password() {
   fi
 
   set +e
-  command_output="$(printf '%s\n' "$password" | /usr/local/bin/ypanel-agent reset-primary-password --password-stdin 2>&1)"
+  command_output="$(printf '%s\n' "$password" | /usr/local/bin/reneo-agent reset-primary-password --password-stdin 2>&1)"
   status=$?
   set -e
 
   printf '%s\n' "$command_output"
 
   if [[ "$status" -ne 0 ]]; then
-    printf '\nGagal mengubah password akun utama YPanel.\n' >&2
+    printf '\nGagal mengubah password akun utama Reneo.\n' >&2
     exit 1
   fi
 
@@ -667,7 +1089,7 @@ reset_password() {
   touch "$PASSWORD_HISTORY_FILE"
   chmod 600 "$PASSWORD_HISTORY_FILE"
   timestamp="$(date '+%Y-%m-%d %H:%M:%S %Z')"
-  printf '[%s] primary YPanel password updated via runtime-cli by %s\n' "$timestamp" "$(whoami)" >> "$PASSWORD_HISTORY_FILE"
+  printf '[%s] primary Reneo password updated via runtime-cli by %s\n' "$timestamp" "$(whoami)" >> "$PASSWORD_HISTORY_FILE"
 }
 
 view_password_history() {
@@ -676,7 +1098,7 @@ view_password_history() {
     return
   fi
 
-  printf '\nRiwayat Ganti Password YPanel\n'
+  printf '\nRiwayat Ganti Password Reneo\n'
   printf '%s\n' '----------------------------------------'
   cat "$PASSWORD_HISTORY_FILE"
 }
@@ -799,7 +1221,7 @@ change_panel_port() {
 }
 
 edit_panel_origins() {
-  local raw_file="/etc/ypanel/allowed-origins.raw"
+  local raw_file="/etc/reneo/allowed-origins.raw"
   local current_allowed_origins
   local temp_file
   local edited_origins
@@ -810,7 +1232,7 @@ edit_panel_origins() {
     exit 1
   fi
 
-  temp_file="$(mktemp /tmp/ypanel-origins.XXXXXX)"
+  temp_file="$(mktemp /tmp/reneo-origins.XXXXXX)"
 
   if [[ -f "$raw_file" ]]; then
     cat "$raw_file" > "$temp_file"
@@ -852,14 +1274,253 @@ change_panel_access() {
   change_panel_port
 }
 
+cli_help() {
+  cat <<'HELP'
+Reneo runtime CLI
+
+Penggunaan: sudo reneo [perintah]
+Tanpa perintah, menu interaktif dibuka.
+
+Layanan
+  status                 versi, service, kesehatan, alamat (keluar 0 bila sehat, 3 bila tidak)
+  start | stop | restart
+  logs [-f] [-n N]       log service; -f mengikuti, default 120 baris
+  doctor                 periksa service, port, kesehatan, database, Docker, disk
+
+Informasi
+  info                   alamat panel dan lokasi berkas
+  config [KEY]           isi agent.env dengan rahasia disamarkan, atau satu nilai
+  version                versi terpasang
+
+Hak akses: hanya root dan superadmin panel (lewat sudo). Akun admin dan user panel tidak bisa memakainya.
+
+Pembaruan
+  check-update           cek versi baru
+  update [--yes] [--version X.Y.Z]
+
+Akun dan database
+  seed-plans [--force] [--dry-run] [--yes] [--only starter,pro,bisnis]
+                         pasang paket hosting contoh (tanpa --force hanya menambah yang belum ada)
+  reset-password         ganti password akun utama
+  reset-db-password      ganti password PostgreSQL panel
+  migrate-up | migrate-rollback | migrate-status
+  password-history       riwayat ganti password
+
+Jaringan
+  change-port            ubah port panel
+  edit-origins           ubah allowed origins
+
+Lainnya
+  uninstall              copot Reneo
+  help                   bantuan ini
+HELP
+}
+
+is_secret_key() {
+  [[ "$1" =~ (PASSWORD|SECRET|TOKEN|KEY|DSN) ]]
+}
+
+# the value of a setting for display: secrets are hidden, a database address keeps its host and name
+display_value() {
+  local key="$1" value="$2"
+  if [[ "$key" == *DSN* ]]; then
+    printf '%s' "$value" | sed -E 's#(://[^:/@]*):[^@]*@#\1:******@#'
+  elif is_secret_key "$key"; then
+    printf '******'
+  else
+    printf '%s' "$value"
+  fi
+}
+
+show_config() {
+  local key="${1:-}" line k v
+  if ! env_file_exists; then
+    printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
+    return 1
+  fi
+  if [[ -n "$key" ]]; then
+    v="$(get_env_value "$key" || true)"
+    if [[ -z "$v" ]]; then
+      printf '%s tidak diatur di %s\n' "$key" "$ENV_FILE" >&2
+      return 1
+    fi
+    display_value "$key" "$v"
+    printf '\n'
+    return 0
+  fi
+  printf '# %s (rahasia disamarkan)\n' "$ENV_FILE"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ -z "$line" || "$line" == \#* || "$line" != *=* ]]; then
+      printf '%s\n' "$line"
+      continue
+    fi
+    k="${line%%=*}"
+    v="${line#*=}"
+    printf '%s=%s\n' "$k" "$(display_value "$k" "$v")"
+  done < "$ENV_FILE"
+}
+
+panel_healthy() {
+  curl -fsS --max-time 3 "http://127.0.0.1:$(get_bind_port)/healthz" >/dev/null 2>&1
+}
+
+show_status() {
+  local active enabled since port host_ip healthy=0
+  active="$(systemctl is-active "$SERVICE_NAME" 2>/dev/null || true)"
+  enabled="$(systemctl is-enabled "$SERVICE_NAME" 2>/dev/null || true)"
+  since="$(systemctl show "$SERVICE_NAME" -p ActiveEnterTimestamp --value 2>/dev/null || true)"
+  port="$(get_bind_port)"
+  host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  host_ip="${host_ip:-127.0.0.1}"
+  panel_healthy && healthy=1
+
+  printf 'Reneo v%s\n' "$(installed_version)"
+  printf '  %-10s : %s (%s)%s\n' "Service" "${active:-unknown}" "${enabled:-unknown}" "${since:+, sejak $since}"
+  if [[ "$healthy" -eq 1 ]]; then
+    printf '  %-10s : sehat (/healthz di 127.0.0.1:%s)\n' "Kesehatan" "$port"
+  else
+    printf '  %-10s : tidak merespons di 127.0.0.1:%s (coba: sudo reneo logs, sudo reneo doctor)\n' "Kesehatan" "$port"
+  fi
+  printf '  %-10s : http://%s:%s\n' "Alamat" "$host_ip" "$port"
+  printf '  %-10s : %s\n' "Data" "$(get_env_value PANEL_STATE_DIR || printf '/var/lib/reneo')"
+  [[ "$active" == "active" && "$healthy" -eq 1 ]] || return 3
+}
+
+show_logs() {
+  local follow=0 lines=120
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -f|--follow) follow=1 ;;
+      -n|--lines) lines="${2:-120}"; shift ;;
+      -n*) lines="${1#-n}" ;;
+      *) printf 'Opsi logs tidak dikenal: %s (pakai -f atau -n N)\n' "$1" >&2; return 1 ;;
+    esac
+    shift
+  done
+  if [[ ! "$lines" =~ ^[0-9]+$ ]]; then
+    printf 'Jumlah baris tidak valid: %s\n' "$lines" >&2
+    return 1
+  fi
+  if [[ "$follow" -eq 1 ]]; then
+    journalctl -u "$SERVICE_NAME" -n "$lines" -f
+  else
+    journalctl -u "$SERVICE_NAME" -n "$lines" --no-pager
+  fi
+}
+
+show_info() {
+  show_panel_info
+  printf '  %-12s : %s\n' "Konfigurasi" "$ENV_FILE"
+  printf '  %-12s : %s\n' "Data" "$(get_env_value PANEL_STATE_DIR || printf '/var/lib/reneo')"
+  printf '  %-12s : %s\n' "Agent" "$AGENT_BIN"
+  printf '  %-12s : %s\n' "Frontend" "/opt/reneo/frontend"
+  printf '  %-12s : %s\n' "Service" "$SERVICE_NAME"
+  printf '\n'
+}
+
+# reneo doctor: each check prints [ok], [!!] (broken) or [--] (not installed, not an error)
+run_doctor() {
+  local failed=0 port state_dir free_kb
+  doctor_line() {
+    case "$1" in
+      ok) printf '  [ok] %s\n' "$2" ;;
+      fail) printf '  [!!] %s\n' "$2"; failed=1 ;;
+      *) printf '  [--] %s\n' "$2" ;;
+    esac
+  }
+  printf 'Reneo v%s: pemeriksaan\n' "$(installed_version)"
+
+  if env_file_exists; then doctor_line ok "konfigurasi $ENV_FILE"; else doctor_line fail "konfigurasi $ENV_FILE tidak ada"; fi
+
+  if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+    doctor_line ok "service $SERVICE_NAME berjalan"
+  else
+    doctor_line fail "service $SERVICE_NAME tidak berjalan (sudo reneo start; sudo reneo logs)"
+  fi
+
+  port="$(get_bind_port)"
+  if ss -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]${port}\$"; then
+    doctor_line ok "port ${port} mendengarkan"
+  else
+    doctor_line fail "tidak ada yang mendengarkan di port ${port}"
+  fi
+
+  if panel_healthy; then doctor_line ok "/healthz menjawab"; else doctor_line fail "/healthz tidak menjawab di 127.0.0.1:${port}"; fi
+
+  if [[ -x "$AGENT_BIN" ]] && timeout 20 "$AGENT_BIN" migrate status >/dev/null 2>&1; then
+    doctor_line ok "database dapat dihubungi, status migrasi terbaca"
+  else
+    doctor_line fail "database atau migrasi tidak terbaca (sudo reneo migrate-status)"
+  fi
+
+  if command -v docker >/dev/null 2>&1; then
+    if timeout 8 docker info >/dev/null 2>&1; then doctor_line ok "Docker berjalan"; else doctor_line fail "Docker terpasang tetapi tidak menjawab (systemctl status docker)"; fi
+  else
+    doctor_line skip "Docker tidak terpasang (jendela Docker tidak akan berfungsi)"
+  fi
+
+  if ! command -v iptables >/dev/null 2>&1; then
+    doctor_line skip "iptables tidak terpasang (database tidak bisa dibuka untuk IP tertentu, hanya localhost)"
+  elif ! command -v docker >/dev/null 2>&1 || ! timeout 8 docker info >/dev/null 2>&1; then
+    doctor_line skip "aturan firewall database tidak diperiksa karena Docker tidak berjalan"
+  elif iptables -w 5 -S DOCKER-USER >/dev/null 2>&1; then
+    doctor_line ok "firewall database siap (rantai DOCKER-USER ada)"
+  else
+    doctor_line fail "rantai DOCKER-USER tidak ditemukan; database tidak bisa dibuka untuk IP tertentu (systemctl restart docker)"
+  fi
+
+  if command -v cloudflared >/dev/null 2>&1; then doctor_line ok "cloudflared terpasang"; else doctor_line skip "cloudflared tidak terpasang (tunnel Cloudflare tidak tersedia)"; fi
+
+  state_dir="$(get_env_value PANEL_STATE_DIR || true)"
+  state_dir="${state_dir:-/var/lib/reneo}"
+  free_kb="$(df -Pk "$state_dir" 2>/dev/null | awk 'NR==2 {print $4}')"
+  if [[ -z "$free_kb" ]]; then
+    doctor_line skip "ruang disk $state_dir tidak terbaca"
+  elif (( free_kb < 1048576 )); then
+    doctor_line fail "ruang bebas di $state_dir kurang dari 1 GB ($((free_kb / 1024)) MB)"
+  else
+    doctor_line ok "ruang bebas di $state_dir: $((free_kb / 1024)) MB"
+  fi
+
+  if [[ "$failed" -eq 0 ]]; then printf '\nSemua pemeriksaan lolos.\n'; else printf '\nAda yang bermasalah; lihat tanda [!!].\n'; fi
+  return "$failed"
+}
+
 run_action() {
-  case "$1" in
+  local action="$1"
+  shift || true
+  case "$action" in
     restart)
-      systemctl restart ypanel.service
+      systemctl restart reneo.service
       printf '\nService berhasil direstart.\n'
       ;;
+    start)
+      systemctl start reneo.service
+      printf '\nService berhasil dijalankan.\n'
+      ;;
+    status)
+      show_status || exit $?
+      ;;
+    info)
+      show_info
+      ;;
+    logs)
+      show_logs "$@"
+      ;;
+    doctor)
+      run_doctor || exit $?
+      ;;
+    config)
+      show_config "$@"
+      ;;
+    password-history)
+      view_password_history
+      ;;
+    help|-h|--help)
+      cli_help
+      ;;
     stop)
-      systemctl stop ypanel.service
+      systemctl stop reneo.service
       printf '\nService berhasil dihentikan.\n'
       ;;
     reset-password)
@@ -889,11 +1550,26 @@ run_action() {
     migrate-status)
       migration_status
       ;;
+    seed-plans)
+      env_file_exists || { printf '
+File konfigurasi tidak ditemukan: %s
+' "$ENV_FILE" >&2; exit 1; }
+      "$AGENT_BIN" seed-plans "$@"
+      ;;
+    version)
+      printf 'Reneo v%s\n' "$(installed_version)"
+      ;;
+    check-update)
+      check_update
+      ;;
+    update)
+      do_update "$@"
+      ;;
     uninstall)
-      bash /opt/ypanel/installer/uninstall.sh
+      bash /opt/reneo/installer/uninstall.sh
       ;;
     *)
-      printf '\nAksi tidak dikenal: %s\n' "$1"
+      printf '\nAksi tidak dikenal: %s\n' "$action"
       exit 1
       ;;
   esac
@@ -912,9 +1588,11 @@ show_menu() {
   printf '9. Jalankan Migrasi Database\n'
   printf '10. Rollback Migrasi Terakhir\n'
   printf '11. Lihat Status Migrasi\n'
-  printf '12. Uninstall\n'
-  printf '13. Exit\n\n'
-  read -r -p 'Pilih opsi [1-13]: ' choice
+  printf '12. Cek Pembaruan\n'
+  printf '13. Perbarui Sekarang\n'
+  printf '14. Uninstall\n'
+  printf '15. Exit\n\n'
+  read -r -p 'Pilih opsi [1-15]: ' choice
 
   case "$choice" in
     1) run_action restart ;;
@@ -928,8 +1606,10 @@ show_menu() {
     9) run_action migrate-up ;;
     10) run_action migrate-rollback ;;
     11) run_action migrate-status ;;
-    12) run_action uninstall ;;
-    13) exit 0 ;;
+    12) run_action check-update || true ;;
+    13) run_action update ;;
+    14) run_action uninstall ;;
+    15) exit 0 ;;
     *)
       printf '\nPilihan tidak valid.\n'
       exit 1
@@ -937,82 +1617,163 @@ show_menu() {
   esac
 }
 
+case "${1:-}" in
+  help|-h|--help) cli_help; exit 0 ;;
+  version) printf 'Reneo v%s\n' "$(installed_version)"; exit 0 ;;
+esac
+
 require_root_cli
+authorize_caller "$@"
+
+# what changes data or secrets is written to the journal with who ran it
+case "${1:-}" in
+  reset-password|reset-db-password|change-port|edit-origins|migrate-up|migrate-rollback|seed-plans|update|uninstall|stop|restart|start)
+    logger -t reneo-cli "${SUDO_USER:-root}: reneo $*" 2>/dev/null || true
+    ;;
+esac
 
 if [[ $# -gt 0 ]]; then
-  run_action "$1"
+  run_action "$@"
 else
   show_menu
 fi
 EOF
-  chmod 755 "$CLI_PATH"
+  # root only: the panel's other accounts cannot even start it
+  chmod 750 "${CLI_PATH}.new"
+  chown root:root "${CLI_PATH}.new" 2>/dev/null || true
+  mv -f "${CLI_PATH}.new" "$CLI_PATH"
 
   mkdir -p "$INSTALL_ROOT/installer"
   cp "$REPO_ROOT/installer/linux/uninstall.sh" "$INSTALL_ROOT/installer/uninstall.sh"
-  chmod 755 "$INSTALL_ROOT/installer/uninstall.sh"
+  chmod 750 "$INSTALL_ROOT/installer/uninstall.sh"
 }
 
 disable_portainer() {
-  log "Portainer dinonaktifkan; memastikan sidecar Portainer bawaan panel tidak berjalan"
+  log "memastikan sidecar Portainer lama tidak berjalan"
 
-  if docker ps -a --format '{{.Names}}' | grep -q "^${PORTAINER_CONTAINER}$"; then
-    docker rm -f "$PORTAINER_CONTAINER" >/dev/null 2>&1 || true
-  fi
+  local name
+  for name in "${PORTAINER_CONTAINERS[@]}"; do
+    if docker ps -a --format '{{.Names}}' | grep -q "^${name}$"; then
+      docker rm -f "$name" >/dev/null 2>&1 || true
+    fi
+  done
   docker volume rm portainer_data >/dev/null 2>&1 || true
 }
 
 print_summary() {
-  local host_ip
-  local bind_port
+  local host_ip port elapsed version
   host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   host_ip="${host_ip:-127.0.0.1}"
-  bind_port="${PANEL_BIND_ADDR##*:}"
+  port="$(bind_port)"
+  elapsed=$(( $(date +%s) - INSTALL_STARTED_AT ))
+  version="$(read_bundle_version)"
 
-  log "instalasi selesai"
-  printf '\nYPanel URL     : http://%s\n' "$host_ip:$bind_port"
-  printf 'Panel local    : http://127.0.0.1:%s\n' "$bind_port"
-  printf 'Bind address   : %s\n' "$PANEL_BIND_ADDR"
-  printf 'Frontend path  : %s\n' "$FRONTEND_DIR"
-  printf 'Docker         : dikelola langsung oleh backend YPanel tanpa Portainer\n'
-  printf 'CLI command    : ypanel\n'
-  printf '\nLangkah berikutnya:\n'
-  printf '  1. Buka YPanel di browser\n'
-  printf '  2. Jalankan first-run setup\n'
-  printf '  3. Buat Admin Pertama dari UI\n'
+  printf '\n%s%s=====================================================%s\n' "$C_GREEN" "$C_BOLD" "$C_RESET"
+  if [[ "$IS_UPGRADE" -eq 1 ]]; then
+    printf '%s%s Reneo diperbarui ke v%s%s  (%ss)\n' "$C_GREEN" "$C_BOLD" "${version#v}" "$C_RESET" "$elapsed"
+  else
+    printf '%s%s Reneo v%s terpasang%s  (%ss)\n' "$C_GREEN" "$C_BOLD" "${version#v}" "$C_RESET" "$elapsed"
+  fi
+  printf '%s%s=====================================================%s\n\n' "$C_GREEN" "$C_BOLD" "$C_RESET"
 
-  printf '\nPerintah penting:\n'
-  printf '  ypanel\n'
-  printf '  systemctl status ypanel\n'
-  printf '  journalctl -u ypanel -f\n'
+  printf '  %-14s %s\n' "Buka panel" "http://${host_ip}:${port}"
+  printf '  %-14s %s\n' "Lokal" "http://127.0.0.1:${port}"
+  printf '  %-14s %s\n' "Service" "reneo.service (${SERVICE_STATE})"
+  printf '  %-14s %s\n' "Konfigurasi" "$ENV_FILE"
+  printf '  %-14s %s\n' "Data" "$STATE_DIR"
+  printf '  %-14s %s\n' "Frontend" "$FRONTEND_DIR"
+  printf '  %-14s %s\n' "Database" "$([[ "$DSN_PROVIDED" -eq 1 ]] && printf 'DSN dari konfigurasi' || printf 'PostgreSQL lokal (%s)' "$PANEL_DB_NAME")"
+  printf '  %-14s %s\n' "Log instalasi" "$INSTALL_LOG_FILE"
+
+  if [[ "$IS_UPGRADE" -eq 1 ]]; then
+    printf '\n%sCatatan upgrade:%s muat ulang browser (Ctrl+F5). Konfigurasi lama dicadangkan di %s.bak\n' "$C_BOLD" "$C_RESET" "$ENV_FILE"
+  else
+    printf '\n%sLangkah berikutnya:%s\n' "$C_BOLD" "$C_RESET"
+    printf '  1. Buka http://%s:%s di browser\n' "$host_ip" "$port"
+    printf '  2. Selesaikan first-run setup\n'
+    printf '  3. Buat akun Admin pertama\n'
+  fi
+
+  printf '\n%sPerintah berguna:%s\n' "$C_BOLD" "$C_RESET"
+  printf '  reneo                          menu kelola panel (password, port, origins, migrasi)\n'
+  printf '  reneo status | logs -f        ringkasan dan log langsung (reneo help: semua perintah)\n'
+  printf '  reneo doctor                   periksa service, database, Docker, disk\n'
+  printf '  systemctl status reneo         status service\n'
+  printf '  journalctl -u reneo -f         log langsung\n'
+  printf '  bash %s --help        opsi installer\n\n' "reneo-installer.run"
 }
 
 main() {
+  parse_args "$@"
+  # RENEO_BIND_ADDR, RENEO_DATABASE_DSN, ... work like their PANEL_ counterparts
+  local _kv _key
+  while IFS='=' read -r _key _kv; do
+    case "$_key" in
+      RENEO_REPO_ROOT|RENEO_HOME|RENEO_CONFIG_DIR|RENEO_SERVICE_NAME) ;;
+      RENEO_*) export "PANEL_${_key#RENEO_}=${_kv}" ;;
+    esac
+  done < <(env | grep '^RENEO_' || true)
   require_root
   prepare_install_log
+
+  # Upgrade when a previous configuration exists
+  IS_UPGRADE=0
+  if [[ -f "$ENV_FILE" || -f "$LEGACY_CONFIG_DIR/agent.env" || -f /etc/ui-panel/agent.env ]]; then
+    IS_UPGRADE=1
+  fi
+  SERVICE_STATE="tidak dijalankan"
+  DSN_PROVIDED=0
+
+  local mode="pemasangan baru"
+  [[ "$IS_UPGRADE" -eq 1 ]] && mode="pembaruan"
+  printf '%sReneo installer%s  v%s  (%s)\n' "$C_BOLD" "$C_RESET" "$(read_bundle_version | sed 's/^v//')" "$mode"
+
+  step "Prasyarat sistem"
   detect_pm
   install_base_packages
   ensure_docker
-  ensure_go
+  ensure_iptables
   ensure_cloudflared
-  ypanel_config
+
+  step "Konfigurasi"
+  migrate_ypanel_layout
+  reneo_config
   migrate_legacy_runtime
   setup_directories
+  ensure_speedtest_cli
   ensure_hostname_resolution
-  if [[ -n "${PANEL_DATABASE_DSN:-}" ]]; then
-    log "PANEL_DATABASE_DSN terdeteksi; setup PostgreSQL lokal dilewati"
+
+  step "Database"
+  if [[ "$DSN_PROVIDED" -eq 1 ]]; then
+    log "memakai database dari konfigurasi (PANEL_DATABASE_DSN); PostgreSQL lokal tidak disentuh"
   else
     ensure_postgres
     provision_database
   fi
-  build_agent
+
+  step "Agent"
+  install_agent
+
+  step "Frontend"
   prepare_frontend
+
+  step "Menulis konfigurasi"
   write_env_file
-  log "menjalankan migrasi database"
+
+  step "Migrasi database"
+  log "menjalankan migrasi"
   PANEL_ENV_FILE="$ENV_FILE" run_quiet "$BIN_PATH" migrate up
+  ok "skema database terbaru"
+
+  step "Service dan CLI"
   install_service
   install_cli
   install_legacy_aliases
+  install_ypanel_compat_links
   disable_portainer
+  start_service
+
+  step "Selesai"
   print_summary
 }
 

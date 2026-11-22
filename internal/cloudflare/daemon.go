@@ -89,7 +89,7 @@ func (d *Daemon) StartTunnel(tunnelID string, userID int64, credJSON, configYAML
 	log.Printf("[cloudflared] tunnel started id=%s user=%d pid=%d", tunnelID, userID, proc.cmd.Process.Pid)
 
 	// Monitor and auto-restart
-	go d.watch(tunnelID, userID, credJSON, configYAML)
+	go d.watch(tunnelID)
 
 	return nil
 }
@@ -175,7 +175,7 @@ func (p *TunnelProcess) start() error {
 	return nil
 }
 
-func (d *Daemon) watch(tunnelID string, userID int64, credJSON, configYAML []byte) {
+func (d *Daemon) watch(tunnelID string) {
 	const maxRestarts = 10
 	restarts := 0
 	backoff := 5 * time.Second

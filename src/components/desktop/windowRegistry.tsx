@@ -1,0 +1,135 @@
+import React from 'react'
+import { Loader2, Trash2 } from 'lucide-react'
+import { lazyNamed, lazyDefault } from '@/lib/lazy'
+import type { WindowKind, WindowState } from '@/types'
+import { useI18n } from '@/lib/i18n'
+
+// Code-split window components with clean 1-line syntax & preloading support
+const DockerWindow = lazyNamed(() => import('@/components/windows/DockerWindow'), 'DockerWindow')
+const SystemWindow = lazyNamed(() => import('@/components/windows/SystemWindow'), 'SystemWindow')
+const SettingsWindow = lazyNamed(() => import('@/components/windows/SettingsWindow'), 'SettingsWindow')
+const DatabaseWindow = lazyNamed(() => import('@/components/windows/DatabaseWindow'), 'DatabaseWindow')
+const ChangelogWindow = lazyNamed(() => import('@/components/windows/ChangelogWindow'), 'ChangelogWindow')
+const SystemLogsWindow = lazyNamed(() => import('@/components/windows/SystemLogsWindow'), 'SystemLogsWindow')
+const HostTerminalWindow = lazyNamed(() => import('@/components/windows/HostTerminalWindow'), 'HostTerminalWindow')
+const DocsWindow = lazyDefault(() => import('@/components/windows/DocsWindow'))
+const HostingWindow = lazyNamed(() => import('@/components/windows/HostingWindow'), 'HostingWindow')
+const FileManagerWindow = lazyNamed(() => import('@/components/windows/FileManagerWindow'), 'FileManagerWindow')
+const FileEditorWindow = lazyNamed(() => import('@/components/windows/FileEditorWindow'), 'FileEditorWindow')
+const UsersWindow = lazyDefault(() => import('@/components/windows/UsersWindow'))
+const ProjectsWindow = lazyDefault(() => import('@/components/windows/ProjectsWindow'))
+const TunnelsWindow = lazyDefault(() => import('@/components/windows/TunnelsWindow'))
+const ProfileWindow = lazyDefault(() => import('@/components/windows/ProfileWindow'))
+const WidgetsWindow = lazyNamed(() => import('@/components/windows/WidgetsWindow'), 'WidgetsWindow')
+const SpeedtestWindow = lazyNamed(() => import('@/components/windows/SpeedtestWindow'), 'SpeedtestWindow')
+const FirewallWindow = lazyNamed(() => import('@/components/windows/FirewallWindow'), 'FirewallWindow')
+const EmailWindow = lazyNamed(() => import('@/components/windows/EmailWindow'), 'EmailWindow')
+const KvmWindow = lazyNamed(() => import('@/components/windows/KvmWindow'), 'KvmWindow')
+const AppCatalogWindow = lazyNamed(() => import('@/components/windows/AppCatalogWindow'), 'AppCatalogWindow')
+const InstalledAppWindow = lazyNamed(() => import('@/components/windows/InstalledAppWindow'), 'InstalledAppWindow')
+const AppLicensesWindow = lazyNamed(() => import('@/components/windows/AppLicensesWindow'), 'AppLicensesWindow')
+
+
+// Every account works in its own area (terminal as its own OS account, own files, containers,
+// databases, projects, Cloudflare token, widgets, settings). Only user management is for admins.
+const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['users'])
+// service journals, host firewall, KVM display, Docs, Email, and App Licenses windows belong to the superadmin
+const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewall', 'kvm', 'docs', 'email', 'app-licenses'])
+
+// The public demo account only looks: the windows below work read-only on its own (empty) data.
+// No terminal, files, users, settings or logs: they would need a shell or reach shared data.
+const DEMO_WINDOW_KINDS = new Set<WindowKind>(['apps', 'projects', 'database', 'tunnels', 'system', 'widgets', 'profile'])
+
+export function canAccessWindow(kind: WindowKind, role?: string | null) {
+  if (role === 'demo') return DEMO_WINDOW_KINDS.has(kind)
+  // selling hosting is the superadmin's; the bank notification reader in the payments part is also for admins (the window shows an admin only that part)
+  if (kind === 'hosting') return role === 'superadmin' || role === 'admin'
+  if (SUPERADMIN_ONLY_WINDOW_KINDS.has(kind)) return role === 'superadmin'
+  if (role === 'admin' || role === 'superadmin') return true
+  return !ADMIN_ONLY_WINDOW_KINDS.has(kind)
+}
+
+function TerminalPlaceholder() {
+  const { t } = useI18n()
+  return (
+    <div className="rounded-lg p-4 font-mono text-xs leading-relaxed" style={{ background: 'var(--app-terminal-bg)', color: 'var(--app-terminal-text)' }}>
+      <span style={{ color: 'var(--app-terminal-user)' }}>panel@ui</span>
+      <span style={{ color: 'var(--app-terminal-separator)' }}>:</span>
+      <span style={{ color: 'var(--app-terminal-text)' }}>~</span>$ {t('app.terminalHint')}
+      <br />
+      <span style={{ color: 'var(--app-terminal-muted)' }}>{t('app.terminalSubhint')}</span>
+    </div>
+  )
+}
+
+function TrashPlaceholder() {
+  const { t } = useI18n()
+  return (
+    <div className="flex flex-col items-center justify-center h-24 gap-2" style={{ color: 'var(--sand-400)' }}>
+      <Trash2 size={36} strokeWidth={1.5} />
+      <span className="text-sm">{t('app.trashEmpty')}</span>
+    </div>
+  )
+}
+
+export function WindowFallback() {
+  const { t } = useI18n()
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center min-h-full h-full w-full my-auto gap-3 py-12 text-center select-none">
+      <Loader2 size={32} className="animate-spin text-[var(--panel-primary-text)] opacity-90" strokeWidth={1.75} />
+      <div className="flex flex-col items-center gap-1">
+        <span className="text-sm font-semibold text-[var(--win-text)]">{t('common.loadingApp')}</span>
+        <span className="text-[11px] text-[var(--text-secondary)] uppercase tracking-wider font-medium">{t('common.loadingModule')}</span>
+      </div>
+    </div>
+  )
+}
+
+export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticated: boolean) => React.ReactNode>> = {
+  apps: (win, auth) => <DockerWindow win={win} authenticated={auth} />,
+  system: (win, auth) => <SystemWindow win={win} authenticated={auth} />,
+  'system-logs': (win, auth) => <SystemLogsWindow win={win} authenticated={auth} />,
+  'host-terminal': (win, auth) => <HostTerminalWindow win={win} authenticated={auth} />,
+  terminal: () => <TerminalPlaceholder />,
+  docs: () => <DocsWindow />,
+  changelog: () => <ChangelogWindow />,
+  settings: (win, auth) => <SettingsWindow win={win} authenticated={auth} />,
+  database: (_win, auth) => <DatabaseWindow authenticated={auth} />,
+  'file-manager': (win, auth) => <FileManagerWindow win={win} authenticated={auth} />,
+  'file-editor': (_win, auth) => <FileEditorWindow authenticated={auth} />,
+  trash: () => <TrashPlaceholder />,
+  users: (win) => <UsersWindow win={win} />,
+  projects: (win) => <ProjectsWindow win={win} />,
+  tunnels: (win) => <TunnelsWindow win={win} />,
+  profile: () => <ProfileWindow />,
+  widgets: () => <WidgetsWindow />,
+  speedtest: () => <SpeedtestWindow />,
+  hosting: (win, auth) => <HostingWindow win={win} authenticated={auth} />,
+  firewall: (win, auth) => <FirewallWindow win={win} authenticated={auth} />,
+  email: (win) => <EmailWindow win={win} />,
+  kvm: (win, auth) => <KvmWindow win={win} authenticated={auth} />,
+  'app-catalog': () => <AppCatalogWindow />,
+  'installed-app': (win) => <InstalledAppWindow win={win} />,
+  'app-licenses': () => <AppLicensesWindow />,
+}
+
+export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKind }[] = [
+  { id: 'apps', label: 'Docker', windowId: 'apps' },
+  { id: 'app-catalog', label: 'App Catalog', windowId: 'app-catalog' },
+  { id: 'app-licenses', label: 'Lisensi Aplikasi', windowId: 'app-licenses' },
+  { id: 'host-terminal', label: 'Terminal', windowId: 'host-terminal' },
+  { id: 'kvm', label: 'KVM Display', windowId: 'kvm' },
+  { id: 'widgets', label: 'Widgets', windowId: 'widgets' },
+  { id: 'tunnels', label: 'Cloudflare', windowId: 'tunnels' },
+  { id: 'firewall', label: 'Firewall', windowId: 'firewall' },
+  { id: 'email', label: 'Email', windowId: 'email' },
+  { id: 'projects', label: 'Projects', windowId: 'projects' },
+  { id: 'database', label: 'Database', windowId: 'database' },
+  { id: 'file-manager', label: 'Files', windowId: 'file-manager' },
+  { id: 'system', label: 'System', windowId: 'system' },
+  { id: 'speedtest', label: 'Speed Test', windowId: 'speedtest' },
+  { id: 'users', label: 'Users', windowId: 'users' },
+  { id: 'hosting', label: 'Hosting', windowId: 'hosting' },
+  { id: 'settings', label: 'Settings', windowId: 'settings' },
+  { id: 'docs', label: 'Docs', windowId: 'docs' },
+]

@@ -1,0 +1,26 @@
+# Reneo
+
+Panel server Linux bergaya desktop: React 19 + TypeScript + Vite (frontend), Go agent (backend). Aturan proyek umum ada di [.agents/AGENTS.md](.agents/AGENTS.md).
+
+## Desain UI
+
+Setiap perubahan UI wajib mengikuti aturan berikut dan skill `anti-slop` (`.claude/skills/anti-slop`).
+
+@.agents/rules/design-system.md
+@.agents/rules/component-list.md
+@.agents/rules/ui-components.md
+
+Setiap perbaikan UI berlaku untuk **mode desktop dan mobile** sekaligus, termasuk paritas aksi (lihat bagian 8 di design-system.md).
+
+Referensi lengkap (baca saat mengerjakan visual): [DESIGN.md](DESIGN.md).
+
+## Perintah
+
+- `bun run dev` menjalankan agent + UI
+- `bun run build` harus exit 0 tanpa warning
+- `bun run lint`
+- `bun run check:ui` memvalidasi aturan UI (harus 0 error)
+- `go test ./...`
+- Tes yang butuh PostgreSQL asli (alur pesanan, trial, domain; paket `internal/database/dbtest`) dilewati kecuali `REN_TEST_DATABASE_URL` diisi, mis. `postgres://postgres@127.0.0.1:5432/postgres?sslmode=disable`; tiap tes membuat dan menghapus database sendiri
+
+Branch aktif: `main-runtime-dev`. Rilis: `main-runtime`.

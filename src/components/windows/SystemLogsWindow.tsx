@@ -1,12 +1,21 @@
-import { useMemo, useRef, useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, RefreshCcw, ScrollText, Terminal, Search } from 'lucide-react'
-import { getSystemLogs } from '@/api/agent'
+import { ArrowDownToLine, Copy, Download, Pause, Play, RefreshCcw, ScrollText } from 'lucide-react'
+import { copyTextToClipboard, getSystemLogs } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import type { WindowState } from '@/types'
+import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
+import { SearchInput } from '@/components/ui/SearchInput'
+import { Select } from '@/components/ui/Select'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
+import { Tabs } from '@/components/ui/Tabs'
+import { toast } from 'sonner'
 
 const SERVICE_OPTIONS = [
-  { value: 'ypanel', label: 'YPanel Agent' },
+  { value: 'reneo', label: 'Reneo Agent' },
   { value: 'docker', label: 'docker' },
   { value: 'postgresql', label: 'postgresql' },
   { value: 'nginx', label: 'nginx' },
@@ -15,181 +24,292 @@ const SERVICE_OPTIONS = [
 
 const LIMIT_OPTIONS = [80, 160, 240, 320, 400]
 
-function lineToneClass(line: string): string {
-  if (/\[error\]|level=error|ERROR|FATAL|failed|panic/i.test(line)) return 'text-[var(--panel-danger-text)]'
-  if (/\[warn\]|level=warn|WARN|warning/i.test(line)) return 'text-[var(--panel-warning-text)]'
-  if (/\[auth\]|auth|login|logout/i.test(line)) return 'text-[var(--panel-success-text)]'
-  if (/\[http\]|method=GET|method=POST|method=PUT|method=PATCH|method=DELETE/i.test(line)) return 'text-[var(--panel-info-text)]'
-  if (/\[settings\]|settings/i.test(line)) return 'text-[var(--panel-primary-text)]'
-  return 'text-[color:color-mix(in_srgb,var(--win-text)_82%,white)]'
+type Level = 'error' | 'warn' | 'info'
+type LevelFilter = 'all' | Level
+
+function levelOf(line: string): Level {
+  if (/\[error\]|level=error|\bERROR\b|\bFATAL\b|\bfailed\b|\bpanic\b/i.test(line)) return 'error'
+  if (/\[warn(ing)?\]|level=warn|\bWARN(ING)?\b/i.test(line)) return 'warn'
+  return 'info'
 }
 
+const LEVEL_CLASS: Record<Level, string> = {
+  error: 'text-[var(--panel-danger-text)]',
+  warn: 'text-[var(--panel-warning-text)]',
+  info: 'text-[var(--win-text)]',
+}
+
+const LEVEL_BAR: Record<Level, string> = {
+  error: 'border-l-[var(--panel-danger-text)]',
+  warn: 'border-l-[var(--panel-warning-text)]',
+  info: 'border-l-transparent',
+}
+
+function Highlight({ text, term }: { text: string; term: string }) {
+  if (!term) return <>{text}</>
+  const lower = text.toLowerCase()
+  const needle = term.toLowerCase()
+  const parts: Array<string | { hit: string }> = []
+  let from = 0
+  for (let at = lower.indexOf(needle); at !== -1; at = lower.indexOf(needle, from)) {
+    if (at > from) parts.push(text.slice(from, at))
+    parts.push({ hit: text.slice(at, at + needle.length) })
+    from = at + needle.length
+  }
+  if (from < text.length) parts.push(text.slice(from))
+  return (
+    <>
+      {parts.map((part, i) =>
+        typeof part === 'string' ? (
+          part
+        ) : (
+          <mark key={i} className="rounded-sm bg-[var(--panel-warning-bg)] px-0.5 text-inherit">
+            {part.hit}
+          </mark>
+        ),
+      )}
+    </>
+  )
+}
+
+// Superadmin only: reads the service journals of this host.
 export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
-  const [service, setService] = useState('ypanel')
+  const { t } = useI18n()
+  const isMobile = useIsMobileLayout()
+  const pollingActive = useWindowPollingActive(win)
+  const [service, setService] = useState('reneo')
   const [search, setSearch] = useState('')
   const [limit, setLimit] = useState(160)
+  const [level, setLevel] = useState<LevelFilter>('all')
+  const [live, setLive] = useState(true)
   const [autoScroll, setAutoScroll] = useState(true)
-  const logEndRef = useRef<HTMLDivElement>(null)
-  const logContainerRef = useRef<HTMLDivElement>(null)
-  const { t } = useI18n()
+  const scroller = useRef<HTMLDivElement>(null)
 
   const query = useQuery({
     queryKey: ['system-logs', service, limit],
     queryFn: () => getSystemLogs(service, limit),
-    refetchInterval: 5000,
+    refetchInterval: live && pollingActive ? 5000 : false,
+    refetchIntervalInBackground: false,
     retry: 1,
   })
 
   useEffect(() => {
-    if (typeof win?.params?.service === 'string' && win.params.service.trim()) {
-      setService(win.params.service.trim())
-    }
-    if (typeof win?.params?.search === 'string') {
-      setSearch(win.params.search)
-    }
+    if (typeof win?.params?.service === 'string' && win.params.service.trim()) setService(win.params.service.trim())
+    if (typeof win?.params?.search === 'string') setSearch(win.params.search)
   }, [win?.params?.search, win?.params?.service])
 
   useEffect(() => {
-    if (authenticated) {
-      void query.refetch()
-    }
+    if (authenticated) void query.refetch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated])
 
-  const lines = useMemo(() => {
-    if (!query.data?.lines?.length) return []
-    const rawLines = query.data.lines.map((entry) => entry.line)
-    const normalizedSearch = search.trim().toLowerCase()
-    if (!normalizedSearch) return rawLines
-    return rawLines.filter((line) => line.toLowerCase().includes(normalizedSearch))
-  }, [query.data, search])
+  const all = useMemo(() => (query.data?.lines ?? []).map((entry) => ({ text: entry.line, level: levelOf(entry.line) })), [query.data])
+  const counts = useMemo(
+    () => ({
+      all: all.length,
+      error: all.filter((l) => l.level === 'error').length,
+      warn: all.filter((l) => l.level === 'warn').length,
+      info: all.filter((l) => l.level === 'info').length,
+    }),
+    [all],
+  )
+  const term = search.trim()
+  const visible = useMemo(
+    () => all.filter((l) => (level === 'all' || l.level === level) && (!term || l.text.toLowerCase().includes(term.toLowerCase()))),
+    [all, level, term],
+  )
 
   useEffect(() => {
-    if (autoScroll && logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+    if (autoScroll && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight
+  }, [visible, autoScroll])
+
+  const visibleText = () => visible.map((l) => l.text).join('\n')
+
+  const copyVisible = async () => {
+    try {
+      if (await copyTextToClipboard(visibleText())) toast.success(t('systemLogs.copied', { count: visible.length }))
+    } catch {
+      toast.error(t('systemLogs.copyFailed'))
     }
-  }, [lines, autoScroll])
+  }
+
+  const download = () => {
+    const blob = new Blob([visibleText() + '\n'], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${service}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.log`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
-    <div className="panel-window">
-      <div className="panel-window__header">
-        <div className="panel-window__title">
-          <Terminal className="panel-window__icon h-4 w-4" />
-          <div>
-            <div className="panel-window__title-text">{t('systemLogs.title')}</div>
-            <div className="panel-window__meta">{t('systemLogs.meta')}</div>
+    <div className="panel-window flex h-full flex-col">
+      {isMobile ? (
+        <div className="flex shrink-0 flex-col gap-1.5 border-b border-[var(--win-border)] bg-[var(--win-bar)] p-2">
+          {/* Row 1: Source & Stream control */}
+          <div className="flex items-center gap-1.5">
+            <Select
+              id="system-logs-service"
+              value={service}
+              onChange={setService}
+              options={SERVICE_OPTIONS}
+              className="min-w-0 flex-1 panel-toolbar-select"
+              buttonClassName="panel-input--mono"
+            />
+            <Select
+              id="system-logs-limit"
+              value={String(limit)}
+              onChange={(value) => setLimit(Number(value))}
+              options={LIMIT_OPTIONS.map((value) => ({ value: String(value), label: t('systemLogs.linesOption', { count: value }) }))}
+              className="w-[84px] shrink-0 panel-toolbar-select"
+              buttonClassName="panel-input--mono"
+            />
+            <IconButton size="md" label={live ? t('systemLogs.pause') : t('systemLogs.resume')} onClick={() => setLive((v) => !v)} tone={live ? 'success' : 'warning'}>
+              {live ? <Pause size={14} /> : <Play size={14} />}
+            </IconButton>
+            <IconButton size="md" id="system-logs-refresh" label={t('systemLogs.refreshAria')} onClick={() => void query.refetch()} disabled={query.isFetching}>
+              <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
+            </IconButton>
+          </div>
+
+          {/* Row 2: Search & Utility actions */}
+          <div className="flex items-center gap-1.5">
+            <SearchInput
+              id="system-logs-search"
+              value={search}
+              onChange={setSearch}
+              placeholder={t('systemLogs.searchShort')}
+              className="min-w-0 flex-1"
+            />
+            <IconButton size="md" label={autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')} onClick={() => setAutoScroll((v) => !v)} tone={autoScroll ? 'primary' : undefined}>
+              <ArrowDownToLine size={14} />
+            </IconButton>
+            <IconButton size="md" label={t('systemLogs.copy')} onClick={() => void copyVisible()} disabled={visible.length === 0}>
+              <Copy size={14} />
+            </IconButton>
+            <IconButton size="md" label={t('systemLogs.download')} onClick={download} disabled={visible.length === 0}>
+              <Download size={14} />
+            </IconButton>
           </div>
         </div>
-        <div className="panel-window__actions">
-          <button id="system-logs-refresh" type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="panel-icon-btn" aria-label={t('systemLogs.refreshAria')}>
-            <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
-          </button>
+      ) : (
+        <div className="flex min-h-[40px] shrink-0 flex-wrap items-center gap-2 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-3 py-1.5">
+          <Select
+            id="system-logs-service"
+            value={service}
+            onChange={setService}
+            options={SERVICE_OPTIONS}
+            className="min-w-[150px] max-w-[190px] panel-toolbar-select"
+            buttonClassName="panel-input--mono"
+          />
+          <Select
+            id="system-logs-limit"
+            value={String(limit)}
+            onChange={(value) => setLimit(Number(value))}
+            options={LIMIT_OPTIONS.map((value) => ({ value: String(value), label: t('systemLogs.linesOption', { count: value }) }))}
+            className="min-w-[110px] max-w-[140px] panel-toolbar-select"
+            buttonClassName="panel-input--mono"
+          />
+          <SearchInput
+            id="system-logs-search"
+            value={search}
+            onChange={setSearch}
+            placeholder={t('systemLogs.searchPlaceholder')}
+            className="min-w-[10rem] max-w-[320px] flex-1 system-logs__search"
+          />
+          <div className="ml-auto flex items-center gap-1">
+            <IconButton size="md" label={live ? t('systemLogs.pause') : t('systemLogs.resume')} onClick={() => setLive((v) => !v)} tone={live ? 'success' : 'warning'}>
+              {live ? <Pause size={14} /> : <Play size={14} />}
+            </IconButton>
+            <IconButton size="md" label={autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')} onClick={() => setAutoScroll((v) => !v)} tone={autoScroll ? 'primary' : undefined}>
+              <ArrowDownToLine size={14} />
+            </IconButton>
+            <IconButton size="md" label={t('systemLogs.copy')} onClick={() => void copyVisible()} disabled={visible.length === 0}>
+              <Copy size={14} />
+            </IconButton>
+            <IconButton size="md" label={t('systemLogs.download')} onClick={download} disabled={visible.length === 0}>
+              <Download size={14} />
+            </IconButton>
+            <IconButton size="md" id="system-logs-refresh" label={t('systemLogs.refreshAria')} onClick={() => void query.refetch()} disabled={query.isFetching}>
+              <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
+            </IconButton>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="panel-window__body">
-        <div className="panel-window__stack h-full">
-          <section className="panel-hero">
-            <div className="panel-hero__eyebrow">
-              <ScrollText className="h-3 w-3" />
-              {t('systemLogs.hostJournalStream')}
-            </div>
-            <div className="panel-hero__title">{t('systemLogs.heroTitle')}</div>
-            <p className="panel-hero__description">
-              {t('systemLogs.heroDescription')}
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <select id="system-logs-service" value={service} onChange={(e) => setService(e.target.value)} className="panel-select max-w-[180px] px-3 py-2 text-[12px] panel-input--mono">
-                {SERVICE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+      <div className="flex min-h-0 flex-1 flex-col gap-2 p-2 sm:p-3">
+        <div className="flex items-center justify-between gap-2">
+          {isMobile ? (
+            <Select
+              id="system-logs-level"
+              value={level}
+              onChange={(val) => setLevel(val as LevelFilter)}
+              options={[
+                { value: 'all', label: t('systemLogs.levelAll'), badge: String(counts.all) },
+                { value: 'error', label: t('systemLogs.levelError'), badge: String(counts.error), dotTone: counts.error > 0 ? 'danger' : undefined },
+                { value: 'warn', label: t('systemLogs.levelWarn'), badge: String(counts.warn), dotTone: counts.warn > 0 ? 'warning' : undefined },
+                { value: 'info', label: t('systemLogs.levelInfo'), badge: String(counts.info) },
+              ]}
+              className="w-[96px]"
+              buttonClassName="!min-h-[26px] !h-[26px] !py-0 !pl-2 !pr-5 !text-[11px] !font-medium !rounded-md"
+              size="sm"
+            />
+          ) : (
+            <Tabs
+              label={t('systemLogs.levelFilter')}
+              value={level}
+              onChange={setLevel}
+              className="overflow-x-auto no-scrollbar min-w-0 flex-1"
+              items={[
+                { key: 'all', label: t('systemLogs.levelAll'), count: counts.all },
+                { key: 'error', label: t('systemLogs.levelError'), count: counts.error },
+                { key: 'warn', label: t('systemLogs.levelWarn'), count: counts.warn },
+                { key: 'info', label: t('systemLogs.levelInfo'), count: counts.info },
+              ]}
+            />
+          )}
+          <span className="panel-mono text-[0.75rem] text-[var(--text-secondary)] shrink-0">
+            {visible.length}/{all.length}
+          </span>
+        </div>
 
-              <select id="system-logs-limit" value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="panel-select max-w-[120px] px-3 py-2 text-[12px] panel-input--mono">
-                {LIMIT_OPTIONS.map((value) => (
-                  <option key={value} value={value}>{value}</option>
-                ))}
-              </select>
-
-              <label className="panel-search max-w-[320px] flex-1">
-                <Search className="h-4 w-4" />
-                <input
-                  id="system-logs-search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="panel-search__input"
-                  placeholder={t('systemLogs.searchPlaceholder')}
+        <div className="panel-log-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+            {query.isError ? (
+              <div className="flex h-full items-center justify-center p-6">
+                <ErrorState
+                  className="max-w-sm"
+                  title={t('systemLogs.loadFailed')}
+                  hint={(query.error as Error)?.message || t('systemLogs.loadFailedHint')}
+                  action={
+                    <Button variant="ghost" loading={query.isFetching} onClick={() => void query.refetch()}>
+                      {t('common.retry')}
+                    </Button>
+                  }
                 />
-              </label>
-
-              <button type="button" onClick={() => setAutoScroll((value) => !value)} className={`panel-btn ${autoScroll ? 'panel-btn--primary-soft' : 'panel-btn--ghost'} rounded-full px-3 py-2 text-[12px]`}>
-                ↓ {autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')}
-              </button>
-            </div>
-          </section>
-
-          <div className="panel-log-surface flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[var(--win-border)] px-4 py-2">
-              <div className="flex items-center gap-2">
-                <ScrollText size={11} className="text-[var(--text-secondary)]" />
-                <span className="panel-mono text-[12px] text-[var(--win-text)]">{service}</span>
-                {query.isFetching ? (
-                  <>
-                    <Activity size={10} className="animate-pulse text-[var(--panel-warning-text)]" />
-                    <span className="text-[12px] text-[var(--panel-warning-text)]">{t('systemLogs.updating')}</span>
-                  </>
-                ) : null}
               </div>
-
-              <span className="panel-mono text-[12px] text-[var(--text-secondary)]">{lines.length}/{limit}</span>
-            </div>
-
-            <div ref={logContainerRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-              {query.isError ? (
-                <div className="flex h-full items-center justify-center p-6">
-                  <div className="panel-error-state max-w-sm">
-                    <AlertTriangle size={14} />
-                    <div>
-                      <p className="font-semibold">{t('systemLogs.loadFailed')}</p>
-                      <p className="mt-1 text-[12px] leading-relaxed opacity-90">
-                        {(query.error as Error)?.message || t('systemLogs.loadFailedHint')}
-                      </p>
-                    </div>
+            ) : query.isLoading ? (
+              <LoadingState className="min-h-[240px] border-none bg-transparent shadow-none">{t('systemLogs.loadingHostLogs')}</LoadingState>
+            ) : visible.length === 0 ? (
+              <EmptyState icon={<ScrollText />} className="min-h-[240px] border-none bg-transparent">
+                {term || level !== 'all' ? t('systemLogs.noMatchingLogs') : t('systemLogs.noLogs')}
+              </EmptyState>
+            ) : (
+              <div className="py-1">
+                {visible.map((line, index) => (
+                  <div key={index} className={`flex border-l-2 py-px hover:bg-[var(--panel-surface-hover)] ${LEVEL_BAR[line.level]}`}>
+                    <span className="w-8 sm:w-10 shrink-0 select-none self-start pr-1.5 sm:pr-2 text-right font-mono text-[11px] sm:text-[12px] leading-[1.5] sm:leading-[1.65] text-[var(--text-secondary)]">{index + 1}</span>
+                    <span className={`flex-1 whitespace-pre-wrap break-all pr-2 sm:pr-3 font-mono text-[11px] sm:text-[12px] leading-[1.5] sm:leading-[1.65] ${LEVEL_CLASS[line.level]}`}>
+                      <Highlight text={line.text} term={term} />
+                    </span>
                   </div>
-                </div>
-              ) : query.isLoading ? (
-                <div className="panel-loading min-h-[320px] border-none bg-transparent shadow-none">
-                  <Activity size={13} className="animate-pulse" />
-                  {t('systemLogs.loadingHostLogs')}
-                </div>
-              ) : lines.length === 0 ? (
-                <div className="panel-empty min-h-[320px] border-none bg-transparent">
-                  <ScrollText className="h-8 w-8" />
-                  <span>{search.trim() ? t('systemLogs.noMatchingLogs') : t('systemLogs.noLogs')}</span>
-                </div>
-              ) : (
-                <div className="py-2">
-                  {lines.map((line, index) => (
-                    <div key={index} className="flex py-px hover:bg-[var(--panel-surface-hover)] dark:hover:bg-[var(--panel-surface-hover)]">
-                      <span className="w-11 flex-shrink-0 self-start pr-3 pt-px text-right font-mono text-[12px] leading-[1.65] text-[var(--text-secondary)] select-none">
-                        {index + 1}
-                      </span>
-                      <span className={`flex-1 break-all pr-4 font-mono text-[12px] leading-[1.65] whitespace-pre-wrap ${lineToneClass(line)}`}>
-                        {line}
-                      </span>
-                    </div>
-                  ))}
-                  <div ref={logEndRef} className="h-2" />
-                </div>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   )
 }
-
-
-
-

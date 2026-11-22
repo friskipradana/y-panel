@@ -1,11 +1,15 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, type ComponentProps } from 'react'
 import Editor from '@monaco-editor/react'
-import { X, Save, RefreshCcw, FileCode2 } from 'lucide-react'
+import { X, Save, RefreshCcw, FileCode2, Copy, ZoomIn, ZoomOut } from 'lucide-react'
+import { toast } from 'sonner'
+import { copyTextToClipboard } from '@/api/agent'
+import { IconButton } from '@/components/ui/IconButton'
+import { usePinchZoom } from '@/hooks/usePinchZoom'
 import axios from 'axios'
 import { alertLib } from '@/lib/alert'
 import { useThemeStore } from '@/store/themeStore'
 import { useI18n } from '@/lib/i18n'
-
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useEditorStore } from '@/store/editorStore'
 
 interface EditorTab {
@@ -20,38 +24,55 @@ interface EditorTab {
 
 let nextTabId = 1
 
+const EXT_LANGUAGE_MAP: Record<string, string> = {
+  js: 'javascript', jsx: 'javascript', ts: 'typescript', tsx: 'typescript',
+  json: 'json', html: 'html', css: 'css', md: 'markdown', go: 'go',
+  sh: 'shell', bash: 'shell', py: 'python', yaml: 'yaml', yml: 'yaml', xml: 'xml',
+}
 function guessLanguage(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase() || ''
-  switch (ext) {
-    case 'js':
-    case 'jsx':
-      return 'javascript'
-    case 'ts':
-    case 'tsx':
-      return 'typescript'
-    case 'json': return 'json'
-    case 'html': return 'html'
-    case 'css': return 'css'
-    case 'md': return 'markdown'
-    case 'go': return 'go'
-    case 'sh':
-    case 'bash':
-      return 'shell'
-    case 'py': return 'python'
-    case 'yaml':
-    case 'yml':
-      return 'yaml'
-    case 'xml': return 'xml'
-    default: return 'plaintext'
-  }
+  return EXT_LANGUAGE_MAP[ext] ?? 'plaintext'
 }
 
 export function FileEditorWindow({ authenticated }: { authenticated?: boolean }) {
   const [tabs, setTabs] = useState<EditorTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const isDark = useThemeStore((state) => state.mode) === 'dark'
+  const isMobile = useIsMobileLayout()
   const { pendingFile, setPendingFile } = useEditorStore()
   const { t } = useI18n()
+
+  // Text size and copy for a phone: the mouse wheel zoom of Monaco does not exist on touch
+  const [fontSize, setFontSize] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('reneo-editor-font'))
+      return saved >= 9 && saved <= 28 ? saved : 14
+    } catch {
+      return 14
+    }
+  })
+  const editorBoxRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<Parameters<NonNullable<ComponentProps<typeof Editor>['onMount']>>[0] | null>(null)
+  const zoomEditor = useCallback((step: number) => {
+    setFontSize((size) => {
+      const next = Math.min(28, Math.max(9, size + step))
+      try { localStorage.setItem('reneo-editor-font', String(next)) } catch { /* storage unavailable */ }
+      return next
+    })
+  }, [])
+  usePinchZoom(editorBoxRef, zoomEditor)
+  const copyFromEditor = async () => {
+    const model = editorRef.current?.getModel()
+    if (!model) return
+    const selection = editorRef.current?.getSelection()
+    const picked = selection ? model.getValueInRange(selection) : ''
+    try {
+      await copyTextToClipboard(picked || model.getValue())
+      toast.success(t(picked ? 'fileEditor.copiedSelection' : 'fileEditor.copiedAll'))
+    } catch {
+      toast.error(t('fileEditor.copyFailed'))
+    }
+  }
 
   // ── Drag to scroll for tabs ─────────────────────────────────────────────
   const tabsScrollRef = useRef<HTMLDivElement>(null)
@@ -139,20 +160,21 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
         baseURL: import.meta.env.VITE_AGENT_BASE,
         withCredentials: true,
         responseType: 'text',
+        transformResponse: [(d: unknown) => d],
       })
       setTabs((prev) => prev.map((t) => t.id === id ? { ...t, content: String(data), originalContent: String(data), isLoading: false } : t))
-    } catch (err: any) {
-      alertLib.fire(t('fileEditor.loadErrorTitle'), err?.response?.data?.error || t('fileEditor.loadErrorMessage'), 'error', 'file-editor')
+    } catch (err: unknown) {
+      const apiErr = axios.isAxiosError(err) ? (err.response?.data as { error?: string } | undefined)?.error : undefined
+      alertLib.fire(t('fileEditor.loadErrorTitle'), apiErr || t('fileEditor.loadErrorMessage'), 'error', 'file-editor')
       setTabs((prev) => prev.map((tab) => tab.id === id ? { ...tab, isLoading: false, content: t('fileEditor.unreadableContent') } : tab))
     }
-  }, [tabs])
+  }, [tabs, t])
 
   useEffect(() => {
     if (authenticated) {
       tabs.forEach(tab => {
         // Only retry if it was in an error state or stuck loading
         if (tab.isLoading || (tab.content === t('fileEditor.unreadableContent') && tab.originalContent === '')) {
-          console.log(`[FileEditor] Re-trying to load file: ${tab.path}`)
           void handleOpenFile(tab.path, tab.name, true)
         }
       })
@@ -160,13 +182,18 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated]) // ONLY depend on authenticated status
 
+  // A file asked for from the File Manager opens once: StrictMode runs this effect twice on the same request
+  const handledPending = useRef<typeof pendingFile>(null)
   useEffect(() => {
-    if (pendingFile) {
-      void handleOpenFile(pendingFile.path, pendingFile.name)
-      setPendingFile(null)
+    if (!pendingFile) {
+      handledPending.current = null
+      return
     }
+    if (handledPending.current === pendingFile) return
+    handledPending.current = pendingFile
+    void handleOpenFile(pendingFile.path, pendingFile.name)
+    setPendingFile(null)
   }, [pendingFile, handleOpenFile, setPendingFile])
-
 
   const closeTab = (id: string, force = false) => {
     const tabToClose = tabs.find((t) => t.id === id)
@@ -212,8 +239,9 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
       })
       setTabs((prev) => prev.map((t) => t.id === tab.id ? { ...t, originalContent: tab.content } : t))
       alertLib.fire(t('fileEditor.savedTitle'), t('fileEditor.savedMessage', { file: tab.name }), 'success', 'file-editor')
-    } catch (err: any) {
-      alertLib.fire(t('fileEditor.saveFailedTitle'), err?.response?.data?.error || t('fileEditor.saveFailedMessage'), 'error', 'file-editor')
+    } catch (err: unknown) {
+      const apiErr = axios.isAxiosError(err) ? (err.response?.data as { error?: string } | undefined)?.error : undefined
+      alertLib.fire(t('fileEditor.saveFailedTitle'), apiErr || t('fileEditor.saveFailedMessage'), 'error', 'file-editor')
     }
   }
 
@@ -234,7 +262,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
       onDrop={(e) => {
         e.preventDefault()
         try {
-          const dataText = e.dataTransfer.getData('application/x-ui-panel-file')
+          const dataText = e.dataTransfer.getData('application/x-reneo-file')
           if (dataText) {
             const parsed = JSON.parse(dataText)
             if (parsed.path && parsed.name) {
@@ -265,7 +293,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
             return (
               <div
                 key={tab.id}
-                className={`ht-tab--active flex items-center gap-2 px-3 h-[35px] border-r border-[var(--win-bar-border)] shrink-0 text-[13px] transition select-none group relative`}
+                className={`${isActive ? 'ht-tab--active ' : ''}flex items-center gap-2 px-3 h-[35px] border-r border-[var(--win-bar-border)] shrink-0 text-[13px] transition select-none group relative`}
                 style={{
                   background: isActive ? 'var(--win-bg)' : 'var(--tb-hover)',
                   color: isActive ? 'var(--win-text)' : 'var(--tb-clock)',
@@ -277,7 +305,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
                 <span className="truncate max-w-[150px]">{tab.name}</span>
                 {isDirty && <div className="w-[8px] h-[8px] bg-[var(--panel-warning-text)] rounded-full ml-1" title={t('fileEditor.unsavedChanges')} />}
                 <button
-                  className={`ml-1 w-5 h-5 flex items-center justify-center rounded-md hover:bg-[var(--panel-surface-hover)] dark:hover:bg-[var(--panel-surface-hover)] transition ${isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                  className={`ml-1 w-5 h-5 mobile:w-7 mobile:h-7 flex items-center justify-center rounded-md hover:bg-[var(--panel-surface-hover)] dark:hover:bg-[var(--panel-surface-hover)] transition ${isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 mobile:opacity-100'}`}
                   onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}
                 >
                   <X size={12} strokeWidth={2.5} />
@@ -295,34 +323,38 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
 
       {/* ── Editor Toolbar ──────────────────────────────────────────────── */}
       {activeTab && (
-        <div className="flex items-center justify-between px-4 py-2 shrink-0 border-b border-[var(--win-border)] bg-[var(--win-bg)]">
-          <div className="text-[12px] opacity-70 font-mono text-[var(--win-text)] truncate max-w-[60%] select-all">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 shrink-0 border-b border-[var(--win-border)] bg-[var(--win-bg)]">
+          <div className="min-w-0 flex-1 text-[12px] opacity-70 font-mono text-[var(--win-text)] truncate select-all">
             {activeTab.path}
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <IconButton label={t('fileEditor.zoomOut')} onClick={() => zoomEditor(-1)}><ZoomOut className="h-4 w-4" /></IconButton>
+            <IconButton label={t('fileEditor.zoomIn')} onClick={() => zoomEditor(1)}><ZoomIn className="h-4 w-4" /></IconButton>
+            <IconButton label={t('fileEditor.copy')} onClick={() => void copyFromEditor()}><Copy className="h-4 w-4" /></IconButton>
             <button
               onClick={() => handleOpenFile(activeTab.path, activeTab.name, true)}
-              className="px-3 py-2 flex items-center gap-1 text-[12px] font-medium rounded bg-[var(--tb-hover)] hover:bg-[var(--tb-hover)] text-[var(--tb-clock)] transition"
-              title={t('fileEditor.reloadTitle')}
+              className="px-2.5 sm:px-3 py-2 flex items-center gap-1 whitespace-nowrap text-[12px] font-medium rounded bg-[var(--tb-hover)] hover:bg-[var(--tb-hover)] text-[var(--tb-clock)] transition"
+              title={t('fileEditor.reloadTitle')} aria-label={t('fileEditor.reload')}
             >
-              <RefreshCcw size={12} /> {t('fileEditor.reload')}
+              <RefreshCcw size={12} /> <span className="hidden sm:inline">{t('fileEditor.reload')}</span>
             </button>
             <button
               onClick={() => handleSave(activeTab)}
               disabled={activeTab.content === activeTab.originalContent}
-              className={`px-3 py-2 flex items-center gap-1.5 text-[12px] font-medium rounded transition ${activeTab.content !== activeTab.originalContent
-                ? 'bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--win-text)] shadow-[var(--file-editor-save-shadow)]'
-                : 'bg-[var(--tb-hover)] text-[var(--tb-clock)] opacity-50 cursor-not-allowed'
+              title={t('fileEditor.saveChanges')} aria-label={t('fileEditor.saveChanges')}
+              className={`px-2.5 sm:px-3 py-2 flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold rounded border transition ${activeTab.content !== activeTab.originalContent
+                ? 'bg-[var(--panel-primary-bg)] hover:bg-[var(--panel-primary-hover)] text-[var(--panel-primary-text)] border-[color-mix(in_srgb,var(--panel-primary-text)_26%,transparent)]'
+                : 'bg-[var(--tb-hover)] text-[var(--tb-clock)] border-transparent opacity-50 cursor-not-allowed'
                 }`}
             >
-              <Save size={13} /> {t('fileEditor.saveChanges')}
+              <Save size={13} /> <span className="hidden sm:inline">{t('fileEditor.saveChanges')}</span>
             </button>
           </div>
         </div>
       )}
 
       {/* ── Main Editor App ──────────────────────────────────────────────── */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" ref={editorBoxRef}>
         {!activeTab ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30 select-none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="w-32 h-32 mb-4" strokeLinecap="round" strokeLinejoin="round">
@@ -347,9 +379,10 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
             theme={isDark ? 'vs-dark' : 'light'}
             value={activeTab.content}
             onChange={handleUpdateContent}
+            onMount={(editor) => { editorRef.current = editor }}
             options={{
-              minimap: { enabled: true, renderCharacters: false },
-              fontSize: 14,
+              minimap: { enabled: !isMobile, renderCharacters: false },
+              fontSize,
               formatOnPaste: true,
               wordWrap: 'on',
               mouseWheelZoom: true,
@@ -363,7 +396,3 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
     </div>
   )
 }
-
-
-
-

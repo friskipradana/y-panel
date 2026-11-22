@@ -1,0 +1,45 @@
+// Desktop & Base Viewport
+
+::selection {
+  background: rgba(249, 115, 22, 0.35);
+  color: white;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 99px;
+  transition: background 150ms ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+
+// Desktop wallpaper
+// Background is set dynamically via inline style from themeStore.
+// Keep this class for transition smoothness.
+.desktop-root {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  position: relative;
+  overflow: hidden;
+  transition: background 400ms ease;
+}
+
+

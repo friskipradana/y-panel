@@ -1,0 +1,1158 @@
+package httpserver
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+	"unicode/utf8"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
+	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/notify"
+	"github.com/friskipradana/panel-desktop-ui/internal/users"
+)
+
+// Self-service orders for hosting plans. A buyer picks a plan and signs up; the panel makes the account (it cannot
+// sign in yet) and an order whose total is made unique by a small code. The buyer transfers exactly that total, the
+// bank notification of the same amount is matched to the order, and the account and plan are switched on.
+
+const (
+	orderDefaultExpiryMinutes = 24 * 60
+	orderMinExpiryMinutes     = 30
+	orderMaxExpiryMinutes     = 7 * 24 * 60
+	orderDefaultUniqueMax     = 999
+	// what one address may do: orders in an hour, and trials in a day
+	orderMaxPerHour   = 5
+	orderMaxTrialsDay = 1
+	orderMaxPeriods   = 24
+	orderTextMax      = 80
+)
+
+func (s siteSettings) orderExpiry() time.Duration {
+	minutes := s.OrderExpiryMinutes
+	if minutes < orderMinExpiryMinutes || minutes > orderMaxExpiryMinutes {
+		minutes = orderDefaultExpiryMinutes
+	}
+	return time.Duration(minutes) * time.Minute
+}
+
+func (s siteSettings) orderUniqueMax() int {
+	if s.OrderUniqueMax < 9 || s.OrderUniqueMax > 9999 {
+		return orderDefaultUniqueMax
+	}
+	return s.OrderUniqueMax
+}
+
+// paymentInstructions is where the buyer sends the money: any of the banks and e-wallets the seller lists
+type paymentInstructions struct {
+	Methods []orderMethod `json:"methods"`
+}
+
+// orderView is an order as the buyer sees it: no ids of the panel, no addresses, only what the page needs
+type orderView struct {
+	PublicID    string               `json:"publicId"`
+	Kind        string               `json:"kind"`
+	Status      string               `json:"status"`
+	PlanName    string               `json:"planName"`
+	Periods     int                  `json:"periods"`
+	AmountBase  int64                `json:"amountBase"`
+	// AmountList is the price before discounts; DiscountDuration and DiscountVoucher are what each took off
+	AmountList       int64  `json:"amountList"`
+	DiscountDuration int64  `json:"discountDuration"`
+	DiscountPromo    int64  `json:"discountPromo"`
+	DiscountVoucher  int64  `json:"discountVoucher"`
+	VoucherCode      string `json:"voucherCode,omitempty"`
+	AddonCatalogID   string `json:"addonCatalogId,omitempty"`
+	AddonPlanSlug    string `json:"addonPlanSlug,omitempty"`
+	AddonPlanName    string `json:"addonPlanName,omitempty"`
+	AddonMonths      int    `json:"addonMonths,omitempty"`
+	AddonAmount      int64  `json:"addonAmount,omitempty"`
+	AmountTotal int64                `json:"amountTotal"`
+	// Difference: an upgrade paid as the price difference for the time left
+	Difference bool `json:"difference,omitempty"`
+	// Months is how many months the order buys; 0 for a plan that does not end
+	Months    int       `json:"months,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	ExpiresAt   time.Time            `json:"expiresAt"`
+	PaidAt      *time.Time           `json:"paidAt"`
+	Payment     *paymentInstructions `json:"payment,omitempty"`
+	// Hostname is the panel address of the buyer: where they sign in once the order is paid
+	Hostname string `json:"hostname,omitempty"`
+}
+
+func (s *Server) orderViewFor(o database.HostingOrder) orderView {
+	view := orderView{
+		PublicID: o.PublicID, Kind: o.Kind, Status: o.Status, PlanName: o.PlanName, Periods: o.Periods,
+		AmountBase: o.AmountBase, AmountList: o.AmountList, DiscountPromo: o.DiscountPromo, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
+		AddonCatalogID: o.AddonCatalogID, AddonPlanSlug: o.AddonPlanSlug, AddonMonths: o.AddonMonths, AddonAmount: o.AddonAmount,
+		AmountTotal: o.AmountTotal, Difference: o.Difference, CreatedAt: o.CreatedAt, ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Hostname: o.SubHostname,
+	}
+	if o.AddonCatalogID != "" && s.database != nil {
+		slug := strings.TrimSpace(o.AddonPlanSlug)
+		if slug == "" {
+			slug = defaultAppAddonPlanSlug
+		}
+		if lp, err := s.database.GetAppLicensePlan(o.AddonCatalogID, slug); err == nil && lp != nil {
+			view.AddonPlanName = lp.Name
+		} else {
+			view.AddonPlanName = slug
+		}
+	}
+	if o.PlanID != nil && s.database != nil {
+		if plan, _ := s.database.GetHostingPlan(*o.PlanID); plan != nil {
+			view.Months = orderMonths(plan, o.Periods)
+			if view.AddonCatalogID != "" && view.AddonMonths <= 0 {
+				view.AddonMonths = view.Months
+			}
+		}
+	}
+	if o.Status == database.OrderPending && o.AmountTotal > 0 {
+		settings := s.loadSiteSettings()
+		view.Payment = &paymentInstructions{Methods: activeOrderMethods(settings)}
+	}
+	return view
+}
+
+// orderMonths is how many months the order buys; zero means the plan does not end ("once")
+func orderMonths(plan *database.HostingPlan, periods int) int {
+	switch plan.Period {
+	case "monthly":
+		return periods
+	case "yearly":
+		return periods * 12
+	}
+	return 0
+}
+
+// maxPeriods is how many periods one order may buy
+func maxPeriods(plan *database.HostingPlan) int {
+	switch plan.Period {
+	case "monthly":
+		return orderMaxPeriods
+	case "yearly":
+		return 5
+	}
+	return 1
+}
+
+func (s *Server) selfServiceOn() bool {
+	settings := s.loadSiteSettings()
+	return settings.HostingEnabled && settings.LandingEnabled && settings.SelfSignup &&
+		s.database != nil && s.database.IsConnected()
+}
+
+type createOrderRequest struct {
+	PlanID      int64  `json:"planId"`
+	Kind        string `json:"kind"`
+	Periods     int    `json:"periods"`
+	Username    string `json:"username"`
+	Email       string `json:"email"`
+	DisplayName string `json:"displayName"`
+	Password    string `json:"password"`
+	// Voucher is a code that takes something off the price
+	Voucher string `json:"voucher"`
+	// AddonCatalogID, AddonPlanSlug, AddonMonths describe an optional app+license add-on chosen at checkout
+	AddonCatalogID string `json:"addonCatalogId"`
+	AddonPlanSlug  string `json:"addonPlanSlug"`
+	AddonMonths    int    `json:"addonMonths"`
+	// the panel address: a name under one of the domains the superadmin offers
+	SubLabel  string `json:"subLabel"`
+	SubZoneID string `json:"subZoneId"`
+	// the WhatsApp number that gets the notices about the order; required while WhatsApp can deliver them
+	WhatsApp string `json:"whatsapp"`
+}
+
+const (
+	defaultAppAddonCatalogID = "reneo-crm"
+	defaultAppAddonPlanSlug  = "pro-monthly"
+	maxAddonMonths           = 60
+)
+
+type publicAppAddonLicense struct {
+	ID          int64          `json:"id"`
+	Slug        string         `json:"slug"`
+	Name        string         `json:"name"`
+	Tagline     string         `json:"tagline"`
+	Period      string         `json:"period"`
+	Months      int            `json:"months"`
+	PriceAmount int64          `json:"priceAmount"`
+	Features    map[string]any `json:"features"`
+	Highlighted bool           `json:"highlighted"`
+}
+
+type publicAppAddon struct {
+	CatalogID     string                  `json:"catalogId"`
+	Name          string                  `json:"name"`
+	TaglineID     string                  `json:"taglineId"`
+	TaglineEN     string                  `json:"taglineEn"`
+	DescriptionID string                  `json:"descriptionId"`
+	DescriptionEN string                  `json:"descriptionEn"`
+	NotesID       string                  `json:"notesId,omitempty"`
+	NotesEN       string                  `json:"notesEn,omitempty"`
+	LicensePlans  []publicAppAddonLicense `json:"licensePlans"`
+}
+
+type resolvedOrderAddon struct {
+	catalogID string
+	appName   string
+	planSlug  string
+	planName  string
+	months    int
+	amount    int64
+}
+
+func findCatalogAppSpec(catalogID string) *CatalogApp {
+	clean := strings.TrimSpace(catalogID)
+	for i := range builtinCatalogApps {
+		if builtinCatalogApps[i].ID == clean {
+			return &builtinCatalogApps[i]
+		}
+	}
+	return nil
+}
+
+func (s *Server) publicAppAddons() []publicAppAddon {
+	if s.database == nil {
+		return nil
+	}
+	catalogIDs, err := s.database.ListDistinctAppCatalogIDs()
+	if err != nil || len(catalogIDs) == 0 {
+		catalogIDs = []string{defaultAppAddonCatalogID}
+	}
+	out := make([]publicAppAddon, 0, len(catalogIDs))
+	for _, catID := range catalogIDs {
+		_ = s.database.EnsureDefaultAppLicensePlans(catID)
+		plans, err := s.database.ListAppLicensePlans(catID)
+		if err != nil {
+			continue
+		}
+		paidPlans := make([]publicAppAddonLicense, 0, len(plans))
+		for _, lp := range plans {
+			if !lp.IsActive || lp.PriceAmount <= 0 || strings.EqualFold(lp.Period, "trial") {
+				continue
+			}
+			unitMonths := lp.Months
+			if unitMonths <= 0 {
+				if strings.EqualFold(lp.Period, "annual") {
+					unitMonths = 12
+				} else if strings.EqualFold(lp.Period, "quarterly") {
+					unitMonths = 3
+				} else {
+					unitMonths = 1
+				}
+			}
+			feats := map[string]any{}
+			if len(lp.Features) > 0 {
+				_ = json.Unmarshal(lp.Features, &feats)
+			}
+			paidPlans = append(paidPlans, publicAppAddonLicense{
+				ID: lp.ID, Slug: lp.Slug, Name: lp.Name, Tagline: lp.Tagline, Period: lp.Period,
+				Months: unitMonths, PriceAmount: lp.PriceAmount, Features: feats, Highlighted: lp.Highlighted,
+			})
+		}
+		if len(paidPlans) == 0 {
+			continue
+		}
+		entry := publicAppAddon{CatalogID: catID, Name: catID, LicensePlans: paidPlans}
+		if spec := findCatalogAppSpec(catID); spec != nil {
+			entry.Name = spec.Name
+			entry.TaglineID, entry.TaglineEN = spec.TaglineID, spec.TaglineEN
+			entry.DescriptionID, entry.DescriptionEN = spec.DescriptionID, spec.DescriptionEN
+			entry.NotesID, entry.NotesEN = spec.NotesID, spec.NotesEN
+		} else if catID == defaultAppAddonCatalogID {
+			entry.Name = "Reneo CRM Omnichannel"
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func (s *Server) appAddonOption() (catalogID, planSlug string, pricePerMonth int64, ok bool) {
+	if s.database == nil {
+		return "", "", 0, false
+	}
+	_ = s.database.EnsureDefaultAppLicensePlans(defaultAppAddonCatalogID)
+	lp, err := s.database.GetAppLicensePlan(defaultAppAddonCatalogID, defaultAppAddonPlanSlug)
+	if err != nil || lp == nil || lp.PriceAmount <= 0 {
+		return "", "", 0, false
+	}
+	return defaultAppAddonCatalogID, lp.Slug, lp.PriceAmount, true
+}
+
+func (s *Server) resolveOrderAddon(plan *database.HostingPlan, periods int, kind, requestedCatalogID, requestedPlanSlug string, requestedMonths int) (resolvedOrderAddon, error) {
+	cat := strings.TrimSpace(requestedCatalogID)
+	if cat == "" || kind == database.OrderTrial || plan.IncludedCatalogID == cat {
+		return resolvedOrderAddon{}, nil
+	}
+	if s.database == nil {
+		return resolvedOrderAddon{}, errors.New("app add-on is not available")
+	}
+	catalogIDs, err := s.database.ListDistinctAppCatalogIDs()
+	allowed := cat == defaultAppAddonCatalogID
+	if err == nil {
+		for _, id := range catalogIDs {
+			if id == cat {
+				allowed = true
+				break
+			}
+		}
+	}
+	if !allowed {
+		return resolvedOrderAddon{}, errors.New("unsupported app add-on")
+	}
+	_ = s.database.EnsureDefaultAppLicensePlans(cat)
+	slug := strings.TrimSpace(requestedPlanSlug)
+	if slug == "" {
+		slug = defaultAppAddonPlanSlug
+	}
+	lp, err := s.database.GetAppLicensePlan(cat, slug)
+	if err != nil || lp == nil || !lp.IsActive || lp.PriceAmount <= 0 {
+		return resolvedOrderAddon{}, errors.New("selected app license plan is not available")
+	}
+	unitMonths := lp.Months
+	if unitMonths <= 0 {
+		if strings.EqualFold(lp.Period, "annual") {
+			unitMonths = 12
+		} else if strings.EqualFold(lp.Period, "quarterly") {
+			unitMonths = 3
+		} else {
+			unitMonths = 1
+		}
+	}
+	months := requestedMonths
+	if months > 0 {
+		if months > maxAddonMonths || months < unitMonths || months%unitMonths != 0 {
+			return resolvedOrderAddon{}, fmt.Errorf("add-on duration must be between %d and %d months in steps of %d", unitMonths, maxAddonMonths, unitMonths)
+		}
+	} else {
+		hm := orderMonths(plan, periods)
+		if hm <= 0 {
+			months = unitMonths
+		} else if hm%unitMonths == 0 {
+			months = hm
+		} else {
+			units := (hm + unitMonths - 1) / unitMonths
+			months = units * unitMonths
+		}
+		if months > maxAddonMonths {
+			months = (maxAddonMonths / unitMonths) * unitMonths
+		}
+	}
+	units := months / unitMonths
+	if units < 1 {
+		units = 1
+	}
+	appName := cat
+	if spec := findCatalogAppSpec(cat); spec != nil {
+		appName = spec.Name
+	} else if cat == defaultAppAddonCatalogID {
+		appName = "Reneo CRM Services"
+	}
+	return resolvedOrderAddon{
+		catalogID: cat,
+		appName:   appName,
+		planSlug:  lp.Slug,
+		planName:  lp.Name,
+		months:    months,
+		amount:    lp.PriceAmount * int64(units),
+	}, nil
+}
+
+// handlePublicCreateOrder signs a buyer up for a plan: the account waits for its payment (or for the trial to be approved)
+func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	if !s.selfServiceOn() {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "not found"})
+		return
+	}
+	var req createOrderRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
+		return
+	}
+	req.Username = strings.TrimSpace(req.Username)
+	req.Email = strings.TrimSpace(req.Email)
+	req.DisplayName = strings.TrimSpace(req.DisplayName)
+	if req.Kind == "" {
+		req.Kind = database.OrderNew
+	}
+	if req.Kind != database.OrderNew && req.Kind != database.OrderTrial {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "kind must be new or trial"})
+		return
+	}
+	if err := users.ValidateUsername(req.Username); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+	if err := users.ValidateEmail(req.Email); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+	if err := users.ValidatePassword(req.Password); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+	if utf8.RuneCountInString(req.DisplayName) > 60 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "name is at most 60 characters"})
+		return
+	}
+
+	plan, _ := s.database.GetHostingPlan(req.PlanID)
+	if plan == nil || !plan.Visible {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "plan not found"})
+		return
+	}
+	if req.Periods < 1 {
+		req.Periods = 1
+	}
+	if req.Periods > maxPeriods(plan) {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": fmt.Sprintf("at most %d periods", maxPeriods(plan))})
+		return
+	}
+	if req.Kind == database.OrderTrial && plan.TrialDays <= 0 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this plan has no trial"})
+		return
+	}
+	// a trial costs nothing, so a voucher has nothing to take off
+	var voucher *database.HostingVoucher
+	if code := strings.TrimSpace(req.Voucher); code != "" && req.Kind == database.OrderNew {
+		v, reason := s.voucherCheck(code, plan, database.OrderNew, 0)
+		if reason != "" {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": voucherReasonText(reason), "reason": reason})
+			return
+		}
+		voucher = v
+	}
+	quote := priceFor(plan, req.Periods, voucher, req.Kind, time.Now())
+	addon, err := s.resolveOrderAddon(plan, req.Periods, req.Kind, req.AddonCatalogID, req.AddonPlanSlug, req.AddonMonths)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	// the number for the notices about the order
+	phone := ""
+	buyerKind := s.notify.BuyerChannel()
+	if strings.TrimSpace(req.WhatsApp) != "" || buyerKind != "" {
+		normalized, err := notify.NormalizePhone(req.WhatsApp)
+		if err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+		phone = normalized
+	}
+
+	// the panel address comes with every plan: picked now on the main domain, held for the order, created when it is paid
+	var domain *database.HostingDomain
+	req.SubLabel = strings.ToLower(strings.TrimSpace(req.SubLabel))
+	if main := s.mainHostingDomain(); main != nil {
+		reason, offered, err := s.subdomainAvailability(req.SubLabel, main.ZoneID)
+		if err != nil {
+			log.Printf("[orders] subdomain check: %v", err)
+			s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": "the address service is not ready, try again later"})
+			return
+		}
+		if reason != "" {
+			status := http.StatusBadRequest
+			if strings.Contains(reason, "taken") {
+				status = http.StatusConflict
+			}
+			s.writeJSON(w, status, jsonResponse{"error": reason})
+			return
+		}
+		domain = offered
+	}
+
+	// one address does not make orders without end: a few an hour, one trial a day
+	ip := clientIP(r)
+	now := time.Now()
+	if n, err := s.database.CountRecentOrdersFromIP(ip, now.Add(-time.Hour), ""); err == nil && n >= orderMaxPerHour {
+		s.notify.OrderRefused(ip)
+		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many orders from this address, try again later"})
+		return
+	}
+	if req.Kind == database.OrderTrial {
+		if n, err := s.database.CountRecentOrdersFromIP(ip, now.Add(-24*time.Hour), database.OrderTrial); err == nil && n >= orderMaxTrialsDay {
+			s.notify.OrderRefused(ip)
+		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "one trial per address a day"})
+			return
+		}
+	}
+
+	settings := s.loadSiteSettings()
+	u, err := s.auth.CreateUser(req.Username, req.Email, req.Password, auth.UserRole, req.DisplayName)
+	if err != nil {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "that username or email is already used by another account: try a different username or email", "reason": "accountTaken"})
+		return
+	}
+	// from here a failure must not leave the account behind
+	rollback := func() { _ = s.database.DeleteUser(u.ID) }
+	if err := s.database.UpdateUser(u.ID, map[string]any{"status": "pending"}); err != nil {
+		rollback()
+		s.writeError(w, http.StatusInternalServerError, errors.New("could not create the order"))
+		return
+	}
+	if superadmin, err := s.database.GetSuperadminID(); err == nil && superadmin > 0 {
+		_ = s.database.SetUserParent(u.ID, superadmin)
+	}
+
+	if phone != "" && buyerKind != "" {
+		if err := s.database.SaveBuyerContact(u.ID, buyerKind, phone); err != nil {
+			log.Printf("[orders] the WhatsApp number of %q was not saved: %v", u.Username, err)
+		}
+	}
+
+	planID := plan.ID
+	order := database.HostingOrder{
+		Kind: req.Kind, PlanID: &planID, PlanName: plan.Name, UserID: u.ID, Periods: req.Periods,
+		AmountList: quote.List + addon.amount, DiscountPromo: quote.PromoDiscount, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
+		AmountBase: quote.Subtotal + addon.amount, AddonCatalogID: addon.catalogID, AddonPlanSlug: addon.planSlug, AddonMonths: addon.months, AddonAmount: addon.amount,
+		Status: database.OrderPending,
+		CreatedIP: ip, ExpiresAt: now.Add(settings.orderExpiry()), PublicBase: s.orderBaseURL(r),
+	}
+	if addon.catalogID != "" {
+		order.Note = fmt.Sprintf("+ %s (%s • %d bln)", addon.appName, addon.planName, addon.months)
+	}
+	if voucher != nil {
+		order.VoucherCode = voucher.Code
+	}
+	if domain != nil {
+		order.SubLabel, order.SubZoneID, order.SubDomain, order.SubHostname = req.SubLabel, domain.ZoneID, domain.Name, hostnameFor(req.SubLabel, domain.Name)
+	}
+	switch {
+	case req.Kind == database.OrderTrial:
+		// a trial costs nothing: it is switched on at once, or waits for the superadmin when approval is required
+		order.Periods, order.AmountBase, order.AmountList, order.DiscountDuration, order.DiscountVoucher, order.VoucherCode = 1, 0, 0, 0, 0, ""
+		order.AddonCatalogID, order.AddonPlanSlug, order.AddonMonths, order.AddonAmount, order.Note = "", "", 0, 0, ""
+		if settings.TrialApproval {
+			order.Status = database.OrderReview
+		}
+	case (plan.PriceAmount <= 0 && addon.amount <= 0) || (quote.Subtotal+addon.amount) <= 0:
+		// a free plan, or a price a voucher took to nothing, is the superadmin's to grant
+		order.AmountBase = 0
+		order.Status = database.OrderReview
+	}
+	created, err := s.database.CreateHostingOrder(order, settings.orderUniqueMax())
+	if err != nil {
+		rollback()
+		if errors.Is(err, database.ErrNoFreeTotal) {
+			s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, database.ErrSubdomainReserved) || errors.Is(err, database.ErrVoucherUnavailable) {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
+			return
+		}
+		s.writeError(w, http.StatusInternalServerError, errors.New("could not create the order"))
+		return
+	}
+
+	if req.Kind == database.OrderTrial && !settings.TrialApproval {
+		if err := s.fulfillOrderWithPassword(created, nil, "trial", req.Password); err != nil {
+			log.Printf("[orders] trial of %q could not be switched on: %v", u.Username, err)
+		}
+		if refreshed, _ := s.database.GetHostingOrder(created.ID); refreshed != nil {
+			created = refreshed
+		}
+	} else {
+		s.notifyAllAdmins("Pesanan hosting baru", fmt.Sprintf("%s memesan paket %s (%s).", u.Username, plan.Name, orderKindLabel(created)), "info")
+		s.emitOrderCreated(created, u.Username, plan.Name)
+		s.buyerOrderCreated(created, u.Username, req.Password, plan.Name)
+		if created.Status == database.OrderReview {
+			s.emitOrderReview(created.ID, u.Username, notify.Localized{"id": "pesanan ini menunggu persetujuan Anda.", "en": "this order waits for your approval."})
+		}
+	}
+	s.recordRuntimeLog("info", "hosting order created", map[string]any{"user": u.Username, "plan": plan.Name, "kind": created.Kind, "remote": ip})
+	s.writeJSON(w, http.StatusCreated, s.orderViewFor(*created))
+}
+
+func orderKindLabel(o *database.HostingOrder) string {
+	switch o.Kind {
+	case database.OrderTrial:
+		return "trial"
+	case database.OrderRenew:
+		return "perpanjangan"
+	}
+	if o.AmountTotal > 0 {
+		return fmt.Sprintf("Rp %d", o.AmountTotal)
+	}
+	return "baru"
+}
+
+// handlePublicGetOrder is the page of an order: the address holds an unguessable id, and only the
+// state of the order comes back
+func (s *Server) handlePublicGetOrder(w http.ResponseWriter, r *http.Request) {
+	if !s.selfServiceOn() {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "not found"})
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	publicID := strings.TrimSpace(r.PathValue("publicId"))
+	if len(publicID) != 24 {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
+		return
+	}
+	order, _ := s.database.GetHostingOrderByPublicID(publicID)
+	if order == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
+		return
+	}
+	s.writeJSON(w, http.StatusOK, s.orderViewFor(*order))
+}
+
+// orderClaims remembers the orders whose buyer already said they transferred, so pressing the button again does not alert the seller again
+var orderClaims sync.Map
+
+// handlePublicOrderTransferred is the buyer saying "I have transferred": the seller is told once that the payment of this
+// order is worth checking. It changes nothing on the order; only a matching bank notification, or the seller, can mark it paid.
+func (s *Server) handlePublicOrderTransferred(w http.ResponseWriter, r *http.Request) {
+	if !s.selfServiceOn() {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "not found"})
+		return
+	}
+	if allowed, _ := s.allowRateLimit("claim:"+clientIP(r), rateLimitRule{Window: time.Minute, Limit: 10}); !allowed {
+		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many attempts, wait a moment"})
+		return
+	}
+	publicID := strings.TrimSpace(r.PathValue("publicId"))
+	if len(publicID) != 24 {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
+		return
+	}
+	order, _ := s.database.GetHostingOrderByPublicID(publicID)
+	if order == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
+		return
+	}
+	if order.Status == database.OrderPending {
+		if _, already := orderClaims.LoadOrStore(order.ID, time.Now()); !already {
+			s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d (%s): pembeli menyatakan sudah transfer %s. Periksa apakah transfernya sudah masuk.", order.ID, order.Username, rupiah(order.AmountTotal)), "en": fmt.Sprintf("Order #%d (%s): the buyer says they have transferred %s. Check that the transfer has arrived.", order.ID, order.Username, rupiah(order.AmountTotal))}, "info")
+		}
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": order.Status})
+}
+
+// handleRenewMyPlan makes the order that extends the plan of the signed-in account by some periods
+func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	if !s.selfServiceOn() {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "not found"})
+		return
+	}
+	user := userFromCtx(r)
+	if user == nil || user.Role == auth.SuperadminRole || s.isDemoUser(user) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "this account does not renew a plan"})
+		return
+	}
+	var req struct {
+		Periods int    `json:"periods"`
+		Voucher string `json:"voucher"`
+		// PlanID names the plan to move to; empty or the plan the account is on renews that plan
+		PlanID int64 `json:"planId"`
+		// Mode "difference" pays only the price difference for the time left on the current plan (an upgrade)
+		Mode string `json:"mode"`
+	}
+	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req)
+	if req.Periods < 1 {
+		req.Periods = 1
+	}
+	userPlan, _ := s.database.GetUserPlan(user.ID)
+	if userPlan == nil || userPlan.PlanID == nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this account is not on a plan"})
+		return
+	}
+	current, _ := s.database.GetHostingPlan(*userPlan.PlanID)
+	plan := current
+	upgrade := false
+	if req.PlanID != 0 && req.PlanID != *userPlan.PlanID {
+		target, _ := s.database.GetHostingPlan(req.PlanID)
+		if target == nil || !target.Visible || !isUpgrade(current, target) {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "that plan is not an upgrade of the current one"})
+			return
+		}
+		plan, upgrade = target, true
+	}
+	if plan == nil || plan.PriceAmount <= 0 || plan.Period == "once" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this plan is not renewed by an order"})
+		return
+	}
+	if req.Periods > maxPeriods(plan) {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": fmt.Sprintf("at most %d periods", maxPeriods(plan))})
+		return
+	}
+	// the order already waiting is shown again, not doubled
+	if open, _ := s.database.UserOpenOrder(user.ID, database.OrderRenew); open != nil && open.Status == database.OrderPending {
+		s.writeJSON(w, http.StatusOK, s.orderViewFor(*open))
+		return
+	}
+	difference := req.Mode == "difference"
+	var voucher *database.HostingVoucher
+	var quote priceQuote
+	if difference {
+		// only the difference of the prices for the time that is left; no voucher, and the end date stays
+		amount := int64(0)
+		if upgrade && current != nil && userPlan.ExpiresAt != nil {
+			amount = upgradeDifference(current, plan, time.Until(*userPlan.ExpiresAt))
+		}
+		if amount < minUpgradeDifference {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "there is no difference to pay for this plan: renew with the new plan instead"})
+			return
+		}
+		req.Periods = 1
+		quote = priceQuote{List: amount, Subtotal: amount}
+	} else {
+		if code := strings.TrimSpace(req.Voucher); code != "" {
+			v, reason := s.voucherCheck(code, plan, database.OrderRenew, user.ID)
+			if reason != "" {
+				s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": voucherReasonText(reason), "reason": reason})
+				return
+			}
+			voucher = v
+		}
+		quote = priceFor(plan, req.Periods, voucher, database.OrderRenew, time.Now())
+		if quote.Subtotal <= 0 {
+			// a renewal that costs nothing has nothing to transfer: the seller grants it by hand
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this voucher takes the whole price off: ask the seller to renew the plan"})
+			return
+		}
+	}
+	settings := s.loadSiteSettings()
+	planID := plan.ID
+	renewal := database.HostingOrder{
+		Kind: database.OrderRenew, PlanID: &planID, PlanName: plan.Name, UserID: user.ID, Periods: req.Periods,
+		AmountList: quote.List, DiscountPromo: quote.PromoDiscount, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
+		AmountBase: quote.Subtotal, Status: database.OrderPending, Difference: difference,
+		CreatedIP: clientIP(r), ExpiresAt: time.Now().Add(settings.orderExpiry()), PublicBase: s.orderBaseURL(r),
+	}
+	if voucher != nil {
+		renewal.VoucherCode = voucher.Code
+	}
+	created, err := s.database.CreateHostingOrder(renewal, settings.orderUniqueMax())
+	if err != nil {
+		if errors.Is(err, database.ErrVoucherUnavailable) {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, database.ErrNoFreeTotal) {
+			s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": err.Error()})
+			return
+		}
+		s.writeError(w, http.StatusInternalServerError, errors.New("could not create the order"))
+		return
+	}
+	if upgrade {
+		s.notifyAllAdmins("Naik paket hosting", fmt.Sprintf("%s naik ke paket %s (Rp %d).", user.Username, plan.Name, created.AmountTotal), "info")
+	} else {
+		s.notifyAllAdmins("Perpanjangan hosting", fmt.Sprintf("%s memperpanjang paket %s (Rp %d).", user.Username, plan.Name, created.AmountTotal), "info")
+	}
+	s.emitOrderCreated(created, user.Username, plan.Name)
+	s.buyerOrderCreated(created, user.Username, "", plan.Name)
+	s.writeJSON(w, http.StatusCreated, s.orderViewFor(*created))
+}
+
+// handleMyPlan is the plan of the signed-in account, and whether it can be renewed by an order from here
+func (s *Server) handleMyPlan(w http.ResponseWriter, r *http.Request) {
+	user := userFromCtx(r)
+	if user == nil || s.database == nil || !s.database.IsConnected() {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+	if !s.hostingEnabled() || user.Role == auth.SuperadminRole || s.isDemoUser(user) {
+		s.writeJSON(w, http.StatusOK, jsonResponse{"plan": nil, "state": planStateNone, "renewable": false})
+		return
+	}
+	view, err := s.userPlanView(user.ID)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	userPlan, _ := s.database.GetUserPlan(user.ID)
+	renewable := s.selfServiceOn() && view.Plan != nil && view.Plan.PriceAmount > 0 && view.Plan.Period != "once"
+	trial := s.trialViewFor(userPlan, time.Now())
+	upgrades := []database.HostingPlan{}
+	if s.selfServiceOn() && view.Plan != nil && trial == nil {
+		if visible, err := s.database.ListHostingPlans(true); err == nil {
+			for i := range visible {
+				if isUpgrade(view.Plan, &visible[i]) {
+					upgrades = append(upgrades, visible[i])
+				}
+			}
+		}
+	}
+	// what moving to each plan would cost as a difference for the time left (only while the plan runs)
+	differences := map[int64]jsonResponse{}
+	if view.State == "active" && userPlan != nil && userPlan.ExpiresAt != nil && userPlan.ExpiresAt.After(time.Now()) {
+		remaining := time.Until(*userPlan.ExpiresAt)
+		for i := range upgrades {
+			if amount := upgradeDifference(view.Plan, &upgrades[i], remaining); amount >= minUpgradeDifference {
+				differences[upgrades[i].ID] = jsonResponse{"amount": amount, "days": int(remaining.Hours()/24 + 0.999)}
+			}
+		}
+	}
+	resp := jsonResponse{
+		"plan": view.Plan, "expiresAt": view.ExpiresAt, "state": view.State, "graceEndsAt": view.GraceEndsAt,
+		"renewable": renewable, "trial": trial, "upgrades": upgrades, "upgradeDifferences": differences,
+	}
+	if renewable {
+		resp["maxPeriods"] = maxPeriods(view.Plan)
+	}
+	if renewable || len(upgrades) > 0 {
+		if open, _ := s.database.UserOpenOrder(user.ID, database.OrderRenew); open != nil && open.Status == database.OrderPending {
+			order := s.orderViewFor(*open)
+			resp["openOrder"] = &order
+		}
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	s.writeJSON(w, http.StatusOK, resp)
+}
+
+// handleListMyOrders lists the orders of the signed-in account
+func (s *Server) handleListMyOrders(w http.ResponseWriter, r *http.Request) {
+	user := userFromCtx(r)
+	if user == nil || s.database == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+	orders, _, err := s.database.ListHostingOrders(user.ID, "", 20, 0)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	views := make([]orderView, 0, len(orders))
+	for _, o := range orders {
+		views = append(views, s.orderViewFor(o))
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"items": views})
+}
+
+// handleListOrders is the superadmin's list of orders
+func (s *Server) handleListOrders(w http.ResponseWriter, r *http.Request) {
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
+	limit, offset := parseIntQuery(r, "limit", 50), parseIntQuery(r, "offset", 0)
+	orders, total, err := s.database.ListHostingOrders(0, status, limit, offset)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"items": orders, "total": total})
+}
+
+func parseIntQuery(r *http.Request, name string, fallback int) int {
+	if raw := strings.TrimSpace(r.URL.Query().Get(name)); raw != "" {
+		if n, err := parseIntParam(raw); err == nil {
+			return n
+		}
+	}
+	return fallback
+}
+
+// handleConfirmOrder is the superadmin saying an order is paid (or a trial is approved)
+func (s *Server) handleConfirmOrder(w http.ResponseWriter, r *http.Request) {
+	order, _ := s.database.GetHostingOrder(parsePathID(r, "id"))
+	if order == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
+		return
+	}
+	if order.Status != database.OrderPending && order.Status != database.OrderReview {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this order is already " + order.Status})
+		return
+	}
+	if err := s.fulfillOrder(order, nil, "dikonfirmasi admin"); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if actor := userFromCtx(r); actor != nil {
+		s.auditSensitiveAction(r, actor, "hosting.order.confirm", "ok", map[string]any{"order": order.ID, "user": order.Username})
+	}
+	refreshed, _ := s.database.GetHostingOrder(order.ID)
+	s.writeJSON(w, http.StatusOK, refreshed)
+}
+
+// handleCancelOrder closes an open order; the account a new order made, which never paid, goes with it
+func (s *Server) handleCancelOrder(w http.ResponseWriter, r *http.Request) {
+	order, _ := s.database.GetHostingOrder(parsePathID(r, "id"))
+	if order == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
+		return
+	}
+	changed, err := s.database.SetOrderStatus(order.ID, database.OrderCancelled, "dibatalkan admin")
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if !changed {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this order is already " + order.Status})
+		return
+	}
+	s.dropUnpaidAccount(order)
+	if actor := userFromCtx(r); actor != nil {
+		s.auditSensitiveAction(r, actor, "hosting.order.cancel", "ok", map[string]any{"order": order.ID, "user": order.Username})
+	}
+	refreshed, _ := s.database.GetHostingOrder(order.ID)
+	s.writeJSON(w, http.StatusOK, refreshed)
+}
+
+// dropUnpaidAccount removes the account of an order that ended without payment, but only an account that was
+// made for it and never switched on, and only when no other order still waits for it
+func (s *Server) dropUnpaidAccount(order *database.HostingOrder) {
+	if order.Kind == database.OrderRenew {
+		return
+	}
+	user, _ := s.database.GetUserByID(order.UserID)
+	if user == nil || user.Status != "pending" {
+		return
+	}
+	for _, kind := range []string{database.OrderNew, database.OrderTrial} {
+		if open, _ := s.database.UserOpenOrder(user.ID, kind); open != nil {
+			return
+		}
+	}
+	if err := s.database.DeleteUser(user.ID); err != nil {
+		log.Printf("[orders] could not remove the unpaid account %q: %v", user.Username, err)
+	}
+}
+
+// fulfillOrder switches the account and the plan on for a paid order. It is safe to call twice: the order
+// closes once, and only the call that closed it does the work.
+func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note string) error {
+	return s.fulfillOrderWithPassword(order, notifID, note, "")
+}
+
+func (s *Server) fulfillOrderWithPassword(order *database.HostingOrder, notifID *int64, note, rawPassword string) error {
+	changed, err := s.database.MarkOrderPaid(order.ID, notifID, note)
+	if err != nil {
+		return err
+	}
+	if !changed {
+		return nil
+	}
+	user, _ := s.database.GetUserByID(order.UserID)
+	if user == nil || order.PlanID == nil {
+		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi akun atau paketnya sudah tidak ada.", order.ID), "en": fmt.Sprintf("Order #%d is paid, but its account or plan no longer exists.", order.ID)}, "warning")
+		return errors.New("the account or the plan of the order no longer exists")
+	}
+	plan, _ := s.database.GetHostingPlan(*order.PlanID)
+	if plan == nil {
+		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi paketnya sudah dihapus.", order.ID), "en": fmt.Sprintf("Order #%d is paid, but its plan has been deleted.", order.ID)}, "warning")
+		return errors.New("the plan of the order no longer exists")
+	}
+	// a trial upgrade in progress ends first, so its time is credited to the plan this order renews
+	s.finishPlanTrial(user.ID, time.Now())
+	previous, _ := s.database.GetUserPlan(user.ID)
+	now := time.Now()
+	var ends *time.Time
+	upgraded := false
+	if order.Kind == database.OrderTrial {
+		end := now.Add(time.Duration(plan.TrialDays) * 24 * time.Hour)
+		ends = &end
+	} else if order.Difference && previous != nil && previous.ExpiresAt != nil && previous.ExpiresAt.After(now) {
+		// the difference was paid for the time that is left: the plan changes, the end date stays
+		end := *previous.ExpiresAt
+		ends = &end
+		upgraded = true
+	} else {
+		months := orderMonths(plan, order.Periods)
+		var monthsArg *int
+		if months > 0 {
+			monthsArg = &months
+		}
+		if ends, err = planEnd(plan, previous, nil, monthsArg, now); err != nil {
+			return err
+		}
+		// a move to another plan: what is left of the old one counts for the new one, by the ratio of the prices
+		if ends != nil && previous != nil && previous.PlanID != nil && *previous.PlanID != plan.ID && previous.ExpiresAt != nil && previous.ExpiresAt.After(now) {
+			if old, _ := s.database.GetHostingPlan(*previous.PlanID); old != nil {
+				if carry := upgradeCarry(old, plan, previous.ExpiresAt.Sub(now)); carry > 0 {
+					end := ends.Add(carry)
+					ends = &end
+				}
+			}
+		}
+		upgraded = previous != nil && previous.PlanID != nil && *previous.PlanID != plan.ID
+	}
+	if err := s.applyUserPlan(user.ID, plan, ends); err != nil {
+		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi paket %s gagal dipasang ke %s.", order.ID, plan.Name, user.Username), "en": fmt.Sprintf("Order #%d is paid, but the plan %s could not be applied to %s.", order.ID, plan.Name, user.Username)}, "warning")
+		return err
+	}
+	if order.Kind != database.OrderTrial && order.AddonCatalogID != "" && plan.IncludedCatalogID != order.AddonCatalogID {
+		addonSlug := strings.TrimSpace(order.AddonPlanSlug)
+		if addonSlug == "" {
+			addonSlug = defaultAppAddonPlanSlug
+		}
+		addonMonths := order.AddonMonths
+		if addonMonths <= 0 {
+			addonMonths = orderMonths(plan, order.Periods)
+			if addonMonths <= 0 {
+				addonMonths = order.Periods
+				if addonMonths < 1 {
+					addonMonths = 1
+				}
+			}
+		}
+		if order.AddonAmount > 0 {
+			if _, err := s.database.RenewAppLicensePlan(user.ID, order.AddonCatalogID, addonSlug, addonMonths); err != nil {
+				log.Printf("[orders] addon license %s (%s) for %s: %v", order.AddonCatalogID, addonSlug, user.Username, err)
+			}
+		} else {
+			addonEnds := ends
+			if addonEnds == nil || order.AddonMonths > 0 {
+				t := now.AddDate(0, addonMonths, 0)
+				addonEnds = &t
+			}
+			if err := s.database.EnsureBundledAppLicense(user.ID, order.AddonCatalogID, addonSlug, addonEnds); err != nil {
+				log.Printf("[orders] addon license %s (%s) for %s: %v", order.AddonCatalogID, addonSlug, user.Username, err)
+			}
+		}
+	}
+	if user.Status == "pending" {
+		if err := s.database.UpdateUser(user.ID, map[string]any{"status": "active"}); err != nil {
+			return err
+		}
+	}
+	s.liftExpirySuspension(user, previous)
+	if order.SubHostname != "" {
+		s.giveOrderSubdomain(order, user)
+	}
+	s.recordRuntimeLog("info", "hosting order paid", map[string]any{"order": order.ID, "user": user.Username, "plan": plan.Name, "kind": order.Kind})
+	s.notifyAllAdmins("Pesanan terbayar", fmt.Sprintf("%s: paket %s aktif (%s).", user.Username, plan.Name, note), "success")
+	s.emitOrderPaid(order, user.Username, plan.Name, note)
+	s.buyerOrderPaid(order, user, plan.Name, rawPassword)
+	s.notifyBuyerOrderDone(order, user, plan, ends, upgraded)
+	go s.syncHostingRoutes()
+	return nil
+}
+
+// notifyBuyerOrderDone tells the buyer, in their own panel, that the order went through and what they can use now
+func (s *Server) notifyBuyerOrderDone(order *database.HostingOrder, user *database.User, plan *database.HostingPlan, ends *time.Time, upgraded bool) {
+	until := "tanpa batas waktu"
+	if ends != nil {
+		until = "sampai " + ends.Local().Format(notify.TimeLayout)
+	}
+	switch order.Kind {
+	case database.OrderRenew:
+		if upgraded {
+			s.notifyUserAction(user.ID, "Paket dinaikkan", fmt.Sprintf("Akun Anda sekarang memakai paket %s, berlaku %s.", plan.Name, until), "success")
+			break
+		}
+		s.notifyUserAction(user.ID, "Perpanjangan berhasil", fmt.Sprintf("Paket %s diperpanjang, berlaku %s.", plan.Name, until), "success")
+	case database.OrderTrial:
+		s.notifyUserAction(user.ID, "Akun aktif", fmt.Sprintf("Percobaan paket %s dimulai dan akun Anda sudah bisa dipakai, berlaku %s.%s", plan.Name, until, addressSentence(order)), "success")
+	default:
+		s.notifyUserAction(user.ID, "Akun aktif", fmt.Sprintf("Pembayaran diterima. Paket %s aktif dan akun Anda sudah bisa dipakai, berlaku %s.%s", plan.Name, until, addressSentence(order)), "success")
+	}
+}
+
+func addressSentence(order *database.HostingOrder) string {
+	if order.SubHostname == "" {
+		return ""
+	}
+	return fmt.Sprintf(" Masuk lewat https://%s.", order.SubHostname)
+}
+
+// giveOrderSubdomain creates the panel address the buyer picked with the order, so it is their sign-in address
+func (s *Server) giveOrderSubdomain(order *database.HostingOrder, user *database.User) {
+	if has, _ := s.database.HasPanelAddress(user.ID); has {
+		return
+	}
+	if _, err := s.database.CreateHostingSubdomain(user.ID, order.SubLabel, order.SubZoneID, order.SubDomain, order.SubHostname, true); err != nil {
+		log.Printf("[orders] could not create %s for %q: %v", order.SubHostname, user.Username, err)
+		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi alamat %s gagal dibuat untuk %s. Buatkan dari jendela Pengguna.", order.ID, order.SubHostname, user.Username), "en": fmt.Sprintf("Order #%d is paid, but the address %s could not be created for %s. Create it from the Users window.", order.ID, order.SubHostname, user.Username)}, "warning")
+		return
+	}
+	forgetHostingHosts()
+}
+
+// handlePublicCheckSubdomain tells a buyer, while they type, whether a panel address is free
+func (s *Server) handlePublicCheckSubdomain(w http.ResponseWriter, r *http.Request) {
+	// the request form of a seller who takes orders by message checks the address too, so this needs only the public page
+	if settings := s.loadSiteSettings(); !settings.HostingEnabled || !settings.LandingEnabled || s.database == nil || !s.database.IsConnected() {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "not found"})
+		return
+	}
+	// each check asks Cloudflare, so one address gets a few a minute
+	if allowed, retry := s.allowRateLimit("pubsub:"+clientIP(r), rateLimitRule{Window: time.Minute, Limit: 30}); !allowed {
+		w.Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
+		s.notify.OrderRefused(clientIP(r))
+		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many requests, wait a moment"})
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	label := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("label")))
+	// always on the main domain: that is where the panel address of a buyer is made
+	main := s.mainHostingDomain()
+	if main == nil {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "no domain is offered"})
+		return
+	}
+	reason, _, err := s.subdomainAvailability(label, main.ZoneID)
+	if err != nil {
+		log.Printf("[orders] availability check: %v", err)
+		s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": "the address service is not ready, try again later"})
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"available": reason == "", "reason": reason})
+}
+
+// matchHostingOrderPayment looks for the order a bank notification pays. Only an exact total, an order still open
+// at the time of the payment, and exactly one candidate count; anything else is left for the superadmin to see.
+func (s *Server) matchHostingOrderPayment(amountDetected string, notifID int64, receivedAt time.Time) {
+	if s.database == nil || !s.database.IsConnected() {
+		return
+	}
+	total := database.NormalizeAmount(amountDetected)
+	if total <= 0 {
+		return
+	}
+	orders, err := s.database.PendingOrdersForTotal(total, receivedAt)
+	if err != nil {
+		log.Printf("[orders] match check failed: %v", err)
+		return
+	}
+	if len(orders) != 1 {
+		if len(orders) > 1 {
+			log.Printf("[orders] %d waiting orders share the total %d: left for review", len(orders), total)
+			s.notify.Emit(notify.Event{
+				Name: notify.EventOrderAttention, Key: fmt.Sprintf("shared-total-%d-%d", total, notifID),
+				Data: map[string]any{"detail": notify.Localized{"id": fmt.Sprintf("%d pesanan menunggu dengan total %s yang sama, jadi transfernya tidak bisa dicocokkan sendiri. Periksa di tab Pesanan.", len(orders), rupiah(total)), "en": fmt.Sprintf("%d waiting orders share the total %s, so the transfer cannot be matched by itself. Check the Orders tab.", len(orders), rupiah(total))}},
+			})
+		}
+		return
+	}
+	order := orders[0]
+	// the superadmin may want to see every payment before an account is switched on
+	if auto, _ := s.database.GetPaymentSettingValue("auto_confirm"); auto != "true" {
+		if _, err := s.database.SetOrderStatus(order.ID, database.OrderReview, "pembayaran cocok, menunggu konfirmasi"); err == nil {
+			s.notifyAllAdmins("Pembayaran cocok, perlu konfirmasi", fmt.Sprintf("Pesanan #%d (%s, Rp %d) cocok dengan notifikasi. Konfirmasi di jendela Hosting.", order.ID, order.Username, total), "info")
+			s.emitOrderReview(order.ID, order.Username, notify.Localized{"id": fmt.Sprintf("transfer %s cocok dengan notifikasi bank dan menunggu konfirmasi Anda.", rupiah(total)), "en": fmt.Sprintf("a transfer of %s matches a bank notification and waits for your confirmation.", rupiah(total))})
+		}
+		return
+	}
+	id := notifID
+	if err := s.fulfillOrder(&order, &id, fmt.Sprintf("cocok otomatis dengan notifikasi #%d", notifID)); err != nil {
+		log.Printf("[orders] order %d matched but could not be fulfilled: %v", order.ID, err)
+	}
+}
+
+// expireOrders closes the orders whose time ran out and removes the accounts that never paid
+func (s *Server) expireOrders(now time.Time) {
+	if s.database == nil || !s.database.IsConnected() {
+		return
+	}
+	expired, err := s.database.ExpireHostingOrders(now)
+	if err != nil {
+		log.Printf("[orders] expiry check failed: %v", err)
+		return
+	}
+	for i := range expired {
+		s.dropUnpaidAccount(&expired[i])
+	}
+	if len(expired) > 0 {
+		s.recordRuntimeLog("info", "hosting orders expired", map[string]any{"count": len(expired)})
+	}
+}

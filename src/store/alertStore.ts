@@ -8,6 +8,8 @@ interface DialogData {
   description: string
   confirmText?: string
   cancelText?: string
+  /** confirm only: warning (default, red confirm button) or question (primary) */
+  icon?: 'warning' | 'question'
   windowId?: string
   resolve?: (value: boolean) => void
 }

@@ -2,6 +2,9 @@ import axios, { AxiosError } from 'axios'
 import type { PaginationParams } from '@/types'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { toast } from 'sonner'
+import { isPublicRoute } from '@/lib/publicPaths'
+import { translateNow } from '@/lib/i18n'
+import { localizeServerMessage } from '@/lib/serverMessages'
 
 export const agentApi = axios.create({
   baseURL: import.meta.env.VITE_AGENT_BASE,
@@ -14,7 +17,20 @@ let unauthorizedEventArmed = true
 agentApi.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    const isPublicPath = window.location.pathname === (import.meta.env.VITE_LOGIN_PATH || '/login') || window.location.pathname === '/'
+    // a request the caller aborted on purpose (end of a speed test phase) is not a failure
+    if (axios.isCancel(error)) return Promise.reject(error)
+
+    // the agent answers in English: the messages people run into read in the language of the page
+    const data = error.response?.data as { error?: unknown } | undefined
+    if (data && typeof data === 'object') {
+      const localized = localizeServerMessage(data.error)
+      if (localized) data.error = localized
+      if (typeof data.error === 'string' && data.error.trim()) {
+        error.message = data.error.trim()
+      }
+    }
+
+    const isPublicPath = isPublicRoute(window.location.pathname)
     const isUnauthorized = error.response?.status === 401
     const isRevisionCheck = error.config?.url?.includes('/api/v1/frontend/revision')
     const isStatsWS = error.config?.url?.includes('/api/v1/system/stats/ws')
@@ -29,8 +45,8 @@ agentApi.interceptors.response.use(
     }
 
     if (!error.response) {
-      toast.error('Gagal terhubung ke agent', {
-        description: 'Pastikan service agent sudah berjalan di host.',
+      toast.error(translateNow('server.unreachable'), {
+        description: translateNow('server.unreachableHint'),
       })
     }
 
@@ -61,8 +77,12 @@ export const withPagination = (params?: PaginationParams) => ({
 
 export async function copyTextToClipboard(value: string) {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value)
-    return true
+    try {
+      await navigator.clipboard.writeText(value)
+      return true
+    } catch {
+      // fall through to textarea execCommand fallback (e.g. HTTP LAN IP or unfocused frame)
+    }
   }
 
   if (typeof document !== 'undefined') {
@@ -70,12 +90,20 @@ export async function copyTextToClipboard(value: string) {
     textarea.value = value
     textarea.setAttribute('readonly', '')
     textarea.style.position = 'fixed'
+    textarea.style.top = '0'
+    textarea.style.left = '0'
     textarea.style.opacity = '0'
     document.body.appendChild(textarea)
+    textarea.focus()
     textarea.select()
+    textarea.setSelectionRange(0, value.length)
 
-    const copied = document.execCommand('copy')
-    document.body.removeChild(textarea)
+    let copied = false
+    try {
+      copied = document.execCommand('copy')
+    } finally {
+      document.body.removeChild(textarea)
+    }
 
     if (copied) return true
   }

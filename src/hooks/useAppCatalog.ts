@@ -1,0 +1,187 @@
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import {
+  checkInstalledAppUpdates,
+  getAppCatalog,
+  createCustomCatalogApp,
+  installCatalogApp,
+  installedAppWindowParams,
+  rollbackInstalledApp,
+  runInstalledAppAction,
+  uninstallCatalogApp,
+  updateInstalledApp,
+  upgradeInstalledApp,
+  type CreateCustomCatalogPayload,
+  type InstallCatalogAppPayload,
+  type InstalledApp,
+  type UpdateInstalledAppPayload,
+} from '@/api/appCatalog'
+import { useAuthStore } from '@/store/authStore'
+import { useWindowStore } from '@/store/windowStore'
+
+export const APP_CATALOG_QUERY_KEY = ['app-catalog'] as const
+export const APP_CATALOG_UPDATES_QUERY_KEY = ['app-catalog-updates'] as const
+
+export function useAppCatalog(enabledOverride?: boolean, pollIntervalMs: number | false = false) {
+  const user = useAuthStore((s) => s.user)
+  const isDemo = user?.role?.toLowerCase() === 'demo'
+  const enabled = (enabledOverride ?? true) && Boolean(user) && !isDemo
+
+  return useQuery({
+    queryKey: APP_CATALOG_QUERY_KEY,
+    queryFn: () => getAppCatalog(false),
+    enabled,
+    staleTime: 15_000,
+    refetchInterval: enabled ? pollIntervalMs : false,
+  })
+}
+
+export function useInstalledAppUpdates(enabledOverride?: boolean) {
+  const user = useAuthStore((s) => s.user)
+  const isDemo = user?.role?.toLowerCase() === 'demo'
+  const enabled = (enabledOverride ?? true) && Boolean(user) && !isDemo
+
+  return useQuery({
+    queryKey: APP_CATALOG_UPDATES_QUERY_KEY,
+    queryFn: () => checkInstalledAppUpdates(false),
+    enabled,
+    staleTime: 120_000,
+    refetchOnWindowFocus: false,
+  })
+}
+
+export async function forceRefreshAppCatalog(qc: QueryClient, checkUpdates: boolean) {
+  const tasks: Promise<unknown>[] = [
+    qc.fetchQuery({
+      queryKey: APP_CATALOG_QUERY_KEY,
+      queryFn: () => getAppCatalog(true),
+      staleTime: 0,
+    }),
+  ]
+  if (checkUpdates) {
+    tasks.push(
+      qc.fetchQuery({
+        queryKey: APP_CATALOG_UPDATES_QUERY_KEY,
+        queryFn: () => checkInstalledAppUpdates(true),
+        staleTime: 0,
+      }),
+    )
+  }
+  await Promise.all(tasks)
+}
+
+export async function forceRefreshAppUpdates(qc: QueryClient) {
+  return qc.fetchQuery({
+    queryKey: APP_CATALOG_UPDATES_QUERY_KEY,
+    queryFn: () => checkInstalledAppUpdates(true),
+    staleTime: 0,
+  })
+}
+
+export function useInstalledApps() {
+  const query = useAppCatalog()
+  return {
+    ...query,
+    installedApps: query.data?.installed ?? [],
+    catalogApps: query.data?.catalog ?? [],
+    sharedCrm: query.data?.sharedCrm ?? null,
+    sharedSidesa: query.data?.sharedSidesa ?? null,
+  }
+}
+
+export function openInstalledAppWindow(app: InstalledApp) {
+  useWindowStore.getState().openWindow('installed-app', installedAppWindowParams(app))
+}
+
+export function closeInstalledAppWindows(appId: number) {
+  const store = useWindowStore.getState()
+  const matching = store.windows.filter(
+    (w) => w.kind === 'installed-app' && Number(w.params?.appId) === appId,
+  )
+  matching.forEach((w) => store.closeWindow(w.id))
+}
+
+export function useAppCatalogMutations() {
+  const qc = useQueryClient()
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY })
+
+  const invalidateWithUpdates = () => {
+    void qc.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY })
+    void qc.invalidateQueries({ queryKey: APP_CATALOG_UPDATES_QUERY_KEY })
+  }
+
+  const installMutation = useMutation({
+    mutationFn: (payload: InstallCatalogAppPayload) => installCatalogApp(payload),
+    onSuccess: invalidateWithUpdates,
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: UpdateInstalledAppPayload }) =>
+      updateInstalledApp(id, payload),
+    onSuccess: (updated) => {
+      // keep open window title / icon params synced with updated app metadata
+      const store = useWindowStore.getState()
+      const matching = store.windows.filter(
+        (w) => w.kind === 'installed-app' && Number(w.params?.appId) === updated.id,
+      )
+      if (matching.length > 0) {
+        matching.forEach((w) => {
+          store.openWindow('installed-app', installedAppWindowParams(updated))
+          void w
+        })
+      }
+      invalidate()
+    },
+  })
+
+  const actionMutation = useMutation({
+    mutationFn: ({ id, action }: { id: number; action: 'start' | 'stop' | 'restart' }) =>
+      runInstalledAppAction(id, action),
+    onSuccess: invalidate,
+  })
+
+  const upgradeMutation = useMutation({
+    mutationFn: ({ id, version }: { id: number; version?: string }) =>
+      upgradeInstalledApp(id, version),
+    onSuccess: invalidateWithUpdates,
+  })
+
+  const rollbackMutation = useMutation({
+    mutationFn: (id: number) => rollbackInstalledApp(id),
+    onSuccess: invalidateWithUpdates,
+  })
+
+  const uninstallMutation = useMutation({
+    mutationFn: ({
+      id,
+      removeContainer,
+      removeVolumes,
+      removeImage,
+    }: {
+      id: number
+      removeContainer?: boolean
+      removeVolumes?: boolean
+      removeImage?: boolean
+    }) => uninstallCatalogApp(id, { removeContainer, removeVolumes, removeImage }),
+    onSuccess: (_, vars) => {
+      closeInstalledAppWindows(vars.id)
+      invalidate()
+    },
+  })
+
+  const createCatalogMutation = useMutation({
+    mutationFn: (payload: CreateCustomCatalogPayload) => createCustomCatalogApp(payload),
+    onSuccess: invalidate,
+  })
+
+  return {
+    installMutation,
+    createCatalogMutation,
+    updateMutation,
+    actionMutation,
+    upgradeMutation,
+    rollbackMutation,
+    uninstallMutation,
+  }
+}
+

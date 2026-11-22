@@ -1,122 +1,141 @@
-import { useMemo } from 'react'
-import { Boxes, FileCode, RefreshCw, Search } from 'lucide-react'
-import type { DockerTemplate } from '@/types'
-import { useI18n } from '@/lib/i18n'
+import { toast } from 'sonner'
+import { FileCode, LoaderCircle, Play, Trash2 } from 'lucide-react'
+import { alertLib } from '@/lib/alert'
+import { formatDateTimeID } from '@/lib/datetime'
+import { Button } from '@/components/ui/Button'
+import { Field, Textarea, TextInput } from '@/components/ui/Field'
+import { Modal } from '@/components/ui/Modal'
+import { ListState, ListRowIcon, ListTable } from '@/components/ui/ListTable'
+import { DEFAULT_COMPOSE_YAML } from './constants'
+import type { DockerWindowState } from './useDockerWindow'
 
-interface TemplatesTabProps {
-  templates: DockerTemplate[]
-  isLoading: boolean
-  isError: boolean
-  error: Error | null
-  search: string
-  setSearch: (v: string) => void
-  query: string
-  setQuery: (v: string) => void
-  onDeployTemplate: (template: DockerTemplate) => void
-}
+const apiError = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
-export function TemplatesTab({
-  templates,
-  isLoading,
-  isError,
-  error,
-  search,
-  setSearch,
-  query,
-  setQuery,
-  onDeployTemplate,
-}: TemplatesTabProps) {
-  const { language, t } = useI18n()
-  const filteredTemplates = useMemo(() => {
-    const needle = search.trim().toLowerCase()
-    if (!needle) return templates
-    return templates.filter((template) => {
-      return [template.name, template.description].some((value) => value?.toLowerCase().includes(needle))
+export function TemplatesTab({ docker }: { docker: DockerWindowState }) {
+  const { t, templatesQuery, filteredTemplates, narrowed, lists, showCreateTpl, setShowCreateTpl, tplForm, setTplForm, setShowDeploy, setDeployType, setDeployForm, deleteTemplateMut, createTemplateMut } = docker
+
+  const facets = templatesQuery.data?.facets
+
+  const close = () => {
+    setShowCreateTpl(false)
+    setTplForm({ name: '', description: '', yamlContent: DEFAULT_COMPOSE_YAML })
+  }
+
+  const create = () => {
+    createTemplateMut.mutate(tplForm, {
+      onSuccess: () => {
+        toast.success(t('docker.templateCreated'))
+        close()
+      },
+      onError: (e) => alertLib.fire(t('docker.templateCreateFailed'), apiError(e, t('docker.unknownError')), 'error', 'apps'),
     })
-  }, [templates, search])
+  }
+
+  const remove = async (id: number, name: string) => {
+    const ok = await alertLib.confirm(t('docker.deleteTemplate'), t('docker.deleteTemplateConfirm', { name }), t('docker.delete'), t('common.cancel'), 'warning', 'apps')
+    if (!ok) return
+    deleteTemplateMut.mutate(id, {
+      onSuccess: () => toast.success(t('docker.templateDeleted', { name })),
+      onError: (e) => alertLib.fire(t('docker.templateDeleteFailed'), apiError(e, t('docker.unknownError')), 'error', 'apps'),
+    })
+  }
 
   return (
-    <div className="panel-window__stack">
-      <div className="panel-table-container">
-        <div className="panel-toolbar panel-toolbar--search docker-toolbar-card">
-          <form
-            className="panel-search"
-            onSubmit={(e) => {
-              e.preventDefault()
-              setSearch(query.trim())
-            }}
-          >
-            <Search className="h-4 w-4" />
-            <input
-              id="docker-templates-search-input"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="panel-search__input"
-              placeholder={t('docker.searchTemplates')}
-            />
-            <button type="submit" className="panel-btn panel-btn--primary-soft">{t('docker.search')}</button>
-          </form>
-        </div>
-
-        {isLoading ? (
-          <div className="panel-loading">
-            <RefreshCw className="h-4 w-4 animate-spin" />
-            {t('docker.loadingTemplates')}
-          </div>
-        ) : isError ? (
-          <div className="panel-error-state">
-            <FileCode className="h-5 w-5" />
-            <div>
-              <p className="font-semibold">{t('docker.templatesLoadFailed')}</p>
-              <p className="mt-1 text-[12px] leading-6 opacity-90">{(error as Error).message}</p>
-            </div>
-          </div>
-        ) : filteredTemplates.length === 0 ? (
-          <div className="panel-empty panel-empty--wide">
-            <Boxes className="h-8 w-8" />
-            <div className="space-y-1">
-              <div className="text-sm font-medium text-[var(--win-text)]">{t('docker.noTemplatesMatch')}</div>
-              <div>{t('docker.emptyTemplatesHint')}</div>
-            </div>
-          </div>
-        ) : (
+    <>
+      <Modal
+        open={showCreateTpl}
+        onClose={close}
+        title={t('docker.createTemplateTitle')}
+        size="lg"
+        footer={
           <>
-            {filteredTemplates.map((template) => (
-              <div key={template.id} className="panel-table-row">
-                <div className="docker-template-row__main">
-                  <div className="docker-container-row__header">
-                    <div className="docker-container-card__title-wrap">
-                      <div className="docker-container-card__title-row">
-                        <span className="docker-container-card__title">{template.name}</span>
-                        <span className="docker-inline-code">{t('docker.chars', { count: template.yamlContent.length })}</span>
-                      </div>
-                    </div>
-                    {template.description && (
-                      <div className="docker-container-card__subtitle">{template.description}</div>
-                    )}
-                    <div className="docker-container-card__meta-row">
-                      <span>{t('docker.created', { date: template.createdAt ? new Date(template.createdAt).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US') : '-' })}</span>
-                    </div>
-                  </div>
-                  <div className="docker-container-row__actions">
-                    <button
-                      type="button"
-                      className="panel-btn panel-btn--primary-soft"
-                      onClick={() => onDeployTemplate(template)}
-                    >
-                      {t('docker.deploy')}
-                    </button>
-                  </div>
+            <Button type="button" variant="ghost" onClick={close}>{t('common.cancel')}</Button>
+            <Button type="button" variant="primary" loading={createTemplateMut.isPending} disabled={!tplForm.name.trim()} onClick={create}>
+              {t('docker.saveTemplate')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Field label={t('docker.templateName')}>
+            <TextInput placeholder={t('docker.templateNamePlaceholder')} value={tplForm.name} onChange={(e) => setTplForm((f) => ({ ...f, name: e.target.value }))} />
+          </Field>
+          <Field label={t('docker.description')}>
+            <TextInput placeholder={t('docker.descriptionPlaceholder')} value={tplForm.description} onChange={(e) => setTplForm((f) => ({ ...f, description: e.target.value }))} />
+          </Field>
+          <Field label={t('docker.composeYaml')}>
+            <Textarea mono className="docker-modal__yaml" rows={10} value={tplForm.yamlContent} onChange={(e) => setTplForm((f) => ({ ...f, yamlContent: e.target.value }))} />
+          </Field>
+        </div>
+      </Modal>
+
+      <ListTable
+        variant="templates"
+        empty={templatesQuery.isLoading || templatesQuery.isError || filteredTemplates.length === 0}
+        columns={[
+          { label: t('docker.colIndex') },
+          lists.templates.column('name', t('docker.col.template'), facets?.name),
+          lists.templates.column('created', t('docker.col.created'), facets?.created),
+          { label: t('docker.colActions'), actions: true },
+        ]}
+      >
+        <ListState
+          loading={templatesQuery.isLoading}
+          error={templatesQuery.isError}
+          errorTitle={t('docker.templatesLoadFailed')}
+          errorHint={t('docker.agentAccessHint')}
+          loadingText={t('docker.loadingList')}
+          empty={filteredTemplates.length === 0}
+          emptyIcon={<FileCode />}
+          emptyTitle={narrowed ? t('docker.noResults') : t('docker.noTemplates')}
+          emptyHint={narrowed ? undefined : t('docker.noTemplatesHint')}
+        >
+          {filteredTemplates.map((tmpl, idx) => (
+            <div key={tmpl.id} className="docker-row">
+              <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+              <div className="docker-row__app">
+                <ListRowIcon><FileCode className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+                <div className="docker-row__text">
+                  <span className="docker-app-name" title={tmpl.name}>{tmpl.name}</span>
+                  {tmpl.description ? <span className="docker-row__sub">{tmpl.description}</span> : null}
+                  <span className="docker-row__meta">{tmpl.description || formatDateTimeID(tmpl.createdAt)}</span>
                 </div>
               </div>
-            ))}
-          </>
-        )}
-      </div>
-    </div>
+              <div className="docker-cell">{formatDateTimeID(tmpl.createdAt)}</div>
+              <div className="docker-action-btns">
+                <button
+                  type="button"
+                  className="docker-act-btn docker-act-btn--start"
+                  title={t('docker.use')}
+                  aria-label={t('docker.use')}
+                  onClick={() => {
+                    setDeployType('compose')
+                    setDeployForm((f) => ({ ...f, name: tmpl.name, composeYaml: tmpl.yamlContent }))
+                    setShowDeploy(true)
+                  }}
+                >
+                  <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+                <button
+                  type="button"
+                  className="docker-act-btn docker-act-btn--danger"
+                  title={t('docker.deleteTemplate')}
+                  aria-label={t('docker.deleteTemplate')}
+                  aria-busy={(deleteTemplateMut.isPending && deleteTemplateMut.variables === tmpl.id) || undefined}
+                  disabled={deleteTemplateMut.isPending}
+                  onClick={() => void remove(tmpl.id, tmpl.name)}
+                >
+                  {deleteTemplateMut.isPending && deleteTemplateMut.variables === tmpl.id ? (
+                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  )}
+                </button>
+              </div>
+            </div>
+          ))}
+        </ListState>
+      </ListTable>
+    </>
   )
 }
-
-
-
-

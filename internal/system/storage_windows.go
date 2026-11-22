@@ -2,6 +2,6 @@
 
 package system
 
-func readStorageUsagePlatform(target string) UsageStat {
+func readStorageUsagePlatform(_ string) UsageStat {
 	return UsageStat{}
 }

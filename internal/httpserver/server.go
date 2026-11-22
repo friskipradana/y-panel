@@ -1,28 +1,52 @@
 package httpserver
 
 import (
-	"encoding/json"
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
+	"context"
 	"errors"
 	"fmt"
 	"html"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/accountusage"
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/docker"
+	"github.com/friskipradana/panel-desktop-ui/internal/notify"
+	"github.com/friskipradana/panel-desktop-ui/internal/docsync"
+	"github.com/friskipradana/panel-desktop-ui/internal/metrics"
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 	"github.com/friskipradana/panel-desktop-ui/internal/projects"
+	"github.com/friskipradana/panel-desktop-ui/internal/system"
+	"github.com/friskipradana/panel-desktop-ui/internal/updater"
+	"github.com/friskipradana/panel-desktop-ui/internal/webserver"
 	"github.com/friskipradana/panel-desktop-ui/internal/terminal"
 	"github.com/gorilla/websocket"
 )
 
-const sessionCookieName = "ypanel_session"
+const (
+	sessionCookieName       = "reneo_session"
+	legacySessionCookieName = "ypanel_session"
+)
+
+// requestSessionCookie reads the session cookie, falling back to the name used before the rename
+// so people stay signed in across the update.
+func requestSessionCookie(r *http.Request) (*http.Cookie, error) {
+	if c, err := r.Cookie(sessionCookieName); err == nil && c.Value != "" {
+		return c, nil
+	}
+	return r.Cookie(legacySessionCookieName)
+}
 
 type wsConn struct {
 	conn      *websocket.Conn
@@ -38,10 +62,14 @@ type Server struct {
 	mux                          *http.ServeMux
 	frontendFS                   http.Handler
 	authedFrontend               http.Handler
+	docsSync                     *docsync.Client
 	terminalManager              *terminal.Manager
 	terminalUpgrader             websocket.Upgrader
 	database                     *database.Manager
+	notify                       *notify.Service
 	projectManager               *projects.Manager
+	metrics                      *metrics.Recorder
+	updates                      *updater.Checker
 	cfDaemon                     *cloudflareapi.Daemon
 	notificationMu               sync.RWMutex
 	notificationWSConns          map[int64][]*wsConn
@@ -49,10 +77,41 @@ type Server struct {
 	capturedNotificationsWSConns map[int64][]*wsConn
 	rateLimitMu                  sync.Mutex
 	rateLimits                   map[string]*rateLimitEntry
+	rateLimitsLastSweep          time.Time
+	workloadHostsMu              sync.RWMutex
+	workloadHosts                map[string]struct{}
+	workloadHostsAt              time.Time
+	cfZonesMu                    sync.Mutex
+	cfZonesCache                 map[int64]cfZonesCacheEntry
+	revisionMu                   sync.Mutex
+	revisionCachedAt             time.Time
+	revisionCached               string
+	versionCached                string
+	appCatalogChecked            sync.Map
+	bgCtx                        context.Context
+	bgCancel                     context.CancelFunc
+	recoveryWG                   sync.WaitGroup
+	reconcileStopOnce            sync.Once
 	reconcileStop                chan struct{}
 	reconcileDone                chan struct{}
+	databaseCreateMu             sync.Mutex
+	kvmMu                        sync.Mutex
+	kvmManagedPIDs               []int
+	kvmActiveMode                string
+	kvmActiveDisplay             string
+	kvmTokenEpoch                atomic.Uint64
+	kvmFallbackSecretOnce        sync.Once
+	kvmFallbackSecret            []byte
 	fileRootAccessMu             sync.Mutex
 	fileRootAccess               map[string]time.Time
+	// the public proxy of an install that has a public address, and the routes it answers for
+	publicProxy  publicProxyRuntime
+	publicRoutes publicRouteCache
+	// testIssuer stands in for the public proxy when a test asks for certificates, and testWebRunner for the commands of nginx and Apache
+	testIssuer    certIssuer
+	testWebRunner webserver.Runner
+	// testCloudflare stands in for the Cloudflare account of the superadmin
+	testCloudflare *cloudflareapi.Client
 }
 
 // ReloadAccessConfig reloads AllowedOrigins and AllowedHosts in-memory from disk.
@@ -87,11 +146,6 @@ func (s *Server) allowedHosts() []string {
 	return s.cfg.AllowedHosts
 }
 
-type legacyLoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
 func New(cfg config.Config) *Server {
 	db := database.New(database.Config{
 		Enabled: cfg.DatabaseEnable,
@@ -99,6 +153,7 @@ func New(cfg config.Config) *Server {
 	})
 
 	authMgr := auth.NewManager(db, cfg.SessionTTL)
+	bgCtx, bgCancel := context.WithCancel(context.Background())
 
 	s := &Server{
 		cfg:                          cfg,
@@ -112,6 +167,8 @@ func New(cfg config.Config) *Server {
 		notificationWSConns:          make(map[int64][]*wsConn),
 		capturedNotificationsWSConns: make(map[int64][]*wsConn),
 		rateLimits:                   make(map[string]*rateLimitEntry),
+		bgCtx:                        bgCtx,
+		bgCancel:                     bgCancel,
 		reconcileStop:                make(chan struct{}),
 		reconcileDone:                make(chan struct{}),
 		fileRootAccess:               make(map[string]time.Time),
@@ -121,10 +178,62 @@ func New(cfg config.Config) *Server {
 		WriteBufferSize: 4096,
 		CheckOrigin:     s.isWebSocketOriginAllowed,
 	}
-	s.authedFrontend = s.requireHTMLAuthV2(s.frontendFS)
+	s.authedFrontend = s.requireHTMLAuthV2(s.seoFrontend(s.frontendFS, cfg.FrontendDir))
+
+	s.metrics = metrics.New(cfg.StateDir, func() (map[string]float64, map[string]uint64) {
+		if s.bgCtx.Err() != nil {
+			return nil, nil
+		}
+		sm := system.TakeSample(cfg.StateDir)
+		// Read kernel net counters at the exact sample timestamp to prevent collector phase jitter
+		netIO := system.ReadNetworkIO()
+		if netIO.BytesRecv == 0 && netIO.BytesSent == 0 {
+			netIO.BytesRecv = sm.BytesRecv
+			netIO.BytesSent = sm.BytesSent
+		}
+		values := map[string]float64{"cpu": sm.CPUPercent, "ram": sm.RAMPercent, "disk": sm.DiskPercent}
+		if sm.CPUTemp > 0 {
+			values["temp"] = sm.CPUTemp
+		}
+		return values, map[string]uint64{"net-rx": netIO.BytesRecv, "net-tx": netIO.BytesSent}
+	})
+	go s.metrics.Run()
+	s.updates = updater.New()
+	if docsync.Enabled() {
+		s.docsSync = docsync.New()
+		// the first list is fetched now, not by the first visitor of llms.txt or the articles page
+		go func() { _, _ = s.docsSync.Articles(s.bgCtx, false) }()
+	}
+
+	// the variables of a project are kept encrypted; the manager opens them when it starts the project
+	s.projectManager.SetEnvKey(cfg.EncryptionKey)
+
+	s.recoveryWG.Add(1)
+	go func() {
+		defer s.recoveryWG.Done()
+		s.retireOpenDbx()
+	}()
+
+	// notices outside the panel: the queue, its workers, and the detectors of attacks
+	s.notify = notify.New(db, cfg.EncryptionKey)
+	if db.IsConnected() {
+		s.notify.Start(4)
+		if port := listenPort(cfg.BindAddr); port != "" {
+			// the WAHA container reaches the panel through the host, to tell it what people answer
+			s.notify.SetInboundBase("http://host.docker.internal:" + port)
+		}
+	}
 
 	s.routes()
-	go s.runProjectReconcileLoop(25 * time.Second)
+	docker.StartEventWatcher(s.bgCtx)
+	reconcileStop := s.reconcileStop
+	reconcileDone := s.reconcileDone
+	go s.runProjectReconcileLoop(25*time.Second, reconcileStop, reconcileDone)
+	s.recoveryWG.Add(1)
+	go func() {
+		defer s.recoveryWG.Done()
+		s.runPlanExpiryLoop(15*time.Minute, reconcileStop)
+	}()
 	return s
 }
 
@@ -167,7 +276,12 @@ func (s *Server) RestoreProjects() {
 		log.Printf("[projects] failed to list projects for restore: %v", err)
 		return
 	}
+	s.projectManager.WarmPorts(projectList)
+	snapshots := s.projectManager.SnapshotAll(projectList)
 	for _, project := range projectList {
+		if s.bgCtx != nil && s.bgCtx.Err() != nil {
+			return
+		}
 		status := strings.TrimSpace(strings.ToLower(project.Status))
 		switch status {
 		case "active":
@@ -184,7 +298,7 @@ func (s *Server) RestoreProjects() {
 			}
 			log.Printf("[projects] restored active project id=%d name=%q port=%d", project.ID, project.Name, project.AssignedPort)
 		case "stopped":
-			if s.projectManager.SnapshotProject(project).Running {
+			if snapshots[project.ID].Running {
 				if err := s.projectManager.StopProject(project); err != nil {
 					log.Printf("[projects] failed to stop inactive project=%d during restore: %v", project.ID, err)
 				}
@@ -203,6 +317,15 @@ func deriveReconciledProjectStatus(desiredStatus string, snapshot projects.Runti
 		return "degraded"
 	case "stopped":
 		return "stopped"
+	case "building":
+		// still installing or starting stays so; once it listens it is active, and a process that ended is an error
+		if snapshot.Listening {
+			return "active"
+		}
+		if snapshot.Running {
+			return "building"
+		}
+		return "error"
 	case "error", "degraded":
 		if snapshot.Running {
 			return "active"
@@ -226,13 +349,16 @@ func (s *Server) reconcileProjectStatuses() {
 	if s == nil || s.database == nil || s.projectManager == nil || !s.database.IsConnected() {
 		return
 	}
+	started := time.Now()
 	projectList, _, err := s.database.ListAllProjects(200, 0)
 	if err != nil {
 		log.Printf("[reconcile] failed to list projects: %v", err)
+		performance.DefaultRegistry.RecordBackgroundWorker(time.Since(started), err)
 		return
 	}
+	snapshots := s.projectManager.SnapshotAll(projectList)
 	for _, project := range projectList {
-		snapshot := s.projectManager.SnapshotProject(project)
+		snapshot := snapshots[project.ID]
 		if strings.EqualFold(strings.TrimSpace(project.Status), "stopped") && snapshot.Running {
 			if err := s.projectManager.StopProject(project); err != nil {
 				log.Printf("[reconcile] failed to stop drifted project=%d: %v", project.ID, err)
@@ -260,32 +386,120 @@ func (s *Server) reconcileProjectStatuses() {
 			"driftReason":    snapshot.DriftReason,
 		})
 	}
+	performance.DefaultRegistry.RecordBackgroundWorker(time.Since(started), nil)
 }
 
-func (s *Server) runProjectReconcileLoop(interval time.Duration) {
-	defer close(s.reconcileDone)
+func (s *Server) runProjectReconcileLoop(interval time.Duration, stop <-chan struct{}, done chan struct{}) {
+	if done != nil {
+		defer close(done)
+	}
+	if stop == nil {
+		return
+	}
 	if interval <= 0 {
 		interval = 25 * time.Second
 	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+	round := 0
 	for {
 		select {
-		case <-s.reconcileStop:
+		case <-stop:
 			return
 		case <-ticker.C:
 			s.reconcileProjectStatuses()
+			if round%policySweepEvery == 0 {
+				s.enforceContainerPolicy()
+			}
+			round++
 		}
 	}
 }
 
+// RestoreAsync runs startup state recovery asynchronously after the HTTP listener
+// is bound so /healthz and frontend routes answer immediately without waiting on
+// database firewall restoration, project startups, or tunnel daemons.
+func (s *Server) RestoreAsync() {
+	ctx := s.bgCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	s.recoveryWG.Add(1)
+	go func() {
+		defer s.recoveryWG.Done()
+		started := time.Now()
+		var wg sync.WaitGroup
+		wg.Add(4)
+
+		go func() {
+			defer wg.Done()
+			if ctx.Err() == nil {
+				s.EnsureDemoAccount()
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if ctx.Err() == nil {
+				s.RestoreProjects()
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if ctx.Err() == nil {
+				s.RecoverDatabases()
+			}
+			if ctx.Err() == nil {
+				s.RestoreDatabaseAccess()
+				s.WatchDatabaseAccess(2 * time.Minute)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if ctx.Err() == nil {
+				s.RestoreTunnels()
+			}
+			if ctx.Err() == nil {
+				s.RestorePublicProxy()
+			}
+		}()
+
+		wg.Wait()
+		performance.DefaultRegistry.RecordBackgroundWorker(time.Since(started), nil)
+		log.Printf("[startup] background recovery finished in %s", time.Since(started).Round(time.Millisecond))
+	}()
+}
+
 func (s *Server) Close() error {
+	if s.bgCancel != nil {
+		s.bgCancel()
+	}
 	if s.reconcileStop != nil {
-		close(s.reconcileStop)
-		s.reconcileStop = nil
+		s.reconcileStopOnce.Do(func() {
+			close(s.reconcileStop)
+		})
 	}
 	if s.reconcileDone != nil {
 		<-s.reconcileDone
+	}
+	s.recoveryWG.Wait()
+	if s.metrics != nil {
+		s.metrics.Stop()
+	}
+	if s.cfDaemon != nil {
+		s.cfDaemon.StopAll()
+	}
+	if s.projectManager != nil {
+		s.projectManager.StopAll()
+	}
+	if s.terminalManager != nil {
+		s.terminalManager.CloseAll()
+	}
+	s.stopManagedKvm()
+	system.ShutdownCollector()
+	accountusage.Shutdown()
+	s.stopPublicProxy()
+	if s.notify != nil {
+		s.notify.Stop()
 	}
 	if s.database != nil {
 		return s.database.Close()
@@ -296,7 +510,7 @@ func (s *Server) Close() error {
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"status":  "ok",
-		"service": "ypanel-agent",
+		"service": "reneo-agent",
 		"time":    time.Now().UTC().Format(time.RFC3339),
 	})
 }
@@ -304,79 +518,75 @@ func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleFrontendRevision(w http.ResponseWriter, _ *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"revision": s.frontendRevision(),
+		"version":  s.appVersion(),
 	})
+}
+
+const revisionCacheTTL = 2 * time.Second
+
+func (s *Server) cachedRevisionAndVersion() (string, string) {
+	now := time.Now()
+	s.revisionMu.Lock()
+	defer s.revisionMu.Unlock()
+	if !s.revisionCachedAt.IsZero() && now.Sub(s.revisionCachedAt) < revisionCacheTTL {
+		return s.revisionCached, s.versionCached
+	}
+	rev := "unknown"
+	indexPath := filepath.Join(s.cfg.FrontendDir, "index.html")
+	if info, err := os.Stat(indexPath); err == nil {
+		rev = fmt.Sprintf("%d-%d", info.ModTime().UTC().Unix(), info.Size())
+	}
+	ver := strings.TrimSpace(os.Getenv("PANEL_VERSION"))
+	if ver == "" {
+		candidates := []string{runtimepath.VersionFile()}
+		if s.cfg.FrontendDir != "" {
+			candidates = append([]string{filepath.Join(filepath.Dir(s.cfg.FrontendDir), "VERSION")}, candidates...)
+		}
+		for _, path := range candidates {
+			if b, err := os.ReadFile(path); err == nil {
+				if v := strings.TrimSpace(string(b)); v != "" {
+					ver = v
+					break
+				}
+			}
+		}
+	}
+	s.revisionCached = rev
+	s.versionCached = ver
+	s.revisionCachedAt = now
+	return rev, ver
+}
+
+// appVersion is the installed panel version written by the installer ("" when unknown).
+func (s *Server) appVersion() string {
+	_, ver := s.cachedRevisionAndVersion()
+	return ver
 }
 
 func (s *Server) frontendRevision() string {
-	indexPath := filepath.Join(s.cfg.FrontendDir, "index.html")
-	info, err := os.Stat(indexPath)
-	if err != nil {
-		return "unknown"
-	}
-
-	return fmt.Sprintf("%d-%d", info.ModTime().UTC().Unix(), info.Size())
-}
-
-func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	var req legacyLoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("[auth] login decode failed remote=%s err=%v", remoteAddr(r), err)
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body"})
-		return
-	}
-
-	username := strings.TrimSpace(req.Username)
-	token, user, err := s.auth.Login(username, req.Password, remoteAddr(r), r.UserAgent())
-	if err != nil {
-		log.Printf("[auth] login failed user=%q remote=%s", username, remoteAddr(r))
-		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid credentials"})
-		return
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   false,
-		MaxAge:   int(s.cfg.SessionTTL.Seconds()),
-	})
-
-	log.Printf("[auth] login success user=%q remote=%s", username, remoteAddr(r))
-	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"ok":       true,
-		"username": user.Username,
-		"role":     user.Role,
-	})
-}
-
-func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
-	username, _ := s.currentUser(r)
-	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"username": username,
-		"role":     "admin",
-	})
+	rev, _ := s.cachedRevisionAndVersion()
+	return rev
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(sessionCookieName)
-	if err == nil {
+	cookie, err := requestSessionCookie(r)
+	if err == nil && cookie.Value != "" {
 		s.auth.Logout(cookie.Value)
 	}
 
 	username, _ := s.currentUser(r)
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   false,
-		MaxAge:   -1,
-	})
+	for _, name := range []string{sessionCookieName, legacySessionCookieName} {
+		http.SetCookie(w, &http.Cookie{
+			Name:     name,
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   requestIsHTTPS(r),
+			MaxAge:   -1,
+			Expires:  time.Unix(0, 0),
+		})
+	}
 
 	log.Printf("[auth] logout user=%q remote=%s", username, remoteAddr(r))
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
@@ -396,12 +606,27 @@ func newFrontendHandler(frontendDir string) http.Handler {
 
 		cleanPath := filepath.Clean(strings.TrimPrefix(r.URL.Path, "/"))
 		if cleanPath == "." || cleanPath == "" {
+			w.Header().Set("Cache-Control", "no-cache")
 			http.ServeFile(w, r, indexPath)
 			return
 		}
 
 		target := filepath.Join(frontendDir, cleanPath)
 		if info, err := os.Stat(target); err == nil && !info.IsDir() {
+			// files in /assets/ carry a hash of their content in the name, so a browser can keep them for good
+			if strings.HasPrefix(r.URL.Path, "/assets/") {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			} else if r.URL.Path == "/sw.js" {
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			} else if r.URL.Path == "/index.html" || r.URL.Path == "/manifest.webmanifest" {
+				w.Header().Set("Cache-Control", "no-cache")
+			} else if isStaticPicture(r.URL.Path) {
+				// pictures without a hash in the name are kept for a day; the page, the service worker and the manifest are not
+				w.Header().Set("Cache-Control", "public, max-age=86400")
+			}
+			if serveGzipped(w, r, target, info) {
+				return
+			}
 			fileServer.ServeHTTP(w, r)
 			return
 		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -409,6 +634,14 @@ func newFrontendHandler(frontendDir string) http.Handler {
 			return
 		}
 
+		// Static assets with known extensions must return 404 if missing, never falling back to SPA HTML.
+		ext := strings.ToLower(filepath.Ext(cleanPath))
+		if ext == ".js" || ext == ".css" || ext == ".map" || ext == ".json" || ext == ".ico" || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".svg" || ext == ".woff" || ext == ".woff2" || ext == ".wasm" {
+			http.NotFound(w, r)
+			return
+		}
+
+		w.Header().Set("Cache-Control", "no-cache")
 		http.ServeFile(w, r, indexPath)
 	})
 }
@@ -467,6 +700,7 @@ func (s *Server) writeStatusPage(w http.ResponseWriter, r *http.Request, status 
 
 func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, description, hint string, showActions bool) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 
 	requestPath := "/"
@@ -480,12 +714,9 @@ func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, 
 		}
 	}
 
-	actionsHTML := ""
+	actions := `<a class="btn btn-primary" href="/">Kembali ke panel</a>`
 	if showActions {
-		actionsHTML = `<div class="status-actions">
-          <a class="status-btn status-btn-primary" href="/">Kembali ke panel</a>
-          <a class="status-btn status-btn-secondary" href="/healthz">Cek health runtime</a>
-        </div>`
+		actions += `<a class="btn" href="/healthz">Cek health runtime</a>`
 	}
 
 	_, _ = fmt.Fprintf(w, `<!doctype html>
@@ -493,276 +724,113 @@ func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, 
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>%d • %s</title>
-  <meta name="description" content="Halaman status YPanel untuk %s" />
+  <meta name="robots" content="noindex" />
+  <title>%d %s | Reneo Panel</title>
   <style>
     :root {
-      color-scheme: dark;
-      --bg0: #020617;
-      --bg1: #0f172a;
-      --bg2: rgba(15, 23, 42, 0.82);
-      --line: rgba(255,255,255,0.10);
-      --text: #e2e8f0;
-      --muted: rgba(226,232,240,0.68);
-      --accentA: #38bdf8;
-      --accentB: #8b5cf6;
-      --accentC: #f97316;
-      --shadow: 0 30px 80px rgba(2,6,23,0.55);
+      color-scheme: light dark;
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --line: #dbe2ec;
+      --text: #0f172a;
+      --muted: #52607a;
+      --primary: #1d4ed8;
+      --primary-text: #ffffff;
+      --mono-bg: #eef2f8;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b0f19;
+        --card: #121826;
+        --line: #26304a;
+        --text: #e6ebf5;
+        --muted: #9aa7bf;
+        --primary: #3b82f6;
+        --primary-text: #07101f;
+        --mono-bg: #0b1220;
+      }
     }
     * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      width: 100%%;
-      min-height: 100vh;
-      font-family: Outfit, Inter, system-ui, sans-serif;
-      background:
-        radial-gradient(circle at 18%% 16%%, rgba(56,189,248,0.22), transparent 24%%),
-        radial-gradient(circle at 82%% 18%%, rgba(139,92,246,0.20), transparent 28%%),
-        radial-gradient(circle at 50%% 100%%, rgba(249,115,22,0.18), transparent 32%%),
-        linear-gradient(135deg, var(--bg0) 0%%, var(--bg1) 48%%, #111827 100%%);
-      color: var(--text);
-    }
+    html, body { margin: 0; min-height: 100%%; }
     body {
-      min-height: 100vh;
       display: grid;
       place-items: center;
-      align-content: center;
-      justify-items: center;
-      padding: 28px;
-      overflow: auto;
+      min-height: 100vh;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Outfit, Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+      overflow-y: auto;
     }
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      opacity: 0.12;
-      pointer-events: none;
-      background-image: radial-gradient(rgba(255,255,255,0.8) 0.6px, transparent 0.6px);
-      background-size: 18px 18px;
-      mask-image: linear-gradient(180deg, rgba(0,0,0,0.55), transparent 85%%);
-    }
-    .status-shell {
-      width: min(100%%, 1080px);
-      border-radius: 34px;
+    main {
+      width: min(100%%, 520px);
       border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
-      backdrop-filter: blur(28px);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      position: relative;
+      border-radius: 16px;
+      background: var(--card);
+      padding: 28px;
     }
-    .status-shell::after {
-      content: "";
-      position: absolute;
-      inset: auto -100px -120px auto;
-      width: 280px;
-      height: 280px;
-      border-radius: 999px;
-      background: radial-gradient(circle, rgba(249,115,22,0.24), transparent 64%%);
-      pointer-events: none;
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; }
+    .mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: #0b2a57; color: #fff; display: grid; place-items: center;
+      font-size: 15px; font-weight: 800;
     }
-    .status-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(300px, 380px);
-      gap: 0;
+    .code { margin: 22px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    h1 { margin: 4px 0 0; font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.02em; }
+    p { margin: 10px 0 0; font-size: 14px; line-height: 1.65; color: var(--muted); }
+    dl {
+      margin: 20px 0 0; padding: 12px 14px; border-radius: 12px;
+      background: var(--mono-bg); border: 1px solid var(--line);
+      display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px;
     }
-    .status-hero {
-      padding: 42px;
-      position: relative;
+    dt { color: var(--muted); }
+    dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .hint { color: var(--text); }
+    .actions { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 40px; padding: 0 16px; border-radius: 10px;
+      border: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 14px; font-weight: 600;
     }
-    .status-side {
-      padding: 42px 34px;
-      border-left: 1px solid var(--line);
-      background: rgba(2, 6, 23, 0.18);
-    }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.06);
-      padding: 8px 12px;
-      font-size: 12px;
-      color: rgba(255,255,255,0.78);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    .brand-mark {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: linear-gradient(135deg, var(--accentA), var(--accentB), var(--accentC));
-      box-shadow: 0 0 20px rgba(56,189,248,0.42);
-    }
-    .code {
-      margin-top: 26px;
-      font-size: clamp(3.6rem, 10vw, 7rem);
-      line-height: 0.95;
-      letter-spacing: -0.08em;
-      font-weight: 700;
-      background: linear-gradient(135deg, #f8fafc 0%%, #7dd3fc 38%%, #c4b5fd 68%%, #fdba74 100%%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-    h1 {
-      margin: 14px 0 0;
-      font-size: clamp(2rem, 4vw, 3.1rem);
-      line-height: 1.02;
-      letter-spacing: -0.05em;
-    }
-    .lead {
-      margin-top: 18px;
-      max-width: 720px;
-      font-size: 15px;
-      line-height: 1.85;
-      color: var(--muted);
-    }
-    .meta-grid {
-      margin-top: 28px;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-    .meta-card, .tip-card {
-      border-radius: 24px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.05);
-      padding: 16px 18px;
-    }
-    .meta-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: rgba(255,255,255,0.42);
-    }
-    .meta-value {
-      margin-top: 8px;
-      font-size: 14px;
-      line-height: 1.7;
-      color: #f8fafc;
-      word-break: break-word;
-      font-family: "JetBrains Mono", ui-monospace, monospace;
-    }
-    .tip-title {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: rgba(125,211,252,0.88);
-    }
-    .tip-copy {
-      margin-top: 10px;
-      font-size: 14px;
-      line-height: 1.8;
-      color: var(--muted);
-    }
-    .status-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-top: 22px;
-    }
-    .status-item {
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.04);
-      padding: 14px 15px;
-    }
-    .status-item strong {
-      display: block;
-      font-size: 13px;
-      color: #f8fafc;
-    }
-    .status-item span {
-      display: block;
-      margin-top: 6px;
-      font-size: 12px;
-      line-height: 1.7;
-      color: var(--muted);
-    }
-    .status-actions {
-      margin-top: 24px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    .status-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 44px;
-      padding: 0 18px;
-      border-radius: 14px;
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 600;
-      transition: transform 160ms ease, filter 160ms ease, border-color 160ms ease;
-    }
-    .status-btn-primary {
-      color: white;
-      background: linear-gradient(135deg, var(--accentC), #ec4899, var(--accentB));
-      box-shadow: 0 18px 36px rgba(249,115,22,0.24);
-    }
-    .status-btn-secondary {
-      color: #dbeafe;
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(255,255,255,0.05);
-    }
-    .status-btn:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.05);
-    }
-    @media (max-width: 900px) {
-      .status-grid { grid-template-columns: 1fr; }
-      .status-side { border-left: none; border-top: 1px solid var(--line); }
-      .status-hero, .status-side { padding: 28px; }
-      .meta-grid { grid-template-columns: 1fr; }
-    }
+    .btn:hover { border-color: var(--primary); }
+    .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .btn-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-text); }
   </style>
 </head>
 <body>
-  <main class="status-shell">
-    <section class="status-grid">
-      <div class="status-hero">
-        <div class="brand"><span class="brand-mark"></span> YPanel Runtime</div>
-        <div class="code">%d</div>
-        <h1>%s</h1>
-        <p class="lead">%s</p>
-        <div class="meta-grid">
-          <div class="meta-card">
-            <div class="meta-label">Host aktif</div>
-            <div class="meta-value">%s</div>
-          </div>
-          <div class="meta-card">
-            <div class="meta-label">Path request</div>
-            <div class="meta-value">%s</div>
-          </div>
-        </div>
-        %s
-      </div>
-      <aside class="status-side">
-        <div class="tip-card">
-          <div class="tip-title">Diagnostic hint</div>
-          <div class="tip-copy">%s</div>
-        </div>
-        <div class="status-list">
-          <div class="status-item">
-            <strong>404 • Halaman tidak ditemukan</strong>
-            <span>Dipakai untuk asset atau path frontend yang memang tidak tersedia di runtime aktif.</span>
-          </div>
-          <div class="status-item">
-            <strong>403 • Host tidak diizinkan</strong>
-            <span>Muncul saat host/IP yang dipakai belum masuk allowlist runtime panel.</span>
-          </div>
-          <div class="status-item">
-            <strong>403 • Origin tidak diizinkan</strong>
-            <span>Muncul saat browser mengirim origin yang belum cocok dengan konfigurasi allowed origins.</span>
-          </div>
-        </div>
-      </aside>
-    </section>
+  <main>
+    <div class="brand"><span class="mark" aria-hidden="true">R</span><span>Reneo</span></div>
+    <div class="code">HTTP %d</div>
+    <h1>%s</h1>
+    <p>%s</p>
+    <dl>
+      <dt>Host</dt><dd>%s</dd>
+      <dt>Path</dt><dd>%s</dd>
+    </dl>
+    <p class="hint">%s</p>
+    <div class="actions">%s</div>
   </main>
 </body>
-</html>`, status, html.EscapeString(title), html.EscapeString(title), status, html.EscapeString(title), html.EscapeString(description), html.EscapeString(requestHost), html.EscapeString(requestPath), actionsHTML, html.EscapeString(hint))
+</html>`, status, html.EscapeString(title), status, html.EscapeString(title), html.EscapeString(description), html.EscapeString(requestHost), html.EscapeString(requestPath), html.EscapeString(hint), actions)
+}
+
+// listenPort is the port of a bind address such as 0.0.0.0:8787; "" when the panel listens on the loopback address
+// only, which the WAHA container cannot reach
+func listenPort(bind string) string {
+	host, port, err := net.SplitHostPort(bind)
+	if err != nil {
+		return ""
+	}
+	if ip := net.ParseIP(host); host == "localhost" || (ip != nil && ip.IsLoopback()) {
+		return ""
+	}
+	return port
+}
+
+func isStaticPicture(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png", ".svg", ".ico", ".jpg", ".jpeg", ".webp", ".avif", ".woff2":
+		return true
+	}
+	return false
 }

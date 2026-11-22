@@ -1,4 +1,5 @@
 import { useAlertStore } from '@/store/alertStore'
+import { translateNow } from '@/lib/i18n'
 
 export const alertLib = {
   /**
@@ -9,7 +10,7 @@ export const alertLib = {
       type: icon,
       title,
       description: html,
-      confirmText: 'Tutup',
+      confirmText: translateNow('common.close'),
       windowId,
     })
   },
@@ -17,13 +18,14 @@ export const alertLib = {
   /**
    * Tampilkan dialog konfirmasi dengan 2 tombol
    */
-  confirm: async (title: string, html: string, confirmText = 'Lanjutkan', cancelText = 'Batal', _icon: 'warning' | 'question' = 'warning', windowId?: string) => {
+  confirm: async (title: string, html: string, confirmText = translateNow('alert.continue'), cancelText = translateNow('common.cancel'), icon: 'warning' | 'question' = 'warning', windowId?: string) => {
     return useAlertStore.getState().openDialog({
       type: 'confirm',
       title,
       description: html,
       confirmText,
       cancelText,
+      icon,
       windowId,
     })
   },
@@ -31,7 +33,7 @@ export const alertLib = {
   /**
    * Tampilkan loading state (hanya bisa ditutup via code)
    */
-  showLoading: (title = 'Memproses...', html = 'Mohon tunggu sebentar', windowId?: string) => {
+  showLoading: (title = translateNow('alert.processing'), html = translateNow('alert.pleaseWait'), windowId?: string) => {
     return useAlertStore.getState().openDialog({
       type: 'loading',
       title,

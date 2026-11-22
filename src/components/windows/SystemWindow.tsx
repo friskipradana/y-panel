@@ -1,17 +1,26 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, CheckCircle2, Cpu, Database, HardDriveDownload, MemoryStick, Network, RefreshCw, ServerCrash, ShieldAlert, TimerReset } from 'lucide-react'
-import { getDatabaseStatus, getSystemSummary } from '@/api/agent'
-import { useWindowStore } from '@/store/windowStore'
+import { Activity, AlertTriangle, Boxes, CheckCircle2, Cpu, Database, Globe2, HardDrive, HardDriveDownload, Layers, LayoutGrid, List as ListIcon, MemoryStick, Network, RefreshCw, ShieldAlert, Users, Waypoints } from 'lucide-react'
+import { getSystemSummary } from '@/api/agent'
+import type { SystemCounts } from '@/types'
 import { useI18n } from '@/lib/i18n'
-import type { RuntimeDatabaseLog } from '@/types'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { KpiCard } from '@/components/ui/KpiCard'
+import { ErrorState, LoadingState } from '@/components/ui/states'
+import { IpAddressList } from './system/IpAddressList'
+import { SystemListView } from './system/SystemListView'
+import { useLivePolling } from '@/hooks/useLivePolling'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import type { WindowState } from '@/types'
 
 function HealthPill({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <div className={`panel-badge ${ok ? 'panel-badge--success' : 'panel-badge--danger'}`}>
+    <Badge tone={ok ? 'success' : 'danger'}>
       {ok ? <CheckCircle2 size={13} /> : <ShieldAlert size={13} />}
       {label}
-    </div>
+    </Badge>
   )
 }
 
@@ -36,36 +45,124 @@ function formatUptime(seconds: number) {
   return `${minutes}m`
 }
 
-function MetricCard({ icon, title, value, subtitle, percent }: {
-  icon: React.ReactNode
-  title: string
-  value: string
-  subtitle: string
-  percent?: number
+function SystemBar({
+  summary,
+  viewMode,
+  onViewModeChange,
+  onRefresh,
+  fetching,
+  refreshLabel,
+  isMobile,
+}: {
+  summary: ReactNode
+  viewMode?: 'grid' | 'list'
+  onViewModeChange?: (mode: 'grid' | 'list') => void
+  onRefresh?: () => void
+  fetching?: boolean
+  refreshLabel: string
+  isMobile?: boolean
 }) {
+  const { t } = useI18n()
   return (
-    <article className="panel-kpi-card">
-      <div className="panel-kpi-card__header">
-        <div className="flex min-w-0 items-center gap-2">
-          {icon}
-          <span className="truncate text-[12px] font-semibold">{title}</span>
-        </div>
-        {percent !== undefined ? <span className="text-[12px] font-bold text-[var(--panel-primary-text)]">{percent.toFixed(1)}%</span> : null}
+    <div className={`docker-topbar ${isMobile ? 'docker-topbar--single-line' : ''}`}>
+      <div className="docker-topbar__left min-w-0 text-xs text-[var(--text-secondary)]">{summary}</div>
+      <div className="docker-topbar__right">
+        {onViewModeChange && viewMode ? (
+          <div className="flex items-center rounded-[6px] border border-[var(--win-border)] bg-[var(--panel-surface)] p-0.5">
+            <button
+              type="button"
+              onClick={() => onViewModeChange('grid')}
+              className={`flex h-6 w-6 items-center justify-center rounded-[4px] transition-colors ${
+                viewMode === 'grid'
+                  ? 'bg-[var(--tb-hover)] text-[var(--win-text)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+              }`}
+              title={t('system.viewGrid')}
+              aria-label={t('system.viewGrid')}
+            >
+              <LayoutGrid size={13} strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange('list')}
+              className={`flex h-6 w-6 items-center justify-center rounded-[4px] transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-[var(--tb-hover)] text-[var(--win-text)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+              }`}
+              title={t('system.viewList')}
+              aria-label={t('system.viewList')}
+            >
+              <ListIcon size={13} strokeWidth={1.75} />
+            </button>
+          </div>
+        ) : null}
+        {onRefresh ? (
+          <button type="button" className="docker-icon-btn" title={refreshLabel} aria-label={refreshLabel} onClick={onRefresh}>
+            <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+          </button>
+        ) : null}
       </div>
-      <div className="panel-kpi-card__value">{value}</div>
-      <p className="panel-kpi-card__description">{subtitle}</p>
-      {percent !== undefined ? (
-        <div className="panel-progress">
-          <div className="panel-progress__bar" style={{ width: `${Math.min(percent, 100)}%` }} />
-        </div>
-      ) : null}
-    </article>
+    </div>
   )
 }
 
-function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+// The counting sections of the window; each card shows only what the agent sent for this viewer
+function CountSections({ counts, t }: { counts?: SystemCounts; t: (key: string, params?: Record<string, string | number>) => string }) {
+  if (!counts) return null
+  const { docker, databases, routes, users, cloudflare } = counts
+  const cards: { title: string; items: ReactNode[] }[] = []
+
+  if (docker) {
+    const items: ReactNode[] = [
+      <KpiCard key="containers" icon={<Boxes size={15} />} title={t('system.count.containers')} value={`${docker.running} / ${docker.containers}`} subtitle={docker.reachable ? t('system.count.containersHint') : t('system.count.dockerOff')} />,
+    ]
+    if (docker.images !== undefined) items.push(<KpiCard key="images" icon={<Layers size={15} />} title={t('system.count.images')} value={`${docker.images}`} subtitle={t('system.count.imagesHint')} />)
+    if (docker.volumes !== undefined) items.push(<KpiCard key="volumes" icon={<HardDrive size={15} />} title={t('system.count.volumes')} value={`${docker.volumes}`} subtitle={t('system.count.volumesHint')} />)
+    if (docker.networks !== undefined) items.push(<KpiCard key="networks" icon={<Waypoints size={15} />} title={t('system.count.networks')} value={`${docker.networks}`} subtitle={t('system.count.networksHint')} />)
+    cards.push({ title: t('system.sectionDocker'), items })
+  }
+
+  const data: ReactNode[] = []
+  if (databases) data.push(<KpiCard key="databases" icon={<Database size={15} />} title={t('system.count.databases')} value={`${databases.running} / ${databases.total}`} subtitle={t('system.count.databasesHint')} />)
+  if (routes) data.push(<KpiCard key="routes" icon={<Network size={15} />} title={t('system.count.routes')} value={`${routes.active} / ${routes.total}`} subtitle={t('system.count.routesHint')} />)
+  if (cloudflare) {
+    if (!cloudflare.configured) data.push(<KpiCard key="cf" icon={<Globe2 size={15} />} title={t('system.count.domains')} value="-" subtitle={t('system.count.cloudflareOff')} />)
+    else if (!cloudflare.reachable) data.push(<KpiCard key="cf" icon={<Globe2 size={15} />} title={t('system.count.domains')} value="-" subtitle={t('system.count.cloudflareUnreachable')} />)
+    else {
+      data.push(<KpiCard key="zones" icon={<Globe2 size={15} />} title={t('system.count.domains')} value={`${cloudflare.zonesActive} / ${cloudflare.zones}`} subtitle={t('system.count.domainsHint')} />)
+      data.push(<KpiCard key="profiles" icon={<Waypoints size={15} />} title={t('system.count.tunnels')} value={`${cloudflare.profilesLive} / ${cloudflare.profiles}`} subtitle={t('system.count.tunnelsHint')} />)
+    }
+  }
+  if (data.length > 0) cards.push({ title: t('system.sectionData'), items: data })
+
+  if (users) {
+    const items: ReactNode[] = [
+      <KpiCard key="users" icon={<Users size={15} />} title={t('system.count.users')} value={`${users.active} / ${users.total}`} subtitle={t('system.count.usersHint', { suspended: users.suspended })} />,
+    ]
+    const roles = Object.entries(users.roles ?? {}).filter(([, count]) => count > 0)
+    if (roles.length > 1) items.push(<KpiCard key="roles" icon={<ShieldAlert size={15} />} title={t('system.count.roles')} value={roles.map(([role, count]) => `${count} ${role}`).join(' \u00b7 ')} subtitle={t('system.count.rolesHint')} />)
+    if (users.planActive !== undefined) {
+      items.push(<KpiCard key="plans" icon={<CheckCircle2 size={15} />} title={t('system.count.plans')} value={`${users.planActive}`} subtitle={t('system.count.plansHint', { expiring: users.expiring ?? 0, grace: users.grace ?? 0, expired: users.expired ?? 0 })} />)
+    }
+    cards.push({ title: t('system.sectionUsers'), items })
+  }
+
   return (
-    <article className="panel-shell-card">
+    <>
+      {cards.map((card) => (
+        <section key={card.title} className="space-y-2">
+          <p className="panel-section-label">{card.title}</p>
+          <div className="panel-kpi-grid panel-kpi-grid--auto">{card.items}</div>
+        </section>
+      ))}
+    </>
+  )
+}
+
+function InfoCard({ icon, title, children, className = '' }: { icon: React.ReactNode; title: string; children: React.ReactNode; className?: string }) {
+  return (
+    <article className={`panel-shell-card ${className}`}>
       <div className="mb-2.5 flex items-center gap-2 text-[var(--text-secondary)]">
         {icon}
         <span className="text-[13px] font-semibold text-[var(--win-text)]">{title}</span>
@@ -75,92 +172,30 @@ function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: str
   )
 }
 
-function extractProjectId(metadata: string) {
-  if (!metadata || metadata === '{}') return null
-  try {
-    const parsed = JSON.parse(metadata) as { projectId?: number; projectID?: number }
-    const raw = parsed.projectId ?? parsed.projectID
-    const nextId = Number(raw ?? 0)
-    return Number.isFinite(nextId) && nextId > 0 ? nextId : null
-  } catch {
-    const match = metadata.match(/"project(?:Id|ID)"\s*:\s*(\d+)/)
-    if (!match) return null
-    const nextId = Number(match[1])
-    return Number.isFinite(nextId) && nextId > 0 ? nextId : null
-  }
-}
-
-function extractAttentionType(message: string, metadata: string) {
-  const haystack = `${message} ${metadata}`.toLowerCase()
-  if (haystack.includes('drift')) return 'drift'
-  if (haystack.includes('degraded') || haystack.includes('project status reconciled')) return 'degraded'
-  return 'all'
-}
-
-export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
+export function SystemWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
+  const { t } = useI18n()
+  const isMobile = useIsMobileLayout()
+  const pollingActive = useWindowPollingActive(win)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const livePolling = useLivePolling(5_000)
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['agent-system-summary'],
     queryFn: getSystemSummary,
     retry: 1,
-    refetchInterval: 5_000,
+    refetchInterval: pollingActive ? livePolling : false,
   })
-  const databaseQuery = useQuery({
-    queryKey: ['database-status'],
-    queryFn: getDatabaseStatus,
-    retry: 1,
-    refetchInterval: 15_000,
-  })
-  const openWindow = useWindowStore((state) => state.openWindow)
-  const { t } = useI18n()
 
   useEffect(() => {
-    if (authenticated) {
-      void refetch()
-      void databaseQuery.refetch()
-    }
+    if (authenticated && !data) void refetch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated])
 
-  const reconcileIncidents = useMemo(() => {
-    const runtimeLogs = databaseQuery.data?.runtimeLogs ?? []
-    return runtimeLogs
-      .filter((entry) => {
-        const message = entry.message.toLowerCase()
-        return message.includes('reconcile') || message.includes('drift') || message.includes('degraded')
-      })
-      .slice(0, 5)
-  }, [databaseQuery.data?.runtimeLogs])
-
-  const openProjectsAttention = (entry: RuntimeDatabaseLog) => {
-    const projectId = extractProjectId(entry.metadata)
-    const attentionType = extractAttentionType(entry.message, entry.metadata)
-    openWindow('projects', {
-      attentionOnly: true,
-      attentionType,
-      highlightProjectId: projectId ?? undefined,
-      incidentMessage: entry.message,
-      incidentMetadata: entry.metadata,
-      incidentAt: entry.createdAt,
-    })
-  }
-
   if (isLoading) {
     return (
-      <div className="panel-window">
-        <div className="panel-window__header">
-          <div className="panel-window__title">
-            <Cpu className="panel-window__icon h-4 w-4" />
-            <div>
-              <div className="panel-window__title-text">{t('system.overviewTitle')}</div>
-              <div className="panel-window__meta">{t('system.overviewMeta')}</div>
-            </div>
-          </div>
-        </div>
-        <div className="panel-window__body">
-          <div className="panel-loading">
-            <RefreshCw className="h-4 w-4 animate-spin" />
-            {t('system.loadingRuntime')}
-          </div>
+      <div className="panel-window docker-window-root flex flex-col h-full">
+        <SystemBar summary={<span className="font-semibold text-[var(--win-text)] truncate">{t('system.overviewTitle')}</span>} refreshLabel={t('system.refreshSummary')} isMobile={isMobile} />
+        <div className="panel-window__body flex-1 flex flex-col items-center justify-center p-6">
+          <LoadingState className="my-auto">{t('system.loadingRuntime')}</LoadingState>
         </div>
       </div>
     )
@@ -168,23 +203,58 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
 
   if (isError || !data) {
     return (
-      <div className="panel-window">
-        <div className="panel-window__header">
-          <div className="panel-window__title">
-            <Cpu className="panel-window__icon h-4 w-4" />
-            <div>
-              <div className="panel-window__title-text">{t('system.overviewTitle')}</div>
-              <div className="panel-window__meta">{t('system.overviewMeta')}</div>
-            </div>
-          </div>
+      <div className="panel-window docker-window-root flex flex-col h-full">
+        <SystemBar summary={<span className="font-semibold text-[var(--win-text)] truncate">{t('system.overviewTitle')}</span>} refreshLabel={t('system.refreshSummary')} isMobile={isMobile} />
+        <div className="panel-window__body flex-1 flex flex-col items-center justify-center p-6">
+          <ErrorState
+            className="my-auto max-w-sm w-full"
+            title={t('system.summaryLoadFailed')}
+            hint={t('system.summaryLoadFailedHint')}
+            action={<Button variant="primary" size="sm" loading={isFetching} onClick={() => void refetch()}>{t('common.retry')}</Button>}
+          />
         </div>
+      </div>
+    )
+  }
+
+  if (data.scoped && data.account) {
+    const a = data.account
+    const memPct = a.memLimit ? (a.memUsed / a.memLimit) * 100 : 0
+    const diskPct = a.diskLimit ? (a.diskUsed / a.diskLimit) * 100 : 0
+    const unlimited = t('system.account.unlimited')
+    return (
+      <div className="panel-window docker-window-root">
+        <SystemBar
+          summary={
+            isMobile ? (
+              <div className="flex items-center gap-1.5 min-w-0 text-xs">
+                <span className="font-semibold text-[var(--win-text)] truncate">{data.hostname}</span>
+                <span className="opacity-40">&middot;</span>
+                <span className="text-[var(--text-secondary)] shrink-0">{t('system.account.scope')}</span>
+              </div>
+            ) : (
+              <>
+                <span className="font-semibold text-[var(--win-text)]">{data.hostname}</span> &middot; {t('system.account.scope')}
+              </>
+            )
+          }
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onRefresh={() => void refetch()}
+          fetching={isFetching}
+          refreshLabel={t('system.refreshSummary')}
+          isMobile={isMobile}
+        />
         <div className="panel-window__body">
-          <div className="panel-error-state">
-            <ServerCrash className="h-5 w-5" />
-            <div>
-              <p className="font-semibold">{t('system.summaryLoadFailed')}</p>
-              <p className="mt-1 text-[12px] leading-6 opacity-90">{t('system.summaryLoadFailedHint')}</p>
+          <div className="panel-window__stack">
+            <div className="panel-kpi-grid panel-kpi-grid--auto">
+              <KpiCard icon={<Cpu size={15} />} title={t('system.cpuUsage')} value={a.cpuLimitPct ? `${a.cpuPercent.toFixed(1)}%` : `${a.cpuCores.toFixed(2)} core`} subtitle={a.cpuLimitPct ? t('system.account.cpuOf', { cores: (a.cpuLimitPct / 100).toFixed(2) }) : unlimited} percent={a.cpuLimitPct ? a.cpuPercent : undefined} hideHeaderPercent={!!a.cpuLimitPct} />
+              <KpiCard icon={<MemoryStick size={15} />} title={t('system.memoryRam')} value={a.memLimit ? `${formatBytes(a.memUsed)} / ${formatBytes(a.memLimit)}` : formatBytes(a.memUsed)} subtitle={a.memLimit ? t('system.account.ofQuota') : unlimited} percent={a.memLimit ? memPct : undefined} />
+              <KpiCard icon={<HardDriveDownload size={15} />} title={t('system.storage')} value={a.diskLimit ? `${formatBytes(a.diskUsed)} / ${formatBytes(a.diskLimit)}` : formatBytes(a.diskUsed)} subtitle={a.diskLimit ? t('system.account.ofQuota') : unlimited} percent={a.diskLimit ? diskPct : undefined} />
+              <KpiCard icon={<Activity size={15} />} title={t('system.projectsTotal')} value={`${data.projects?.total ?? 0}`} subtitle={t('system.projectsActiveCount', { count: data.projects?.active ?? 0 })} />
             </div>
+            <CountSections counts={data.counts} t={t} />
+            <p className="text-[0.75rem] text-[var(--text-secondary)]">{t('system.account.note')}</p>
           </div>
         </div>
       </div>
@@ -195,145 +265,106 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
   const storagePercent = data.storage.total ? (data.storage.used / data.storage.total) * 100 : 0
 
   return (
-    <div className="panel-window">
-      <div className="panel-window__header">
-        <div className="panel-window__title">
-          <Cpu className="panel-window__icon h-4 w-4" />
-          <div>
-            <div className="panel-window__title-text">{t('system.overviewTitle')}</div>
-            <div className="panel-window__meta">{t('system.overviewMeta')}</div>
-          </div>
-        </div>
-        <div className="panel-window__actions">
-          <button type="button" onClick={() => void refetch()} className="panel-icon-btn" aria-label={t('system.refreshSummary')}>
-            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+    <div className="panel-window docker-window-root">
+      <SystemBar
+        summary={
+          isMobile ? (
+            <div className="flex items-center gap-1.5 min-w-0 text-xs">
+              <span className="font-semibold text-[var(--win-text)] truncate">{data.hostname}</span>
+              <span className="opacity-40">&middot;</span>
+              <span className="font-medium text-[var(--panel-primary-text)] shrink-0">{formatUptime(data.uptimeSeconds)}</span>
+            </div>
+          ) : (
+            <>
+              <span className="font-semibold text-[var(--win-text)]">{data.osName}</span>
+              <span className="mx-2 opacity-40">&middot;</span>
+              <span className="panel-mono text-xs">{data.hostname}</span>
+              <span className="mx-2 opacity-40">&middot;</span>
+              <span className="font-medium text-[var(--panel-primary-text)]">{t('system.uptime')} {formatUptime(data.uptimeSeconds)}</span>
+            </>
+          )
+        }
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onRefresh={() => void refetch()}
+        fetching={isFetching}
+        refreshLabel={t('system.refreshSummary')}
+        isMobile={isMobile}
+      />
 
       <div className="panel-window__body">
-        <div className="panel-window__stack">
-          <section className="panel-hero">
-            <div className="panel-hero__eyebrow">{t('system.hostRuntime')}</div>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="panel-hero__title">{data.osName}</div>
-                <p className="panel-hero__description">{data.hostname} · kernel {data.kernel}</p>
-              </div>
-              <div className="panel-muted-block min-w-[140px] px-4 py-3">
-                <div className="panel-section-label">{t('system.uptime')}</div>
-                <p className="text-[15px] font-bold text-[var(--win-text)]">{formatUptime(data.uptimeSeconds)}</p>
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <HealthPill ok={data.dockerInstalled} label={data.dockerInstalled ? t('system.dockerInstalled') : t('system.dockerMissing')} />
-              <HealthPill ok={data.dockerReachable} label={data.dockerReachable ? t('system.dockerReachable') : t('system.dockerUnreachable')} />
-              <HealthPill ok={data.portainerReachable} label={data.portainerReachable ? t('system.portainerOnline') : t('system.portainerOffline')} />
-              <HealthPill ok={data.database.connected} label={data.database.connected ? t('system.mariadbConnected') : data.database.enabled ? t('system.mariadbUnavailable') : t('system.mariadbDisabled')} />
-            </div>
-          </section>
-
-          <div className="panel-kpi-grid panel-kpi-grid--4">
-            <MetricCard icon={<Cpu size={15} />} title={t('system.cpuUsage')} value={`${data.cpuUsagePercent.toFixed(1)}%`} subtitle={t('system.cpuUsageSubtitle')} percent={data.cpuUsagePercent} />
-            <MetricCard icon={<TimerReset size={15} />} title={t('system.systemUptime')} value={formatUptime(data.uptimeSeconds)} subtitle={t('system.systemUptimeSubtitle')} />
-            <MetricCard icon={<MemoryStick size={15} />} title={t('system.memoryRam')} value={`${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`} subtitle={t('system.memoryRamSubtitle')} percent={memoryPercent} />
-            <MetricCard icon={<HardDriveDownload size={15} />} title={t('system.storage')} value={`${formatBytes(data.storage.used)} / ${formatBytes(data.storage.total)}`} subtitle={t('system.storageSubtitle', { path: data.stateDir })} percent={storagePercent} />
-          </div>
-
-          <div className="panel-kpi-grid panel-kpi-grid--4">
-            <MetricCard icon={<Activity size={15} />} title={t('system.projectsTotal')} value={`${data.projects?.total ?? 0}`} subtitle={t('system.projectsTotalSubtitle')} />
-            <MetricCard icon={<CheckCircle2 size={15} />} title={t('system.projectsActive')} value={`${data.projects?.active ?? 0}`} subtitle={t('system.projectsActiveSubtitle')} />
-            <MetricCard icon={<ShieldAlert size={15} />} title={t('system.needAttention')} value={`${data.projects?.attention ?? 0}`} subtitle={t('system.needAttentionSubtitle')} percent={data.projects?.total ? ((data.projects.attention / data.projects.total) * 100) : 0} />
-            <MetricCard icon={<AlertTriangle size={15} />} title={t('system.runtimeDrift')} value={`${data.projects?.drift ?? 0}`} subtitle={(data.projects?.reconcileFresh ?? false) ? t('system.reconcileFresh') : t('system.reconcileStale')} />
-          </div>
-
-          <div className="panel-kpi-grid panel-kpi-grid--4">
-            <InfoCard icon={<Activity size={15} />} title={t('system.dockerStatus')}>
-              <p className="panel-shell-card__title">{data.dockerStatus}</p>
-              <p className="panel-shell-card__meta">{t('system.dockerStatusMeta')}</p>
-            </InfoCard>
-
-            <InfoCard icon={<Activity size={15} />} title={t('system.portainerIntegration')}>
-              <p className="panel-section-label">{t('system.endpoint')}</p>
-              <code className="panel-mono block break-all text-[12px] leading-relaxed text-[var(--win-text)]">{data.portainerUrl}</code>
-              <p className="panel-shell-card__meta">{t('system.portainerMeta')}</p>
-            </InfoCard>
-
-            <InfoCard icon={<Database size={15} />} title={t('system.mariadbRuntime')}>
-              <p className="panel-shell-card__title">
-                {data.database.connected
-                  ? `${data.database.user}@${data.database.host}:${data.database.port}`
-                  : data.database.enabled ? t('system.configuredNotConnected') : t('system.disabled')}
-              </p>
-              <p className="panel-shell-card__meta">
-                {data.database.connected
-                  ? t('system.databaseCounts', { logs: data.database.runtimeLogCount, changelog: data.database.changelogCount, audit: data.database.settingsAuditCount })
-                  : data.database.lastError || t('system.persistenceInactive')}
-              </p>
-            </InfoCard>
-
-            <InfoCard icon={<ShieldAlert size={15} />} title={t('system.orchestratorHealth')}>
-              <p className="panel-shell-card__title">
-                {data.projects?.attention > 0 ? t('system.workloadsNeedAttention', { count: data.projects.attention }) : t('system.workloadsStable')}
-              </p>
-              <p className="panel-shell-card__meta">
-                {t('system.orchestratorCounts', { degraded: data.projects?.degraded ?? 0, drift: data.projects?.drift ?? 0, freshness: data.projects?.reconcileFresh ? t('system.fresh') : t('system.pending') })}
-              </p>
-            </InfoCard>
-
-            <InfoCard icon={<Network size={15} />} title={t('system.ipAddress')}>
-              {data.ipAddresses && data.ipAddresses.length > 0 ? (
-                <div className="flex flex-col gap-1.5">
-                  {data.ipAddresses.map((ip) => (
-                    <code key={ip} className="panel-muted-block panel-mono block break-all px-3 py-2 text-[12px] text-[var(--win-text)]">{ip}</code>
-                  ))}
+        {viewMode === 'list' ? (
+          <SystemListView data={data} counts={data.counts} memoryPercent={memoryPercent} storagePercent={storagePercent} formatBytes={formatBytes} formatUptime={formatUptime} t={t} />
+        ) : (
+          <div className="panel-window__stack">
+            <section className="panel-shell-card">
+              <p className="panel-section-label">{t('system.hostRuntime')}</p>
+              <div className="mt-1 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-x-6 gap-y-2">
+                <div className="min-w-0">
+                  <p className="text-[1.125rem] sm:text-[1.25rem] font-bold tracking-tight text-[var(--win-text)]">{data.osName}</p>
+                  <p className="panel-mono text-[0.75rem] text-[var(--text-secondary)]">{data.hostname} &middot; kernel {data.kernel}</p>
                 </div>
-              ) : (
-                <p className="panel-shell-card__meta">{t('system.noActiveInterfaces')}</p>
-              )}
-            </InfoCard>
-          </div>
-
-          <InfoCard icon={<AlertTriangle size={15} />} title={t('system.recentIncidents')}>
-            {reconcileIncidents.length === 0 ? (
-              <p className="panel-shell-card__meta">{t('system.noRecentIncidents')}</p>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {reconcileIncidents.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => openProjectsAttention(entry)}
-                    className="panel-muted-block rounded-[16px] px-3.5 py-3 text-left transition hover:-translate-y-[1px] hover:shadow-[var(--system-incident-hover-shadow)]"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`panel-badge ${entry.level === 'warning' ? 'panel-badge--warning' : entry.level === 'error' ? 'panel-badge--danger' : 'panel-badge--info'}`}>
-                        {entry.level}
-                      </span>
-                      <span className="text-[12px] font-semibold text-[var(--win-text)]">{entry.message}</span>
-                      <span className="ml-auto text-[12px] text-[var(--text-secondary)]">
-                        {new Date(entry.createdAt).toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-[12px] leading-5 text-[var(--text-secondary)]">
-                      {entry.metadata && entry.metadata !== '{}'
-                        ? entry.metadata
-                        : t('system.noIncidentMetadata')}
-                    </p>
-                    <p className="mt-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--panel-primary-text)]">
-                      {t('system.openProjectsAttention')}
-                    </p>
-                  </button>
-                ))}
+                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--win-border)]">
+                  <p className="panel-section-label">{t('system.uptime')}</p>
+                  <p className="text-[0.9375rem] sm:text-[1rem] font-bold text-[var(--win-text)]">{formatUptime(data.uptimeSeconds)}</p>
+                </div>
               </div>
-            )}
-          </InfoCard>
-        </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <HealthPill ok={data.dockerInstalled} label={data.dockerInstalled ? t('system.dockerInstalled') : t('system.dockerMissing')} />
+                <HealthPill ok={data.dockerReachable} label={data.dockerReachable ? t('system.dockerReachable') : t('system.dockerUnreachable')} />
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <p className="panel-section-label">{t('system.sectionResources')}</p>
+              <div className="panel-kpi-grid panel-kpi-grid--auto">
+                <KpiCard icon={<Cpu size={15} />} title={t('system.cpuUsage')} value={`${data.cpuUsagePercent.toFixed(1)}%`} subtitle={t('system.cpuUsageSubtitle')} percent={data.cpuUsagePercent} hideHeaderPercent />
+                <KpiCard icon={<MemoryStick size={15} />} title={t('system.memoryRam')} value={`${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`} subtitle={t('system.memoryRamSubtitle')} percent={memoryPercent} />
+                <KpiCard icon={<HardDriveDownload size={15} />} title={t('system.storage')} value={`${formatBytes(data.storage.used)} / ${formatBytes(data.storage.total)}`} subtitle={t('system.storageSubtitleShort')} percent={storagePercent} />
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <p className="panel-section-label">{t('system.sectionWorkloads')}</p>
+              <div className="panel-kpi-grid panel-kpi-grid--auto">
+                <KpiCard icon={<Activity size={15} />} title={t('system.projectsTotal')} value={`${data.projects?.total ?? 0}`} subtitle={t('system.projectsTotalSubtitle')} />
+                <KpiCard icon={<CheckCircle2 size={15} />} title={t('system.projectsActive')} value={`${data.projects?.active ?? 0}`} subtitle={t('system.projectsActiveSubtitle')} />
+                <KpiCard icon={<ShieldAlert size={15} />} title={t('system.needAttention')} value={`${data.projects?.attention ?? 0}`} subtitle={t('system.needAttentionSubtitle')} percent={data.projects?.total ? (data.projects.attention / data.projects.total) * 100 : 0} />
+                <KpiCard icon={<AlertTriangle size={15} />} title={t('system.runtimeDrift')} value={`${data.projects?.drift ?? 0}`} subtitle={data.projects?.reconcileFresh ? t('system.reconcileFresh') : t('system.reconcileStale')} />
+              </div>
+            </section>
+
+            <CountSections counts={data.counts} t={t} />
+
+            <section className="space-y-2">
+              <p className="panel-section-label">{t('system.sectionServices')}</p>
+              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3">
+                <InfoCard icon={<Activity size={15} />} title={t('system.dockerStatus')}>
+                  <p className="panel-shell-card__title">{data.dockerStatus}</p>
+                  <p className="panel-shell-card__meta">{t('system.dockerStatusMeta')}</p>
+                </InfoCard>
+
+                <InfoCard icon={<ShieldAlert size={15} />} title={t('system.orchestratorHealth')}>
+                  <p className="panel-shell-card__title">
+                    {data.projects?.attention > 0 ? t('system.workloadsNeedAttention', { count: data.projects.attention }) : t('system.workloadsStable')}
+                  </p>
+                  <p className="panel-shell-card__meta">
+                    {t('system.orchestratorCounts', { degraded: data.projects?.degraded ?? 0, drift: data.projects?.drift ?? 0, freshness: data.projects?.reconcileFresh ? t('system.fresh') : t('system.pending') })}
+                  </p>
+                </InfoCard>
+
+                <InfoCard icon={<Network size={15} />} title={t('system.ipAddress')} className="sm:col-span-2">
+                  {data.ipAddresses && data.ipAddresses.length > 0 ? (
+                    <IpAddressList addresses={data.ipAddresses} />
+                  ) : (
+                    <p className="panel-shell-card__meta">{t('system.noActiveInterfaces')}</p>
+                  )}
+                </InfoCard>
+              </div>
+            </section>
+          </div>
+        )}
       </div>
     </div>
   )
 }
-
-
-
-

@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,12 +16,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
+	"github.com/friskipradana/panel-desktop-ui/internal/projects"
+	"github.com/friskipradana/panel-desktop-ui/internal/userdb"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
 
@@ -84,6 +87,9 @@ func querySearch(r *http.Request) string {
 }
 
 func (s *Server) notifyUserAction(userID int64, title, body, notifType string) {
+	if s.database == nil || !s.database.IsConnected() {
+		return
+	}
 	if err := s.database.CreateNotification(userID, title, body, notifType, ""); err != nil {
 		return
 	}
@@ -102,10 +108,53 @@ func (s *Server) notifyCurrentUserAction(r *http.Request, title, body, notifType
 
 // ─── MIDDLEWARE ───────────────────────────────────────────────────────────────
 
-// requireAuthV2 validates the session cookie and injects the User into context.
+// requireAuthV2 validates the session cookie OR a Bearer API token and injects the User into context.
+// sessionProbe answers the page that only wants to know whether somebody is signed in (?probe=1) with a plain
+// "no" when there is no session cookie, so a visitor of the public pages does not get a 401 in the browser console.
+func (s *Server) sessionProbe(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("probe") == "1" && r.Header.Get("Authorization") == "" {
+			if _, err := requestSessionCookie(r); err != nil {
+				s.writeJSON(w, http.StatusOK, jsonResponse{"authenticated": false})
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie(sessionCookieName)
+		// Try Bearer API token or query parameter (?key=... / ?token=...)
+		rawToken := ""
+		if authHeader := strings.TrimSpace(r.Header.Get("Authorization")); strings.HasPrefix(authHeader, "Bearer ") {
+			rawToken = strings.TrimPrefix(authHeader, "Bearer ")
+		} else if qKey := strings.TrimSpace(r.URL.Query().Get("key")); qKey != "" {
+			rawToken = qKey
+		} else if qToken := strings.TrimSpace(r.URL.Query().Get("token")); qToken != "" {
+			rawToken = qToken
+		}
+
+		if rawToken != "" && strings.HasPrefix(rawToken, "ypat_") {
+			tokenHash := hashAPIToken(rawToken)
+			u, _, ok := s.database.GetAPITokenUser(tokenHash)
+			if !ok || u == nil {
+				s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid or expired API token"})
+				return
+			}
+			if !s.userMayUseHost(r, u.ID) {
+				s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "this address belongs to another account"})
+				return
+			}
+			if !s.guardDemo(w, r, u) {
+				return
+			}
+			ctx := context.WithValue(r.Context(), ctxUser, u)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		// Fall back to session cookie
+		cookie, err := requestSessionCookie(r)
 		if err != nil {
 			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
 			return
@@ -115,9 +164,30 @@ func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
 			return
 		}
+		if !s.userMayUseHost(r, u.ID) {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "this address belongs to another account"})
+			return
+		}
+		// an account that got its password from an admin can do nothing but choose its own
+		if !passwordGateAllows(r.URL.Path) && s.database.MustChangePassword(u.ID) {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "choose a new password first", "code": "password_change_required"})
+			return
+		}
+		if !s.guardDemo(w, r, u) {
+			return
+		}
 		ctx := context.WithValue(r.Context(), ctxUser, u)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// passwordGateAllows lists what an account may still reach before it has chosen its own password
+func passwordGateAllows(path string) bool {
+	switch path {
+	case "/api/v1/me", "/api/v1/me/password", "/api/v1/auth/logout":
+		return true
+	}
+	return false
 }
 
 // requireRole checks that the current user has at least the given role.
@@ -176,14 +246,16 @@ func (s *Server) needsSetup() bool {
 	return !s.database.HasUsers()
 }
 
-func (s *Server) issueSessionCookie(w http.ResponseWriter, token string) {
+// issueSessionCookie sets the session; over https (directly, or behind a proxy that says so) the cookie is marked Secure
+func (s *Server) issueSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
+	http.SetCookie(w, &http.Cookie{Name: legacySessionCookieName, Value: "", Path: "/", HttpOnly: true, MaxAge: -1, Expires: time.Unix(0, 0)})
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   false,
+		Secure:   requestIsHTTPS(r),
 		MaxAge:   int(s.cfg.SessionTTL.Seconds()),
 	})
 }
@@ -191,7 +263,7 @@ func (s *Server) issueSessionCookie(w http.ResponseWriter, token string) {
 func (s *Server) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
 	status := setupStatusResponse{NeedsSetup: false}
 	if s != nil && s.database != nil {
-		dbStatus := s.database.Status()
+		dbStatus := s.database.ConnectionStatus()
 		status.DatabaseReady = dbStatus.Connected
 		status.DatabaseError = dbStatus.LastError
 		status.NeedsSetup = dbStatus.Connected && !s.database.HasUsers()
@@ -250,7 +322,7 @@ func (s *Server) handleInitializeSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("[auth] first-run setup completed user=%q remote=%s", u.Username, remoteAddr(r))
-	s.issueSessionCookie(w, token)
+	s.issueSessionCookie(w, r, token)
 	s.writeJSON(w, http.StatusCreated, jsonResponse{
 		"ok":       true,
 		"username": loggedInUser.Username,
@@ -267,16 +339,30 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// repeated failures for one account name stop here, whatever address they come from
+	if blocked, wait := loginFailures.blocked(req.Username); blocked {
+		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+		s.notify.LoginLocked(req.Username)
+		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many failed sign-ins for this account, try again later"})
+		return
+	}
+
 	token, u, err := s.auth.Login(
 		strings.TrimSpace(req.Username),
 		req.Password,
-		remoteAddr(r),
+		clientIP(r),
 		r.UserAgent(),
 	)
 	if err != nil {
+		if !errors.Is(err, auth.ErrUserSuspended) && !errors.Is(err, auth.ErrUserPending) {
+			loginFailures.fail(req.Username)
+			s.notify.LoginFailed(req.Username, clientIP(r))
+		}
 		switch {
 		case errors.Is(err, auth.ErrUserSuspended):
 			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "account suspended"})
+		case errors.Is(err, auth.ErrUserPending):
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "account waiting for payment"})
 		default:
 			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid credentials"})
 		}
@@ -284,7 +370,20 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.issueSessionCookie(w, token)
+	// on the address of a buyer's panel only that buyer can sign in; the answer is the same as for a wrong password
+	if !s.userMayUseHost(r, u.ID) {
+		s.auth.Logout(token)
+		loginFailures.fail(req.Username)
+		s.notify.LoginFailed(req.Username, clientIP(r))
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid credentials"})
+		log.Printf("[auth] login refused user=%q: not the owner of host %q remote=%s", u.Username, r.Host, remoteAddr(r))
+		return
+	}
+
+	loginFailures.clear(req.Username)
+	s.issueSessionCookie(w, r, token)
+	// a sign-in from a device the account has not used before is told to its owner
+	go s.notify.SignedIn(u.ID, u.Username, clientIP(r), r.UserAgent())
 
 	log.Printf("[auth] login success user=%q role=%q remote=%s", u.Username, u.Role, remoteAddr(r))
 	s.writeJSON(w, http.StatusOK, jsonResponse{
@@ -307,17 +406,22 @@ func (s *Server) handleMeV2(w http.ResponseWriter, r *http.Request) {
 		cfStatus = cfCfg.Status
 	}
 
+	role := u.Role
+	if s.isDemoUser(u) {
+		role = "demo"
+	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"id":               u.ID,
-		"username":         u.Username,
-		"email":            u.Email,
-		"role":             u.Role,
-		"status":           u.Status,
-		"displayName":      u.DisplayName,
-		"avatarUrl":        u.AvatarURL,
-		"createdAt":        u.CreatedAt,
-		"lastLoginAt":      u.LastLoginAt,
-		"cloudflareStatus": cfStatus,
+		"id":                 u.ID,
+		"username":           u.Username,
+		"email":              u.Email,
+		"role":               role,
+		"status":             u.Status,
+		"displayName":        u.DisplayName,
+		"avatarUrl":          u.AvatarURL,
+		"createdAt":          u.CreatedAt,
+		"lastLoginAt":        u.LastLoginAt,
+		"cloudflareStatus":   cfStatus,
+		"mustChangePassword": s.database.MustChangePassword(u.ID),
 	})
 }
 
@@ -329,6 +433,11 @@ type createUserRequest struct {
 	Password    string `json:"password"`
 	Role        string `json:"role"`
 	DisplayName string `json:"displayName"`
+	// ForcePasswordChange (default true) makes the account choose its own password at the first sign-in
+	ForcePasswordChange *bool `json:"forcePasswordChange"`
+	// PlanID and Months put the new account on a plan right away (superadmin, hosting mode on)
+	PlanID *int64 `json:"planId"`
+	Months *int   `json:"months"`
 }
 
 func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
@@ -337,13 +446,84 @@ func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	query := querySearch(r)
-	userList, total, err := s.database.ListUsersFiltered(query, limit, offset)
+	actor := userFromCtx(r)
+	// plans belong to the superadmin and only exist while hosting mode is on
+	hosting := actor != nil && actor.Role == auth.SuperadminRole && s.hostingEnabled()
+	site := s.loadSiteSettings()
+	q := r.URL.Query()
+	opts := database.UserListOptions{
+		Query:     querySearch(r),
+		Status:    q.Get("status"),
+		Limit:     limit,
+		Offset:    offset,
+		GraceDays: site.GraceDays,
+	}
+	switch role := q.Get("role"); role {
+	case auth.SuperadminRole, auth.AdminRole, auth.UserRole:
+		opts.Role = role
+	}
+	if hosting {
+		opts.Plan = q.Get("plan")
+		opts.PlanState = q.Get("planState")
+	}
+	if scope := s.ownerScopeFor(actor); !scope.all {
+		opts.IDs = scope.list()
+	}
+	userList, total, err := s.database.ListUsersAdvanced(opts)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"items": userList, "total": total, "limit": limit, "offset": offset})
+	// each account carries the account that manages it, so the UI can show and change the hierarchy
+	ids := make([]int64, 0, len(userList))
+	for _, u := range userList {
+		ids = append(ids, u.ID)
+	}
+	parents, _ := s.database.UserParentIDs(ids)
+	var info map[int64]database.UserHosting
+	if hosting {
+		info, _ = s.database.UserHostingInfo(ids)
+	}
+	type userRow struct {
+		database.User
+		ParentID *int64           `json:"parentId"`
+		Hosting  *userHostingView `json:"hosting,omitempty"`
+	}
+	now := time.Now()
+	items := make([]userRow, 0, len(userList))
+	for _, u := range userList {
+		item := userRow{User: u}
+		if p, ok := parents[u.ID]; ok {
+			parent := p
+			item.ParentID = &parent
+		}
+		if hosting && u.Role != auth.SuperadminRole {
+			view := hostingViewFor(info[u.ID], site.GraceDays, now)
+			item.Hosting = &view
+		}
+		items = append(items, item)
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"items": items, "total": total, "limit": limit, "offset": offset})
+}
+
+// handleUsersSummary counts the accounts of the caller's scope for the strip above the list
+func (s *Server) handleUsersSummary(w http.ResponseWriter, r *http.Request) {
+	actor := userFromCtx(r)
+	hosting := actor != nil && actor.Role == auth.SuperadminRole && s.hostingEnabled()
+	var ids []int64
+	if scope := s.ownerScopeFor(actor); !scope.all {
+		ids = scope.list()
+	}
+	summary, err := s.database.UserSummaryFor(ids, s.loadSiteSettings().GraceDays, time.Now())
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if !hosting {
+		// without hosting mode (or for an admin) there are no plans to count
+		summary.NoPlan, summary.PlanActive, summary.Grace, summary.Expired, summary.Expiring = 0, 0, 0, 0, 0
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"summary": summary, "hosting": hosting})
 }
 
 func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -365,16 +545,67 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
 		return
 	}
+	if req.Role == "" {
+		req.Role = "user"
+	}
+	if actor := userFromCtx(r); actor != nil {
+		if err := users.CanAssignRole(actor.Role, req.Role); err != nil {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+	// a plan is checked before the account exists, so a bad plan never leaves a half-made account
+	var plan *database.HostingPlan
+	var planEndsAt *time.Time
+	if req.PlanID != nil {
+		actor := userFromCtx(r)
+		if actor == nil || actor.Role != auth.SuperadminRole {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "only the superadmin can give a plan"})
+			return
+		}
+		if !s.requireHostingMode(w) {
+			return
+		}
+		if req.Role == auth.SuperadminRole {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "the superadmin account does not take a plan"})
+			return
+		}
+		plan, _ = s.database.GetHostingPlan(*req.PlanID)
+		if plan == nil {
+			s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "plan not found"})
+			return
+		}
+		ends, planErr := planEnd(plan, nil, nil, req.Months, time.Now())
+		if planErr != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": planErr.Error()})
+			return
+		}
+		planEndsAt = ends
+	}
 	u, err := s.auth.CreateUser(req.Username, req.Email, req.Password, req.Role, req.DisplayName)
 	if err != nil {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
 		return
 	}
+	if plan != nil {
+		if err := s.applyUserPlan(u.ID, plan, planEndsAt); err != nil {
+			log.Printf("[hosting] new account %q created but the plan was not applied: %v", u.Username, err)
+		}
+	}
+	if req.ForcePasswordChange == nil || *req.ForcePasswordChange {
+		if err := s.database.SetMustChangePassword(u.ID, true); err != nil {
+			log.Printf("[users] could not require a password change for %q: %v", u.Username, err)
+		}
+	}
+	if creator := userFromCtx(r); creator != nil {
+		// the account is managed by whoever created it
+		_ = s.database.SetUserParent(u.ID, creator.ID)
+	}
 	actor := userFromCtx(r)
 	actorName := "system"
 	if actor != nil {
 		actorName = actor.Username
-		s.notifyUserAction(actor.ID, "User baru dibuat 👤", fmt.Sprintf("User '%s' dengan role %s berhasil dibuat.", u.Username, u.Role), "success")
+		s.notifyUserAction(actor.ID, "Akun baru dibuat", fmt.Sprintf("Akun '%s' dibuat dengan role %s.", u.Username, u.Role), "success")
 	}
 	log.Printf("[users] created user=%q role=%q by=%q", u.Username, u.Role, actorName)
 	s.writeJSON(w, http.StatusCreated, u)
@@ -398,13 +629,30 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
 		return
 	}
+	actor := userFromCtx(r)
+	target, _ := s.database.GetUserByID(id)
+	if target == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "user not found"})
+		return
+	}
+	fields, err := s.vetUserFields(actor, target, fields)
+	if err != nil {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+		return
+	}
 	if err := s.database.UpdateUser(id, fields); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	u, _ := s.database.GetUserByID(id)
+	// a changed role or status must not leave a shell open that the new one would not allow
+	if _, roleChanged := fields["role"]; roleChanged {
+		s.terminalManager.CloseOwned(id)
+	} else if status, ok := fields["status"].(string); ok && status != "active" {
+		s.terminalManager.CloseOwned(id)
+	}
 	if u != nil {
-		s.notifyCurrentUserAction(r, "User diperbarui ✏️", fmt.Sprintf("Perubahan pada user '%s' berhasil disimpan.", u.Username), "info")
+		s.notifyCurrentUserAction(r, "Akun diperbarui", fmt.Sprintf("Perubahan pada akun '%s' disimpan.", u.Username), "info")
 	}
 	s.writeJSON(w, http.StatusOK, u)
 }
@@ -423,12 +671,29 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if actor != nil {
+		if err := users.CanManage(actor.ID, actor.Role, targetUser, false); err != nil {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+	s.stopUserWorkloads(targetUser.ID)
+	s.stopUserDatabases(targetUser.ID, true)
+	s.stopUserContainers(targetUser.ID, true)
+	_ = s.database.DeleteUserSessions(targetUser.ID)
+	// the DNS records of their subdomains must go before the rows do
+	s.releaseUserSubdomains(targetUser.ID)
+	s.releaseUserCustomDomains(targetUser.ID)
+	// the WhatsApp session lives in WAHA, outside the database, so it goes before the row does
+	s.forgetUserWhatsApp(targetUser.ID)
 	if err := s.database.DeleteUser(id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	go s.syncHostingRoutes()
 	if actor != nil {
-		s.notifyUserAction(actor.ID, "User dihapus 🗑️", fmt.Sprintf("User '%s' berhasil dihapus.", targetUser.Username), "warning")
+		s.auditSensitiveAction(r, actor, "user.delete", "ok", map[string]any{"target": targetUser.Username})
+		s.notifyUserAction(actor.ID, "Akun dihapus", fmt.Sprintf("Akun '%s' dihapus beserta datanya.", targetUser.Username), "warning")
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
@@ -440,11 +705,22 @@ func (s *Server) handleSuspendUser(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "user not found"})
 		return
 	}
+	if actor := userFromCtx(r); actor != nil {
+		if err := users.CanManage(actor.ID, actor.Role, targetUser, false); err != nil {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+			return
+		}
+		s.auditSensitiveAction(r, actor, "user.suspend", "ok", map[string]any{"target": targetUser.Username})
+	}
 	if err := users.SuspendUser(s.database, id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.notifyCurrentUserAction(r, "User disuspend ⛔", fmt.Sprintf("User '%s' berhasil disuspend.", targetUser.Username), "warning")
+	// A suspended account must stop serving: sign it out and halt its projects and tunnels
+	_ = s.database.DeleteUserSessions(id)
+	s.stopUserWorkloads(id)
+	go s.syncHostingRoutes()
+	s.notifyCurrentUserAction(r, "Akun ditangguhkan", fmt.Sprintf("Akun '%s' ditangguhkan: tidak bisa masuk sampai diaktifkan lagi.", targetUser.Username), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -459,7 +735,8 @@ func (s *Server) handleActivateUser(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.notifyCurrentUserAction(r, "User diaktifkan kembali ✅", fmt.Sprintf("User '%s' berhasil diaktifkan.", targetUser.Username), "success")
+	go s.syncHostingRoutes()
+	s.notifyCurrentUserAction(r, "Akun diaktifkan lagi", fmt.Sprintf("Akun '%s' bisa masuk lagi.", targetUser.Username), "success")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -476,13 +753,52 @@ func (s *Server) handleGetUserQuota(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleUpdateUserQuota(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	id := parsePathID(r, "id")
-	var q database.UserQuota
-	if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
+	// Partial update: fields that are not sent keep their stored value
+	q, err := s.database.GetUserQuota(id)
+	if err != nil || q == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "user not found"})
+		return
+	}
+	var patch struct {
+		MaxProjects   *int   `json:"maxProjects"`
+		MaxTunnels    *int   `json:"maxTunnels"`
+		MaxDatabases  *int   `json:"maxDatabases"`
+		MaxApps       *int   `json:"maxApps"`
+		DiskQuotaMB   *int64 `json:"diskQuotaMb"`
+		CPULimitPct   *int   `json:"cpuLimitPct"`
+		MemoryLimitMB *int   `json:"memoryLimitMb"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
 		return
 	}
+	if patch.MaxProjects != nil {
+		q.MaxProjects = *patch.MaxProjects
+	}
+	if patch.MaxTunnels != nil {
+		q.MaxTunnels = *patch.MaxTunnels
+	}
+	if patch.MaxDatabases != nil {
+		q.MaxDatabases = *patch.MaxDatabases
+	}
+	if patch.MaxApps != nil {
+		q.MaxApps = *patch.MaxApps
+	}
+	if patch.DiskQuotaMB != nil {
+		q.DiskQuotaMB = *patch.DiskQuotaMB
+	}
+	if patch.CPULimitPct != nil {
+		q.CPULimitPct = *patch.CPULimitPct
+	}
+	if patch.MemoryLimitMB != nil {
+		q.MemoryLimitMB = *patch.MemoryLimitMB
+	}
+	if err := users.ValidateQuota(*q); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 	q.UserID = id
-	if err := s.database.UpdateUserQuota(q); err != nil {
+	if err := s.database.UpdateUserQuota(*q); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -491,7 +807,7 @@ func (s *Server) handleUpdateUserQuota(w http.ResponseWriter, r *http.Request) {
 	if targetUser != nil {
 		targetName = fmt.Sprintf("user '%s'", targetUser.Username)
 	}
-	s.notifyCurrentUserAction(r, "Quota user diperbarui 📦", fmt.Sprintf("Quota untuk %s berhasil diperbarui.", targetName), "info")
+	s.notifyCurrentUserAction(r, "Kuota akun diperbarui", fmt.Sprintf("Kuota untuk %s diperbarui.", targetName), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -547,7 +863,8 @@ func (s *Server) handleSetCFConfig(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.notifyUserAction(u.ID, "Cloudflare config disimpan ☁️", "Konfigurasi Cloudflare berhasil disimpan dan siap diverifikasi.", "info")
+	s.invalidateCloudflareZonesCache(u.ID)
+	s.notifyUserAction(u.ID, "Konfigurasi Cloudflare disimpan", "Token Cloudflare disimpan. Verifikasi dulu sebelum dipakai.", "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "Cloudflare config saved. Use /verify to validate."})
 }
 
@@ -564,33 +881,42 @@ func (s *Server) handleVerifyCFConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, cfg.ZoneID)
+	perm := client.VerifyTokenPermissions()
+	s.invalidateCloudflareZonesCache(u.ID)
 	status := "active"
-	if verifyErr := client.VerifyToken(); verifyErr != nil {
+	if !perm.Valid {
 		status = "invalid"
 		_ = s.database.UpsertCFConfig(u.ID, cfg.APITokenEncrypted, cfg.AccountID, cfg.ZoneID, cfg.BaseDomain, status)
-		s.notifyUserAction(u.ID, "Verifikasi Cloudflare gagal ⚠️", verifyErr.Error(), "warning")
-		s.writeJSON(w, http.StatusOK, jsonResponse{"valid": false, "error": verifyErr.Error()})
+		s.notifyUserAction(u.ID, "Verifikasi Cloudflare gagal", perm.Summary, "warning")
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"valid":   false,
+			"status":  status,
+			"error":   perm.Summary,
+			"details": perm,
+		})
 		return
 	}
 	_ = s.database.UpsertCFConfig(u.ID, cfg.APITokenEncrypted, cfg.AccountID, cfg.ZoneID, cfg.BaseDomain, status)
-	s.notifyUserAction(u.ID, "Cloudflare aktif ✅", "Token Cloudflare berhasil diverifikasi dan siap digunakan.", "success")
-	s.writeJSON(w, http.StatusOK, jsonResponse{"valid": true, "status": status})
+	s.notifyUserAction(u.ID, "Cloudflare terhubung", perm.Summary, "success")
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"valid":   true,
+		"status":  status,
+		"message": perm.Summary,
+		"details": perm,
+	})
 }
 
 func (s *Server) handleGetCFZones(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
-	cfg, _ := s.database.GetCFConfig(u.ID)
-	if cfg == nil || cfg.Status != "active" {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "Cloudflare config not active"})
-		return
-	}
-	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfg.APITokenEncrypted)
+	client, _, err := s.activeCloudflareClientOnly(r)
 	if err != nil {
-		s.writeCloudflareDecryptError(w, u.Username, err)
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
 		return
 	}
-	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, "")
-	zones, err := client.ListZones()
+	if r.URL.Query().Get("refresh") == "1" {
+		s.invalidateCloudflareZonesCache(u.ID)
+	}
+	zones, err := s.cachedCloudflareZones(u.ID, client)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -604,22 +930,73 @@ func (s *Server) handleDeleteCFConfig(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.notifyUserAction(u.ID, "Cloudflare config dihapus 🗑️", "Konfigurasi Cloudflare berhasil dihapus dari akun Anda.", "warning")
+	s.invalidateCloudflareZonesCache(u.ID)
+	s.notifyUserAction(u.ID, "Konfigurasi Cloudflare dihapus", "Token Cloudflare dihapus dari akun Anda. Tunnel yang sudah ada tidak terpengaruh.", "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
-func (s *Server) activeCloudflareClient(r *http.Request) (*cloudflareapi.Client, []cloudflareapi.ZoneInfo, error) {
+const cfZonesCacheTTL = 15 * time.Second
+
+type cfZonesCacheEntry struct {
+	zones    []cloudflareapi.ZoneInfo
+	cachedAt time.Time
+}
+
+func (s *Server) invalidateCloudflareZonesCache(userID int64) {
+	s.cfZonesMu.Lock()
+	delete(s.cfZonesCache, userID)
+	s.cfZonesMu.Unlock()
+}
+
+func (s *Server) cachedCloudflareZones(userID int64, client *cloudflareapi.Client) ([]cloudflareapi.ZoneInfo, error) {
+	now := time.Now()
+	s.cfZonesMu.Lock()
+	if entry, ok := s.cfZonesCache[userID]; ok && now.Sub(entry.cachedAt) < cfZonesCacheTTL {
+		out := make([]cloudflareapi.ZoneInfo, len(entry.zones))
+		copy(out, entry.zones)
+		s.cfZonesMu.Unlock()
+		return out, nil
+	}
+	s.cfZonesMu.Unlock()
+
+	zones, err := client.ListZones()
+	if err != nil {
+		return nil, err
+	}
+
+	copied := make([]cloudflareapi.ZoneInfo, len(zones))
+	copy(copied, zones)
+	s.cfZonesMu.Lock()
+	if s.cfZonesCache == nil {
+		s.cfZonesCache = make(map[int64]cfZonesCacheEntry)
+	}
+	s.cfZonesCache[userID] = cfZonesCacheEntry{zones: copied, cachedAt: now}
+	s.cfZonesMu.Unlock()
+
+	out := make([]cloudflareapi.ZoneInfo, len(copied))
+	copy(out, copied)
+	return out, nil
+}
+
+func (s *Server) activeCloudflareClientOnly(r *http.Request) (*cloudflareapi.Client, int64, error) {
 	u := userFromCtx(r)
 	cfg, _ := s.database.GetCFConfig(u.ID)
 	if cfg == nil || cfg.Status != "active" {
-		return nil, nil, errors.New("Cloudflare config not active")
+		return nil, 0, errors.New("Cloudflare config not active")
 	}
 	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfg.APITokenEncrypted)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decrypt stored Cloudflare token — encryption key may have changed; re-save your CF config: %w", err)
+		return nil, 0, fmt.Errorf("failed to decrypt stored Cloudflare token — encryption key may have changed; re-save your CF config: %w", err)
 	}
-	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, "")
-	zones, err := client.ListZones()
+	return cloudflareapi.NewClient(apiToken, cfg.AccountID, ""), u.ID, nil
+}
+
+func (s *Server) activeCloudflareClient(r *http.Request) (*cloudflareapi.Client, []cloudflareapi.ZoneInfo, error) {
+	client, uid, err := s.activeCloudflareClientOnly(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	zones, err := s.cachedCloudflareZones(uid, client)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -636,6 +1013,10 @@ func zoneAllowed(zones []cloudflareapi.ZoneInfo, zoneID string) bool {
 }
 
 func (s *Server) handleCloudflareDomains(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("refresh") == "1" {
+		u := userFromCtx(r)
+		s.invalidateCloudflareZonesCache(u.ID)
+	}
 	_, zones, err := s.activeCloudflareClient(r)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
@@ -650,7 +1031,7 @@ type createCloudflareDomainRequest struct {
 
 func (s *Server) handleCreateCloudflareDomain(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	client, _, err := s.activeCloudflareClient(r)
+	client, uid, err := s.activeCloudflareClientOnly(r)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -670,6 +1051,7 @@ func (s *Server) handleCreateCloudflareDomain(w http.ResponseWriter, r *http.Req
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
+	s.invalidateCloudflareZonesCache(uid)
 	s.writeJSON(w, http.StatusCreated, zone)
 }
 
@@ -707,6 +1089,7 @@ func (s *Server) handleDeleteCloudflareDomain(w http.ResponseWriter, r *http.Req
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
+	s.invalidateCloudflareZonesCache(userFromCtx(r).ID)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -726,7 +1109,7 @@ func (s *Server) handleCloudflareDNSRecords(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"items": records})
+	s.writeJSON(w, http.StatusOK, tableResponse(records, dnsSpec(), r.URL.Query()))
 }
 
 func decodeDNSPayload(r *http.Request) (cloudflareapi.DNSRecordPayload, error) {
@@ -830,7 +1213,7 @@ type createCloudflareTunnelProfileRequest struct {
 func (s *Server) handleCreateCloudflareTunnelProfile(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	u := userFromCtx(r)
-	client, _, err := s.activeCloudflareClient(r)
+	client, _, err := s.activeCloudflareClientOnly(r)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -881,7 +1264,7 @@ func (s *Server) handleCreateCloudflareTunnelProfile(w http.ResponseWriter, r *h
 
 func (s *Server) handleCloudflareTunnelProfiles(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
-	client, _, err := s.activeCloudflareClient(r)
+	client, _, err := s.activeCloudflareClientOnly(r)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -941,7 +1324,7 @@ func (s *Server) handleDeleteCloudflareTunnelProfile(w http.ResponseWriter, r *h
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "profile tunnel tidak valid"})
 		return
 	}
-	client, _, err := s.activeCloudflareClient(r)
+	client, _, err := s.activeCloudflareClientOnly(r)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -972,18 +1355,14 @@ func (s *Server) handleCloudflareTunnelProfileRoutes(w http.ResponseWriter, r *h
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	type tunnelWithDaemon struct {
-		database.Tunnel
-		DaemonRunning bool `json:"daemonRunning"`
-	}
-	result := make([]tunnelWithDaemon, 0)
+	result := make([]tunnelRow, 0)
 	for _, route := range routes {
 		matches := route.CFTunnelID == profileID || (profileID == "pending" && route.CFTunnelID == "")
 		if matches {
-			result = append(result, tunnelWithDaemon{Tunnel: route, DaemonRunning: route.CFTunnelID != "" && s.cfDaemon.IsRunning(route.CFTunnelID)})
+			result = append(result, tunnelRow{Tunnel: route, DaemonRunning: route.CFTunnelID != "" && s.cfDaemon.IsRunning(route.CFTunnelID)})
 		}
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"items": result})
+	s.writeJSON(w, http.StatusOK, tableResponse(result, routeSpec(), r.URL.Query()))
 }
 
 // ─── Projects Handlers ────────────────────────────────────────────────────────
@@ -995,6 +1374,9 @@ type createProjectRequest struct {
 	RepoURL     string `json:"repoUrl"`
 	WorkingDir  string `json:"workingDir"`
 	SPAFallback *bool  `json:"spaFallback"`
+	// Run is how the project is installed, built and started, its variables, and the processes of a project made of several;
+	// left out, what is saved stays
+	Run *projectRunRequest `json:"run"`
 }
 
 type projectRuntimeState struct {
@@ -1018,9 +1400,38 @@ type projectAttentionSummary struct {
 	DriftCount     int64 `json:"driftCount"`
 }
 
+// driftLogged remembers when a project's drift was last written to the runtime log
+var (
+	driftLoggedMu sync.Mutex
+	driftLogged   = map[string]time.Time{}
+)
+
+const driftLogEvery = 10 * time.Minute
+
+// shouldLogDrift is true the first time a drift (project and reason) is seen, then once per driftLogEvery
+func shouldLogDrift(projectID int64, reason string, now time.Time) bool {
+	key := fmt.Sprintf("%d|%s", projectID, reason)
+	driftLoggedMu.Lock()
+	defer driftLoggedMu.Unlock()
+	if last, ok := driftLogged[key]; ok && now.Sub(last) < driftLogEvery {
+		return false
+	}
+	driftLogged[key] = now
+	return true
+}
+
 func (s *Server) projectWithRuntime(project database.Project) projectWithRuntime {
-	snapshot := s.projectManager.SnapshotProject(project)
-	if snapshot.Drift {
+	return s.projectView(project, false)
+}
+
+// projectView is a project with its runtime; the variables it runs with are shown with their values only when asked (the form that edits it)
+func (s *Server) projectView(project database.Project, reveal bool) projectWithRuntime {
+	return s.projectViewWithSnapshot(project, s.projectManager.SnapshotProject(project), reveal)
+}
+
+func (s *Server) projectViewWithSnapshot(project database.Project, snapshot projects.RuntimeSnapshot, reveal bool) projectWithRuntime {
+	project.Run = s.runView(project.Run, reveal)
+	if snapshot.Drift && shouldLogDrift(project.ID, snapshot.DriftReason, time.Now()) {
 		s.recordRuntimeLog("warning", "project runtime drift detected", map[string]any{
 			"projectId":     project.ID,
 			"projectName":   project.Name,
@@ -1049,23 +1460,35 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	query := querySearch(r)
 	includeAll := auth.IsAdmin(u.Role) && r.URL.Query().Get("all") == "1"
 
-	projectList, total, err := s.database.ListProjectsFiltered(u.ID, includeAll, query, limit, offset)
+	// the state of a project is known only with its runtime, so the whole list is read; the search, the column
+	// filters and the order are then applied to it, and only the page asked for is sent
+	projectList, _, err := s.listProjectsScoped(u, includeAll, "", projectScanLimit, 0)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	result := make([]projectWithRuntime, len(projectList))
+	snapshots := s.projectManager.SnapshotAll(projectList)
+	all := make([]projectWithRuntime, len(projectList))
 	for i, p := range projectList {
-		result[i] = s.projectWithRuntime(p)
+		all[i] = s.projectViewWithSnapshot(p, snapshots[p.ID], false)
+	}
+	res := tableResponse(all, projectSpec(), r.URL.Query())
+	if offset > res.Total {
+		offset = res.Total
+	}
+	end := offset + limit
+	if end > res.Total {
+		end = res.Total
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"items":  result,
-		"total":  total,
+		"items":  res.Items[offset:end],
+		"total":  res.Total,
+		"all":    res.All,
 		"limit":  limit,
 		"offset": offset,
+		"facets": res.Facets,
 	})
 }
 
@@ -1074,15 +1497,16 @@ func (s *Server) handleProjectAttentionSummary(w http.ResponseWriter, r *http.Re
 	query := querySearch(r)
 	includeAll := auth.IsAdmin(u.Role) && r.URL.Query().Get("all") == "1"
 
-	projectList, total, err := s.database.ListProjectsFiltered(u.ID, includeAll, query, 250, 0)
+	projectList, total, err := s.listProjectsScoped(u, includeAll, query, 250, 0)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
+	snapshots := s.projectManager.SnapshotAll(projectList)
 	summary := projectAttentionSummary{Total: total}
 	for _, project := range projectList {
-		snapshot := s.projectManager.SnapshotProject(project)
+		snapshot := snapshots[project.ID]
 		isDegraded := strings.EqualFold(strings.TrimSpace(project.Status), "degraded")
 		if isDegraded {
 			summary.DegradedCount++
@@ -1121,9 +1545,30 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	req.ProjectType = strings.ToLower(strings.TrimSpace(req.ProjectType))
+	if err := validateProjectType(req.ProjectType); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+
 	slug := slugify(req.Name)
 	existing, _ := s.database.ListProjects(u.ID)
-	assignedPort := allocateProjectPort(u.ID, len(existing))
+	for _, other := range existing {
+		if other.Slug == slug {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "a project with this name already exists"})
+			return
+		}
+	}
+	assignedPort, err := s.allocateProjectPort(u.ID)
+	if err != nil {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+		return
+	}
+	run, err := s.runFromRequest(req.Run, req.ProjectType, assignedPort, nil)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 	workingDir, err := prepareProjectWorkingDir(u, slug, req.WorkingDir, req.ProjectType)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, fmt.Errorf("prepare project directory: %w", err))
@@ -1139,9 +1584,17 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	if req.Run != nil {
+		saved, runErr := s.database.UpdateProjectRun(p.ID, u.ID, run)
+		if runErr != nil {
+			s.writeError(w, http.StatusInternalServerError, runErr)
+			return
+		}
+		p = saved
+	}
 	log.Printf("[projects] created id=%d name=%q user=%q port=%d", p.ID, p.Name, u.Username, p.AssignedPort)
-	s.notifyUserAction(u.ID, "Project dibuat 🚀", fmt.Sprintf("Project '%s' berhasil dibuat pada port %d.", p.Name, p.AssignedPort), "success")
-	s.writeJSON(w, http.StatusCreated, p)
+	s.notifyUserAction(u.ID, "Project dibuat", fmt.Sprintf("Project '%s' dibuat di port %d.", p.Name, p.AssignedPort), "success")
+	s.writeJSON(w, http.StatusCreated, s.projectView(*p, true))
 }
 
 func prepareProjectWorkingDir(u *database.User, slug, requestedDir, projectType string) (string, error) {
@@ -1157,17 +1610,25 @@ func prepareProjectWorkingDir(u *database.User, slug, requestedDir, projectType 
 	if workingDir == "" {
 		workingDir = filepath.Join(panelosuser.ResolveHomeDir(u.Username), "project", slug)
 	}
-	workingDir = filepath.Clean(workingDir)
+	// the panel chowns this directory to the user, so it has to stay inside their home
+	resolvedDir, inHome, err := projects.ResolveWorkingDir(filepath.Clean(workingDir), panelosuser.ResolveHomeDir(u.Username), u.Role == "superadmin")
+	if err != nil {
+		return "", err
+	}
+	workingDir = resolvedDir
 	if err := os.MkdirAll(workingDir, 0755); err != nil {
 		return "", err
 	}
-	if err := chownPathToUser(workingDir, osUsername); err != nil {
-		return "", err
+	if inHome {
+		if err := chownPathToUser(workingDir, osUsername); err != nil {
+			return "", err
+		}
 	}
 
 	if strings.EqualFold(strings.TrimSpace(projectType), "static") {
 		indexPath := filepath.Join(workingDir, "index.html")
-		if _, err := os.Stat(indexPath); errors.Is(err, os.ErrNotExist) {
+		// Lstat: a dangling symlink here must not be followed by the write below
+		if _, err := os.Lstat(indexPath); errors.Is(err, os.ErrNotExist) {
 			content := fmt.Sprintf(`<!doctype html>
 <html lang="id">
 <head>
@@ -1186,8 +1647,10 @@ func prepareProjectWorkingDir(u *database.User, slug, requestedDir, projectType 
 			if err := os.WriteFile(indexPath, []byte(content), 0644); err != nil {
 				return "", err
 			}
-			if err := chownPathToUser(indexPath, osUsername); err != nil {
-				return "", err
+			if inHome {
+				if err := chownPathToUser(indexPath, osUsername); err != nil {
+					return "", err
+				}
 			}
 		} else if err != nil {
 			return "", err
@@ -1213,74 +1676,7 @@ func chownPathToUser(path, osUsername string) error {
 	if err != nil {
 		return nil
 	}
-	return os.Chown(path, uid, gid)
-}
-
-func chownPathRecursiveToUser(path, osUsername string) error {
-	if runtime.GOOS != "linux" || strings.TrimSpace(osUsername) == "" {
-		return nil
-	}
-	return filepath.Walk(path, func(current string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		return chownPathToUser(current, osUsername)
-	})
-}
-
-func clearDirectoryContents(dir string) error {
-	cleanDir := filepath.Clean(dir)
-	entries, err := os.ReadDir(cleanDir)
-	if err != nil {
-		return err
-	}
-	for _, entry := range entries {
-		target := filepath.Join(cleanDir, entry.Name())
-		if !pathWithinRoot(target, cleanDir) || filepath.Clean(target) == cleanDir {
-			return fmt.Errorf("refusing to remove unsafe path %q", target)
-		}
-		if err := os.RemoveAll(target); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func normalizeStaticUploadRoot(projectDir string) error {
-	indexPath := filepath.Join(projectDir, "index.html")
-	if _, err := os.Stat(indexPath); err == nil {
-		return nil
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-
-	entries, err := os.ReadDir(projectDir)
-	if err != nil {
-		return err
-	}
-	if len(entries) != 1 || !entries[0].IsDir() {
-		return nil
-	}
-
-	nestedDir := filepath.Join(projectDir, entries[0].Name())
-	if _, err := os.Stat(filepath.Join(nestedDir, "index.html")); err != nil {
-		return nil
-	}
-	nestedEntries, err := os.ReadDir(nestedDir)
-	if err != nil {
-		return err
-	}
-	for _, entry := range nestedEntries {
-		source := filepath.Join(nestedDir, entry.Name())
-		target := filepath.Join(projectDir, entry.Name())
-		if _, err := os.Stat(target); err == nil {
-			return fmt.Errorf("target already exists while flattening upload: %s", entry.Name())
-		}
-		if err := os.Rename(source, target); err != nil {
-			return err
-		}
-	}
-	return os.Remove(nestedDir)
+	return os.Lchown(path, uid, gid)
 }
 
 func detectStaticUploadSource(tempDir, requestedRoot string) (string, error) {
@@ -1405,24 +1801,9 @@ func findStaticRootCandidates(tempDir string) ([]string, error) {
 	return paths, nil
 }
 
-func copyDirectoryContents(sourceDir, destDir string) error {
-	entries, err := os.ReadDir(sourceDir)
-	if err != nil {
-		return err
-	}
-	for _, entry := range entries {
-		source := filepath.Join(sourceDir, entry.Name())
-		dest := filepath.Join(destDir, entry.Name())
-		if !pathWithinRoot(dest, destDir) {
-			return fmt.Errorf("refusing to copy unsafe path %q", dest)
-		}
-		if err := copyPathRecursive(source, dest); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
+// handleUploadStaticProject puts an uploaded site in the folder of a static project. The archive (zip, rar, tar.gz, tar) holds
+// either the built site or its source: a source with a build script is built here, as the owner of the project. The answer is
+// a stream of JSON lines (phase, log, done, error) so the window shows how far it is.
 func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	u := userFromCtx(r)
@@ -1437,7 +1818,11 @@ func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Reques
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "upload build hanya tersedia untuk static project"})
 		return
 	}
-	projectDir := filepath.Clean(project.WorkingDir)
+	projectDir, _, dirErr := projects.ResolveWorkingDir(filepath.Clean(project.WorkingDir), panelosuser.ResolveHomeDir(u.Username), u.Role == "superadmin")
+	if dirErr != nil {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": dirErr.Error()})
+		return
+	}
 	if projectDir == "" || projectDir == "." {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "project belum memiliki working directory"})
 		return
@@ -1454,16 +1839,16 @@ func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Reques
 	}
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "file ZIP harus dikirim"})
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "arsip harus dikirim"})
 		return
 	}
 	defer file.Close()
-	if header == nil || !strings.HasSuffix(strings.ToLower(header.Filename), ".zip") {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "hanya file .zip yang didukung"})
+	if header == nil || !isArchiveName(header.Filename) {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "format arsip tidak didukung: gunakan .zip, .rar, .tar.gz, atau .tar"})
 		return
 	}
 
-	tempFile, err := os.CreateTemp("", "ypanel-static-upload-*.zip")
+	tempFile, err := os.CreateTemp("", "reneo-static-upload-*")
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -1480,74 +1865,83 @@ func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	tempDir, err := os.MkdirTemp("", "ypanel-static-build-*")
+	// unpacked beside the project, so putting it in place is a rename and not a long copy
+	if err := os.MkdirAll(projectDir, 0o755); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	stageDir, err := os.MkdirTemp(filepath.Dir(projectDir), ".reneo-upload-*")
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(stageDir)
 
-	if err := extractZip(tempPath, tempDir); err != nil {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "gagal extract ZIP: " + err.Error()})
-		return
-	}
-	requestedRoot := strings.TrimSpace(r.FormValue("rootDir"))
-	sourceDir, err := detectStaticUploadSource(tempDir, requestedRoot)
-	if err != nil {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
-		return
-	}
+	// from here on the answer is a stream: what happens can take minutes
+	send := startLineStream(w)
+	phase := func(name string) { send(map[string]any{"type": "phase", "phase": name}) }
+	logLine := func(line string) { send(map[string]any{"type": "log", "line": line}) }
+	fail := func(message string) { send(map[string]any{"type": "error", "error": message}) }
 
-	if err := os.MkdirAll(projectDir, 0755); err != nil {
-		s.writeError(w, http.StatusInternalServerError, err)
+	phase("extracting")
+	if err := extractProjectArchive(tempPath, stageDir); err != nil {
+		fail("gagal extract arsip: " + err.Error())
 		return
-	}
-	if strings.EqualFold(r.FormValue("clean"), "true") {
-		if err := clearDirectoryContents(projectDir); err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-	}
-	serveDir := projectDir
-	if requestedRoot != "" {
-		if err := copyDirectoryContents(tempDir, projectDir); err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		relSource, err := filepath.Rel(tempDir, sourceDir)
-		if err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		serveDir = filepath.Clean(filepath.Join(projectDir, relSource))
-		if !pathWithinRoot(serveDir, projectDir) {
-			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "folder root ZIP tidak aman"})
-			return
-		}
-		if _, err := os.Stat(filepath.Join(serveDir, "index.html")); err != nil {
-			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "folder target tidak berisi index.html"})
-			return
-		}
-		updated, err := s.database.UpdateProject(project.ID, project.UserID, project.Name, project.Description, project.ProjectType, project.RepoURL, serveDir, project.SPAFallback)
-		if err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		project = updated
-	} else {
-		if err := copyDirectoryContents(sourceDir, projectDir); err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
 	}
 	osUsername := panelosuser.MappedUsername(u.Username)
-	if err := chownPathRecursiveToUser(projectDir, osUsername); err != nil {
-		s.writeError(w, http.StatusInternalServerError, err)
+	requestedRoot := strings.TrimSpace(r.FormValue("rootDir"))
+	sourceDir, err := detectStaticUploadSource(stageDir, requestedRoot)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	built := false
+	if _, err := os.Stat(filepath.Join(sourceDir, "index.html")); err != nil {
+		// no built site in it: a source with a build script is built here
+		srcDir := findSourceDir(stageDir, requestedRoot)
+		plan, planErr := planBuild(srcDir)
+		if srcDir == "" || planErr != nil {
+			reason := "tidak ada package.json"
+			if planErr != nil {
+				reason = planErr.Error()
+			}
+			fail("arsip tidak berisi index.html dan juga bukan source yang bisa di-build (" + reason + "). Unggah hasil build (dist), atau source yang punya script build.")
+			return
+		}
+		// the build runs as the owner of the project, so the folder must be theirs first
+		if err := chownTreeNoFollow(stageDir, osUsername); err != nil {
+			fail(err.Error())
+			return
+		}
+		logLine("Arsip berisi source (" + plan.Manager + "); dibangun di server.")
+		out, buildErr := buildSource(r.Context(), plan, osUsername, phase, logLine)
+		if buildErr != nil {
+			fail(buildErr.Error())
+			return
+		}
+		sourceDir, built = out, true
+	}
+	if err := chownTreeNoFollow(stageDir, osUsername); err != nil {
+		fail(err.Error())
+		return
+	}
+	phase("placing")
+	// a clean upload swaps entries one by one, so the site is never empty in between
+	place := mergeTree
+	if strings.EqualFold(r.FormValue("clean"), "true") {
+		place = replaceTree
+	}
+	if err := place(sourceDir, projectDir); err != nil {
+		fail(err.Error())
+		return
+	}
+	if err := chownTreeNoFollow(projectDir, osUsername); err != nil {
+		fail(err.Error())
 		return
 	}
 
-	s.auditFileAction(r, "project.static_upload", "success", map[string]any{"projectId": project.ID, "dest": projectDir, "serveDir": serveDir, "file": header.Filename})
-	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "project": project, "workingDir": serveDir})
+	s.auditFileAction(r, "project.static_upload", "success", map[string]any{"projectId": project.ID, "dest": projectDir, "file": header.Filename, "built": built})
+	send(map[string]any{"type": "done", "workingDir": projectDir, "built": built})
 }
 
 func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
@@ -1558,7 +1952,7 @@ func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
 		return
 	}
-	s.writeJSON(w, http.StatusOK, s.projectWithRuntime(*p))
+	s.writeJSON(w, http.StatusOK, s.projectView(*p, true))
 }
 
 func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
@@ -1586,6 +1980,21 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	if projectType == "" {
 		projectType = existing.ProjectType
 	}
+	projectType = strings.ToLower(projectType)
+	if projectType != existing.ProjectType {
+		if err := validateProjectType(projectType); err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+	if strings.TrimSpace(req.WorkingDir) == "" {
+		req.WorkingDir = existing.WorkingDir
+	}
+	run, err := s.runFromRequest(req.Run, projectType, existing.AssignedPort, &existing.Run)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 	workingDir, err := prepareProjectWorkingDir(u, existing.Slug, req.WorkingDir, projectType)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, fmt.Errorf("prepare project directory: %w", err))
@@ -1601,9 +2010,23 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	if req.Run != nil {
+		if p, err = s.database.UpdateProjectRun(id, u.ID, run); err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
+	// what runs must match what is saved: a changed folder, type, script, SPA setting or way of running needs a new process
+	if existing.WorkingDir != p.WorkingDir || existing.ProjectType != p.ProjectType || existing.RepoURL != p.RepoURL || existing.SPAFallback != p.SPAFallback || projects.RunChanged(existing.Run, p.Run) {
+		if status, restartErr := s.restartProject(u, existing, p); restartErr != nil {
+			log.Printf("[projects] restart after update failed id=%d: %v", p.ID, restartErr)
+		} else if status != "" {
+			p.Status = status
+		}
+	}
 	log.Printf("[projects] updated id=%d name=%q user=%q", p.ID, p.Name, u.Username)
-	s.notifyUserAction(u.ID, "Project diperbarui", fmt.Sprintf("Project '%s' berhasil diperbarui.", p.Name), "success")
-	s.writeJSON(w, http.StatusOK, s.projectWithRuntime(*p))
+	s.notifyUserAction(u.ID, "Project diperbarui", fmt.Sprintf("Project '%s' diperbarui.", p.Name), "success")
+	s.writeJSON(w, http.StatusOK, s.projectView(*p, true))
 }
 
 func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
@@ -1619,8 +2042,9 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.projectManager.RemoveLog(p.ID)
 	log.Printf("[projects] deleted id=%d user=%q", id, u.Username)
-	s.notifyUserAction(u.ID, "Project dihapus 🗑️", fmt.Sprintf("Project '%s' berhasil dihapus.", p.Name), "warning")
+	s.notifyUserAction(u.ID, "Project dihapus", fmt.Sprintf("Project '%s' dihapus dari panel. Berkas di foldernya tidak ikut dihapus.", p.Name), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -1632,16 +2056,75 @@ func (s *Server) handleStartProject(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
 		return
 	}
-	if err := s.projectManager.Start(u, p); err != nil {
+	if !projects.Runnable(p.ProjectType) {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "tipe project ini tidak dijalankan sebagai proses"})
+		return
+	}
+	// active only once the project accepts connections; one still installing or building says so
+	ready, err := s.projectManager.StartAndWait(u, p, projectStartWait)
+	if err != nil {
 		_ = s.database.UpdateProjectStatus(id, "error")
-		s.notifyUserAction(u.ID, "Project gagal dijalankan ⚠️", fmt.Sprintf("Project '%s' gagal dijalankan: %s", p.Name, err.Error()), "warning")
+		s.notifyUserAction(u.ID, "Project gagal dijalankan", fmt.Sprintf("Project '%s' gagal dijalankan: %s", p.Name, err.Error()), "warning")
 		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	if !ready {
+		_ = s.database.UpdateProjectStatus(id, "building")
+		p.Status = "building"
+		s.notifyUserAction(u.ID, "Project sedang dimulai", fmt.Sprintf("Project '%s' belum membuka port. Pantau log project.", p.Name), "info")
+		s.writeJSON(w, http.StatusAccepted, jsonResponse{"ok": true, "status": "building", "project": s.projectWithRuntime(*p)})
 		return
 	}
 	_ = s.database.UpdateProjectStatus(id, "active")
 	p.Status = "active"
-	s.notifyUserAction(u.ID, "Project berjalan ▶️", fmt.Sprintf("Project '%s' berhasil dijalankan.", p.Name), "success")
+	s.notifyUserAction(u.ID, "Project berjalan", fmt.Sprintf("Project '%s' berjalan.", p.Name), "success")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": "active", "project": s.projectWithRuntime(*p)})
+}
+
+// projectStartWait is how long a start waits for the project to open its port
+const projectStartWait = 30 * time.Second
+
+// restartProject starts a running project again after its settings changed, so the running
+// process matches what is saved. A project that is not running is left alone.
+func (s *Server) restartProject(u *database.User, before, after *database.Project) (string, error) {
+	if !s.projectManager.SnapshotProject(*before).Running {
+		return "", nil
+	}
+	if err := s.projectManager.StopProject(*before); err != nil {
+		return "", err
+	}
+	ready, err := s.projectManager.StartAndWait(u, after, projectStartWait)
+	status := "active"
+	switch {
+	case err != nil:
+		status = "error"
+	case !ready:
+		status = "building"
+	}
+	_ = s.database.UpdateProjectStatus(after.ID, status)
+	return status, err
+}
+
+func (s *Server) handleProjectLogs(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	id := parsePathID(r, "id")
+	p, err := s.database.GetProject(id, u.ID)
+	if err != nil || p == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
+		return
+	}
+	lines := 300
+	if raw := r.URL.Query().Get("lines"); raw != "" {
+		if n, convErr := strconv.Atoi(raw); convErr == nil && n > 0 && n <= 2000 {
+			lines = n
+		}
+	}
+	out, err := s.projectManager.ReadLog(p.ID, lines)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"lines": out})
 }
 
 func (s *Server) handleStopProject(w http.ResponseWriter, r *http.Request) {
@@ -1658,7 +2141,7 @@ func (s *Server) handleStopProject(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.database.UpdateProjectStatus(id, "stopped")
 	existing.Status = "stopped"
-	s.notifyUserAction(u.ID, "Project dihentikan ⏸️", fmt.Sprintf("Project '%s' berhasil dihentikan.", existing.Name), "info")
+	s.notifyUserAction(u.ID, "Project dihentikan", fmt.Sprintf("Project '%s' dihentikan.", existing.Name), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": "stopped", "project": s.projectWithRuntime(*existing)})
 }
 
@@ -1798,7 +2281,7 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 			if cfErr != nil {
 				log.Printf("[tunnels] CF create failed db_id=%d err=%v", tunnelDBID, cfErr)
 				_ = s.database.UpdateTunnelStatus(tunnelDBID, "error")
-				s.notifyUserAction(userID, "Pembuatan tunnel gagal ⚠️", fmt.Sprintf("Tunnel '%s' gagal dibuat: %s", name, cfErr.Error()), "warning")
+				s.notifyUserAction(userID, "Tunnel gagal dibuat", fmt.Sprintf("Tunnel '%s' gagal dibuat: %s", name, cfErr.Error()), "warning")
 				return
 			}
 			mainTunnelID = info.ID
@@ -1853,12 +2336,13 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 		_ = s.cfDaemon.StopTunnel(mainTunnelID)
 		if daemonErr := s.cfDaemon.StartTunnel(mainTunnelID, userID, credJSON, configYAML); daemonErr != nil {
 			log.Printf("[tunnels] daemon start failed db_id=%d err=%v", tunnelDBID, daemonErr)
-			s.notifyUserAction(userID, "Daemon tunnel bermasalah ⚠️", fmt.Sprintf("Tunnel '%s' aktif tetapi daemon gagal start: %s", name, daemonErr.Error()), "warning")
+			s.notifyUserAction(userID, "Daemon tunnel bermasalah", fmt.Sprintf("Tunnel '%s' dibuat, tetapi daemon-nya gagal berjalan: %s", name, daemonErr.Error()), "warning")
 		}
 
 		_ = s.database.UpdateTunnelCF(tunnelDBID, mainTunnelID, hostname, reqZoneID, "active")
+		s.invalidateWorkloadHosts()
 		log.Printf("[tunnels] tunnel active db_id=%d cf_id=%s hostname=%s", tunnelDBID, mainTunnelID, hostname)
-		s.notifyUserAction(userID, "Rute Tunnel Aktif 🟢", "Rute '"+name+"' berhasil dibuat.", "success")
+		s.notifyUserAction(userID, "Rute tunnel dibuat", "Rute '"+name+"' dibuat.", "success")
 	}(t.ID, u.ID, req.Name, req.Subdomain, req.Domain, req.ZoneID, cfCfg, apiToken)
 
 	s.writeJSON(w, http.StatusAccepted, jsonResponse{
@@ -1924,6 +2408,7 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 	targetURL := fmt.Sprintf("%s://%s:%s%s", req.Protocol, req.IP, req.Port, req.Path)
 
 	_ = s.database.UpdateTunnel(id, u.ID, req.Name, targetURL, hostname, req.ZoneID)
+	s.invalidateWorkloadHosts()
 
 	// Async CF update
 	go func(tunnelDBID int64, userID int64, cfTunnelID string, oldHostname, oldZoneID, newHostname, reqZoneID string, cfCopy *database.CloudflareConfig, token string) {
@@ -1976,7 +2461,7 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 		}
 	}(t.ID, u.ID, t.CFTunnelID, t.CFHostname, t.CFZoneID, hostname, req.ZoneID, cfCfg, apiToken)
 
-	s.notifyUserAction(u.ID, "Rute tunnel diperbarui 🌐", fmt.Sprintf("Rute '%s' berhasil diperbarui.", req.Name), "info")
+	s.notifyUserAction(u.ID, "Rute tunnel diperbarui", fmt.Sprintf("Rute '%s' diperbarui.", req.Name), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "Rute berhasil diperbarui"})
 }
 
@@ -2001,6 +2486,7 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = s.database.DeleteTunnel(id, u.ID)
+	s.invalidateWorkloadHosts()
 	log.Printf("[tunnels] deleted route id=%d user=%q", id, u.Username)
 
 	allRoutes, _ := s.database.ListTunnels(u.ID)
@@ -2065,7 +2551,7 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 		}(t.CFTunnelID, t.CFHostname, t.CFZoneID, u.ID)
 	}
 
-	s.notifyUserAction(u.ID, "Rute tunnel dihapus 🗑️", fmt.Sprintf("Rute '%s' berhasil dihapus.", t.Name), "warning")
+	s.notifyUserAction(u.ID, "Rute tunnel dihapus", fmt.Sprintf("Rute '%s' dihapus.", t.Name), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -2097,12 +2583,15 @@ func (s *Server) handleMarkAllNotificationsRead(w http.ResponseWriter, r *http.R
 }
 
 type docPayload struct {
-	Title   string `json:"title"`
-	Slug    string `json:"slug"`
-	Excerpt string `json:"excerpt"`
-	Content string `json:"content"`
-	Status  string `json:"status"`
+	Title    string `json:"title"`
+	Slug     string `json:"slug"`
+	Excerpt  string `json:"excerpt"`
+	Content  string `json:"content"`
+	Status   string `json:"status"`
+	IsPublic bool   `json:"isPublic"`
 }
+
+const maxDocContentBytes = 200 << 10
 
 func normalizeDocPayload(req *docPayload) error {
 	req.Title = strings.TrimSpace(req.Title)
@@ -2115,6 +2604,9 @@ func normalizeDocPayload(req *docPayload) error {
 	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
 	if req.Title == "" {
 		return fmt.Errorf("title is required")
+	}
+	if len(req.Content) > maxDocContentBytes {
+		return fmt.Errorf("content is too long (max %d KB)", maxDocContentBytes>>10)
 	}
 	if req.Slug == "" {
 		return fmt.Errorf("slug is required")
@@ -2187,12 +2679,16 @@ func (s *Server) handleCreateDoc(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	doc, err := s.database.CreateDoc(&u.ID, req.Title, req.Slug, req.Excerpt, req.Content, req.Status)
+	doc, err := s.database.CreateDoc(&u.ID, req.Title, req.Slug, req.Excerpt, req.Content, req.Status, req.IsPublic)
 	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key") {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "an article with this slug already exists"})
+			return
+		}
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.notifyUserAction(u.ID, "Dokumentasi dibuat 📝", fmt.Sprintf("Artikel '%s' berhasil dibuat.", doc.Title), "success")
+	s.notifyUserAction(u.ID, "Artikel dibuat", fmt.Sprintf("Artikel '%s' dibuat.", doc.Title), "success")
 	s.writeJSON(w, http.StatusCreated, doc)
 }
 
@@ -2209,8 +2705,12 @@ func (s *Server) handleUpdateDoc(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	doc, err := s.database.UpdateDoc(id, req.Title, req.Slug, req.Excerpt, req.Content, req.Status)
+	doc, err := s.database.UpdateDoc(id, req.Title, req.Slug, req.Excerpt, req.Content, req.Status, req.IsPublic)
 	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key") {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "an article with this slug already exists"})
+			return
+		}
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -2218,7 +2718,7 @@ func (s *Server) handleUpdateDoc(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "doc not found"})
 		return
 	}
-	s.notifyUserAction(u.ID, "Dokumentasi diperbarui ✨", fmt.Sprintf("Artikel '%s' berhasil diperbarui.", doc.Title), "info")
+	s.notifyUserAction(u.ID, "Artikel diperbarui", fmt.Sprintf("Artikel '%s' diperbarui.", doc.Title), "info")
 	s.writeJSON(w, http.StatusOK, doc)
 }
 
@@ -2234,7 +2734,7 @@ func (s *Server) handleDeleteDoc(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.notifyUserAction(u.ID, "Dokumentasi dihapus 🗑️", fmt.Sprintf("%s berhasil dihapus.", docTitle), "warning")
+	s.notifyUserAction(u.ID, "Artikel dihapus", fmt.Sprintf("%s dihapus.", docTitle), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -2265,18 +2765,37 @@ func slugify(name string) string {
 	return result
 }
 
-func allocateProjectPort(userID int64, projectIndex int) int {
-	const base, block, maxUID = 10000, 100, 900
-	basePt := base + int((userID-1)%int64(maxUID))*block
-	return basePt + (projectIndex % block)
+// runnableProjectTypes are the types the agent can start as a process. "docker" and
+// "proxy" rows only exist from older versions: containers belong in the Docker
+// window and public routes in Cloudflare tunnels.
+var runnableProjectTypes = map[string]bool{"static": true, "nodejs": true, "python": true, "php": true, "custom": true, "stack": true}
+
+func validateProjectType(projectType string) error {
+	if runnableProjectTypes[projectType] {
+		return nil
+	}
+	switch projectType {
+	case "docker":
+		return errors.New("container workloads are created from the Docker window, not as a project")
+	case "proxy":
+		return errors.New("public routes to existing services are created from Cloudflare tunnels, not as a project")
+	case "":
+		return errors.New("project type is required")
+	}
+	return fmt.Errorf("unsupported project type %q (use static, nodejs, python, php, custom or stack)", projectType)
 }
 
-func generateRandomSubdomain() string {
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	buf := make([]byte, 8)
-	_, _ = rand.Read(buf)
-	for i := range buf {
-		buf[i] = chars[int(buf[i])%len(chars)]
+// allocateProjectPort gives a project the first free port of its owner's block. A port that a
+// project, a database or a container holds, or that something on the host listens on, is never given.
+// An owner whose block is full takes the first free port of the whole project range.
+func (s *Server) allocateProjectPort(userID int64) (int, error) {
+	start := projects.AllocatePort(userID, 0)
+	if port, err := s.freePort(start, start+projects.PortBlock-1, nil); err == nil {
+		return port, nil
 	}
-	return string(buf)
+	port, err := s.freePort(projects.PortBase, 65535, func(p int) bool { return p >= userdb.PortStart && p <= userdb.PortEnd })
+	if err != nil {
+		return 0, errors.New("no free port left for projects")
+	}
+	return port, nil
 }

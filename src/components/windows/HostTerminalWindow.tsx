@@ -1,48 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, RefreshCcw, RotateCcw, Trash2, X } from 'lucide-react'
-import { Terminal } from 'xterm'
-import { FitAddon } from '@xterm/addon-fit'
+import { toast } from 'sonner'
+import { TerminalKeyBar } from '@/components/windows/terminal/TerminalKeyBar'
+import { TerminalCopyModal } from '@/components/windows/terminal/TerminalCopyModal'
+import { TerminalTabPane } from '@/components/windows/terminal/TerminalTabPane'
+import { ChevronLeft, ChevronRight, Keyboard, MoreVertical, Plus, RefreshCcw, SquareTerminal, Trash2, X, Zap } from 'lucide-react'
 import 'xterm/css/xterm.css'
-import { useWindowStore, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize } from '@/store/windowStore'
-import { useTerminalSession } from '@/hooks/useTerminalSession'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { useWindowStore, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize, TERMINAL_FONT_DEFAULT } from '@/store/windowStore'
 import {
+  copyTextToClipboard,
   listTerminalPresets,
   createTerminalPreset,
   deleteTerminalPreset,
   resetTerminalPresets,
+  closeTerminalSession,
+  listTerminalSessions,
   type TerminalPreset,
 } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
-
-const cssVar = (name: string) => {
-  if (typeof window === 'undefined') return `var(${name})`
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || `var(${name})`
-}
-
-const createXtermTheme = () => ({
-  background: cssVar('--terminal-bg'),
-  foreground: cssVar('--terminal-fg'),
-  cursor: cssVar('--terminal-cursor'),
-  cursorAccent: cssVar('--terminal-cursor-accent'),
-  selectionBackground: cssVar('--terminal-selection-bg'),
-  selectionForeground: cssVar('--terminal-selection-fg'),
-  black: cssVar('--terminal-black'),
-  red: cssVar('--terminal-red'),
-  green: cssVar('--terminal-green'),
-  yellow: cssVar('--terminal-yellow'),
-  blue: cssVar('--terminal-blue'),
-  magenta: cssVar('--terminal-magenta'),
-  cyan: cssVar('--terminal-cyan'),
-  white: cssVar('--terminal-white'),
-  brightBlack: cssVar('--terminal-bright-black'),
-  brightRed: cssVar('--terminal-bright-red'),
-  brightGreen: cssVar('--terminal-bright-green'),
-  brightYellow: cssVar('--terminal-bright-yellow'),
-  brightBlue: cssVar('--terminal-bright-blue'),
-  brightMagenta: cssVar('--terminal-bright-magenta'),
-  brightCyan: cssVar('--terminal-bright-cyan'),
-  brightWhite: cssVar('--terminal-bright-white'),
-})
+import type { WindowState } from '@/types'
+import { alertLib } from '@/lib/alert'
+import { Button } from '@/components/ui/Button'
+import { Field, TextInput } from '@/components/ui/Field'
+import { IconButton } from '@/components/ui/IconButton'
+import { ListRow } from '@/components/ui/ListRow'
+import { EmptyState } from '@/components/ui/states'
 
 const TERMINAL_FONT_OPTIONS = [
   'Outfit, system-ui, sans-serif',
@@ -50,161 +32,198 @@ const TERMINAL_FONT_OPTIONS = [
   'JetBrains Mono, monospace',
 ]
 
-// ─── Single terminal pane ─────────────────────────────────────────────────────
-interface TerminalTabPaneProps {
-  authenticated?: boolean
-  active: boolean
-  target?: string
-  fontFamily: string
-  fontSize: number
-  onStatusChange?: (connected: boolean, error: boolean) => void
-  onStart?: (start: (target?: string) => Promise<void>) => void
-  onSendInput?: (fn: (cmd: string) => Promise<void>) => void
-}
-
-function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, fontSize, onStatusChange, onStart, onSendInput }: TerminalTabPaneProps) {
-  const {
-    starting, connected, error,
-    start, sendInput, updateTerminalSize, setOutputListener, close,
-  } = useTerminalSession()
-
-  const viewportRef = useRef<HTMLDivElement | null>(null)
-  const xtermRef    = useRef<Terminal | null>(null)
-  const fitRef      = useRef<FitAddon | null>(null)
-
-  useEffect(() => { onStart?.(start) }, [onStart, start])
-  useEffect(() => { onSendInput?.(sendInput) }, [onSendInput, sendInput])
-  useEffect(() => { onStatusChange?.(connected, !!error) }, [connected, error, onStatusChange])
-
-  // Auto-start and Re-connect on authentication
-  useEffect(() => {
-    if (authenticated && (!connected || error) && !starting) {
-      console.log(`[Terminal] Session recovered or initial mount. Starting session for ${target}...`)
-      void start(target)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated]) 
-
-  // Mount xterm once
-  useEffect(() => {
-    const host = viewportRef.current
-    if (!host || xtermRef.current) return
-    const xterm = new Terminal({
-      cursorBlink: true, fontFamily, fontSize,
-      lineHeight: 1.22, convertEol: true, scrollback: 5000,
-      allowTransparency: true, theme: createXtermTheme(),
-    })
-    const fit = new FitAddon()
-    fitRef.current = fit
-    xterm.loadAddon(fit)
-    xterm.open(host)
-    xtermRef.current = xterm
-    const syncSize = () => {
-      if (!xtermRef.current || !fitRef.current || !viewportRef.current?.isConnected) return
-      fitRef.current.fit()
-      updateTerminalSize(xtermRef.current.cols, xtermRef.current.rows)
-    }
-    const ro = new ResizeObserver(() => requestAnimationFrame(syncSize))
-    ro.observe(host)
-    window.addEventListener('resize', syncSize)
-    const d = xterm.onData((v) => void sendInput(v))
-    requestAnimationFrame(() => { syncSize(); xterm.focus() })
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('resize', syncSize)
-      d.dispose()
-      setOutputListener(null)
-      fitRef.current = null
-      xterm.dispose()
-      xtermRef.current = null
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    setOutputListener((chunk) => xtermRef.current?.write(chunk))
-    return () => setOutputListener(null)
-  }, [setOutputListener])
-
-  // Force resize sync on connection or active status
-  useEffect(() => {
-    if (!connected || !active) return
-    let count = 0
-    const interval = setInterval(() => {
-      count++
-      fitRef.current?.fit()
-      const x = xtermRef.current
-      if (x) {
-        updateTerminalSize(x.cols, x.rows)
-        if (count === 1) x.focus() // Focus on first try
-      }
-      if (count > 12) clearInterval(interval) // Stop after 3 seconds
-    }, 250)
-
-    // Also strictly refit when document fonts finish loading
-    void document.fonts.ready.then(() => {
-      fitRef.current?.fit()
-      const x = xtermRef.current
-      if (x) updateTerminalSize(x.cols, x.rows)
-    })
-
-    return () => clearInterval(interval)
-  }, [connected, active, updateTerminalSize])
-
-  useEffect(() => {
-    const x = xtermRef.current; if (!x) return
-    // Toggling the font family forces xterm to invalidate its character cell cache
-    x.options.fontFamily = 'serif'
-    requestAnimationFrame(() => {
-      x.options.fontFamily = fontFamily
-      x.options.fontSize = fontSize
-      requestAnimationFrame(() => { fitRef.current?.fit(); updateTerminalSize(x.cols, x.rows) })
-    })
-  }, [fontFamily, fontSize, updateTerminalSize])
-
-  useEffect(() => { if (starting) xtermRef.current?.reset() }, [starting])
-  useEffect(() => () => { void close() }, [close])
-
-  return (
-    <div
-      ref={viewportRef}
-      className="ht-pane"
-      style={{
-        visibility: active ? 'visible' : 'hidden',
-        zIndex: active ? 1 : 0,
-        pointerEvents: active ? 'auto' : 'none',
-      }}
-      onClick={() => xtermRef.current?.focus()}
-    />
-  )
-}
-
 // ─── Tab state ────────────────────────────────────────────────────────────────
 let nextTabId = 1
 interface Tab {
   id: number
   label: string
   target: string
+  cwd?: string
+  sessionId?: string
   connected: boolean
   error: boolean
-  startFn: ((target?: string) => Promise<void>) | null
-  sendInputFn: ((cmd: string) => Promise<void>) | null
+  reconnecting: boolean
+}
+
+const TERMINAL_TABS_STORAGE_KEY = 'reneo-terminal-tabs'
+
+interface StoredTerminalTab {
+  id: number
+  label: string
+  target: string
+  cwd?: string
+  sessionId?: string
+}
+
+interface StoredTerminalState {
+  activeTabId: number
+  tabs: StoredTerminalTab[]
+}
+
+function loadStoredTerminalState(): StoredTerminalState | null {
+  try {
+    const raw = localStorage.getItem(TERMINAL_TABS_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as StoredTerminalState
+    if (parsed && Array.isArray(parsed.tabs) && parsed.tabs.length > 0) {
+      return parsed
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null
+}
+
+function saveStoredTerminalState(state: StoredTerminalState) {
+  try {
+    localStorage.setItem(TERMINAL_TABS_STORAGE_KEY, JSON.stringify(state))
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+// What a terminal's state is called and which color shows it
+function statusOf(tab: Tab) {
+  if (tab.error) return { key: 'error', color: 'var(--status-error)' }
+  if (tab.reconnecting) return { key: 'reconnecting', color: 'var(--panel-warning-text)' }
+  if (tab.connected) return { key: 'connected', color: 'var(--status-online)' }
+  return { key: 'offline', color: 'var(--status-offline)' }
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export function HostTerminalWindow({ authenticated }: { authenticated?: boolean }) {
+// The folder named last in a path, for the label of a terminal opened there
+function folderLabel(path: string) {
+  const parts = path.split('/').filter(Boolean)
+  return parts.length > 0 ? parts[parts.length - 1] : '/'
+}
+
+export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const globalContentZoom      = useWindowStore(selectGlobalContentZoom)
   const globalFontIndex        = useWindowStore(selectGlobalFontIndex)
   const globalTerminalFontSize = useWindowStore(selectGlobalTerminalFontSize)
   const fontFamily = TERMINAL_FONT_OPTIONS[globalFontIndex] ?? TERMINAL_FONT_OPTIONS[2]
   const fontSize   = Math.max(7, Math.round(globalTerminalFontSize * globalContentZoom * 10) / 10)
 
+  // Size steps from Ctrl + wheel or Ctrl + / - / 0; the store keeps it between sessions
+  const zoom = useCallback((step: number) => {
+    const state = useWindowStore.getState()
+    state.setGlobalTerminalFontSize(step === 0 ? TERMINAL_FONT_DEFAULT : state.globalTerminalFontSize + step)
+  }, [])
+
+  // a short readout of the size after each change, so the step is visible
+  const [zoomHint, setZoomHint] = useState('')
+  const firstSize = useRef(true)
+  useEffect(() => {
+    if (firstSize.current) {
+      firstSize.current = false
+      return
+    }
+    setZoomHint(`${globalTerminalFontSize}px · ${Math.round((globalTerminalFontSize / TERMINAL_FONT_DEFAULT) * 100)}%`)
+    const timer = window.setTimeout(() => setZoomHint(''), 900)
+    return () => window.clearTimeout(timer)
+  }, [globalTerminalFontSize])
+
   const { t } = useI18n()
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
-  const [tabs, setTabs] = useState<Tab[]>(() => [
-    { id: nextTabId++, label: t('hostTerminal.localServer'), target: 'local', connected: false, error: false, startFn: null, sendInputFn: null },
-  ])
-  const [activeTabId, setActiveTabId] = useState<number>(tabs[0].id)
+  // a window opened from the File Manager starts its first terminal in that folder
+  const requestedCwd = typeof win?.params?.cwd === 'string' ? win.params.cwd : ''
+  const cwdRequest = win?.params?.cwdRequest
+  const [tabs, setTabs] = useState<Tab[]>(() => {
+    const stored = loadStoredTerminalState()
+    if (stored && stored.tabs.length > 0) {
+      const maxId = Math.max(...stored.tabs.map((t) => t.id), 0)
+      if (maxId >= nextTabId) nextTabId = maxId + 1
+
+      return stored.tabs.map((st) => ({
+        id: st.id,
+        label: st.label,
+        target: st.target,
+        cwd: st.cwd,
+        sessionId: st.sessionId,
+        connected: false,
+        error: false,
+        reconnecting: false,
+      }))
+    }
+    return [
+      { id: nextTabId++, label: requestedCwd ? folderLabel(requestedCwd) : t('hostTerminal.localServer'), target: 'local', cwd: requestedCwd || undefined, connected: false, error: false, reconnecting: false },
+    ]
+  })
+  const [activeTabId, setActiveTabId] = useState<number>(() => {
+    const stored = loadStoredTerminalState()
+    if (stored && stored.tabs.some((t) => t.id === stored.activeTabId)) {
+      return stored.activeTabId
+    }
+    return 1
+  })
+
+  const tabsRef = useRef(tabs)
+  tabsRef.current = tabs
+  const activeTabIdRef = useRef(activeTabId)
+  activeTabIdRef.current = activeTabId
+
+  // Verify which stored sessions are still running on the agent
+  useEffect(() => {
+    if (!authenticated) return
+    void listTerminalSessions().then((activeSessions) => {
+      const activeList = Array.isArray(activeSessions) ? activeSessions : []
+      const activeIds = new Set(activeList.map((s) => s.sessionId))
+      setTabs((prev) => {
+        let changed = false
+        const next = prev.map((t) => {
+          if (t.sessionId && !activeIds.has(t.sessionId)) {
+            changed = true
+            return { ...t, sessionId: undefined }
+          }
+          return t
+        })
+        if (changed) {
+          saveStoredTerminalState({
+            activeTabId: activeTabIdRef.current,
+            tabs: next.map((t) => ({ id: t.id, label: t.label, target: t.target, cwd: t.cwd, sessionId: t.sessionId })),
+          })
+        }
+        return changed ? next : prev
+      })
+    }).catch(() => {})
+  }, [authenticated])
+
+  const selectTab = useCallback((id: number) => {
+    setActiveTabId(id)
+    activeTabIdRef.current = id
+    saveStoredTerminalState({
+      activeTabId: id,
+      tabs: tabsRef.current.map((t) => ({ id: t.id, label: t.label, target: t.target, cwd: t.cwd, sessionId: t.sessionId })),
+    })
+  }, [])
+
+  const handleSessionChange = useCallback((tabId: number, sessionId: string | null) => {
+    setTabs((prev) => {
+      const next = prev.map((t) => (t.id === tabId ? { ...t, sessionId: sessionId || undefined } : t))
+      saveStoredTerminalState({
+        activeTabId: activeTabIdRef.current,
+        tabs: next.map((t) => ({ id: t.id, label: t.label, target: t.target, cwd: t.cwd, sessionId: t.sessionId })),
+      })
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      const isWindowStillOpen = useWindowStore.getState().windows.some((w) => w.kind === 'host-terminal')
+      if (!isWindowStillOpen) {
+        try {
+          localStorage.removeItem(TERMINAL_TABS_STORAGE_KEY)
+        } catch {}
+        for (const tab of tabsRef.current) {
+          if (tab.sessionId) {
+            void closeTerminalSession(tab.sessionId)
+          }
+        }
+      }
+    }
+  }, [])
 
   const [showSshModal, setShowSshModal] = useState(false)
   const [sshInput, setSshInput] = useState('')
@@ -216,19 +235,48 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated])
 
-  const addTab = useCallback((target = 'local', label?: string) => {
+  const isMobileLayout = useIsMobileLayout()
+  const [showKeyBar, setShowKeyBar] = useState(() => isMobileLayout || (typeof window !== 'undefined' && window.innerWidth <= 768))
+
+  useEffect(() => {
+    if (isMobileLayout) {
+      setShowKeyBar(true)
+    }
+  }, [isMobileLayout])
+
+  const tabActionsRef = useRef(new Map<number, {
+    start: (target?: string) => Promise<void>
+    sendInput: (cmd: string) => Promise<void>
+  }>())
+
+  const addTab = useCallback((target = 'local', label?: string, cwd?: string) => {
     const id = nextTabId++
-    setTabs((prev) => [...prev, { 
-      id, 
-      label: label || (target === 'local' ? t('hostTerminal.localServer') : target), 
-      target,
-      connected: false, 
-      error: false, 
-      startFn: null, 
-      sendInputFn: null 
-    }])
-    setActiveTabId(id)
-  }, [])
+    setTabs((prev) => {
+      const next = [...prev, { 
+        id, 
+        label: label || (cwd ? folderLabel(cwd) : target === 'local' ? t('hostTerminal.localServer') : target), 
+        target,
+        cwd,
+        connected: false, 
+        error: false, 
+        reconnecting: false,
+      }]
+      saveStoredTerminalState({
+        activeTabId: id,
+        tabs: next.map((t) => ({ id: t.id, label: t.label, target: t.target, cwd: t.cwd, sessionId: t.sessionId })),
+      })
+      return next
+    })
+    selectTab(id)
+  }, [t, selectTab])
+
+  // Asked again while the window is open (the File Manager's Terminal button): a new terminal in that folder
+  const lastCwdRequest = useRef(cwdRequest)
+  useEffect(() => {
+    if (cwdRequest === undefined || cwdRequest === lastCwdRequest.current) return
+    lastCwdRequest.current = cwdRequest
+    if (requestedCwd) addTab('local', undefined, requestedCwd)
+  }, [cwdRequest, requestedCwd, addTab])
 
   const handleSshConnect = () => {
     const t = sshInput.trim()
@@ -239,37 +287,74 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
   }
 
   const closeTab = useCallback((id: number) => {
+    tabActionsRef.current.delete(id)
     setTabs((prev) => {
       if (prev.length === 1) return prev
+      const closing = prev.find((t) => t.id === id)
+      if (closing?.sessionId) {
+        void closeTerminalSession(closing.sessionId)
+      }
       const next = prev.filter((t) => t.id !== id)
+      let nextActiveId = activeTabId
       if (id === activeTabId) {
         const idx = prev.findIndex((t) => t.id === id)
-        setActiveTabId(next[Math.max(0, idx - 1)].id)
+        nextActiveId = next[Math.max(0, idx - 1)].id
+        setActiveTabId(nextActiveId)
       }
+      saveStoredTerminalState({
+        activeTabId: nextActiveId,
+        tabs: next.map((t) => ({ id: t.id, label: t.label, target: t.target, cwd: t.cwd, sessionId: t.sessionId })),
+      })
       return next
     })
   }, [activeTabId])
 
-  const handleStatusChange = useCallback((tabId: number, connected: boolean, error: boolean) => {
-    setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, connected, error } : t))
-  }, [])
-
-  const handleStart = useCallback((tabId: number, fn: (target?: string) => Promise<void>) => {
-    setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, startFn: fn } : t))
-  }, [])
-
-  const handleSendInput = useCallback((tabId: number, fn: (cmd: string) => Promise<void>) => {
-    setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, sendInputFn: fn } : t))
+  const handleStatusChange = useCallback((tabId: number, connected: boolean, error: boolean, reconnecting: boolean) => {
+    setTabs((prev) => (prev.some((t) => t.id === tabId && (t.connected !== connected || t.error !== error || t.reconnecting !== reconnecting))
+      ? prev.map((t) => (t.id === tabId ? { ...t, connected, error, reconnecting } : t))
+      : prev))
   }, [])
 
   const activeTab = useMemo(() => tabs.find((t) => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId])
 
-  const handleReconnect = () => activeTab.startFn?.(activeTab.target)
+  // the text of a terminal, for a phone that cannot select from the screen: the copy sheet shows it as plain text
+  const readersRef = useRef(new Map<number, () => string>())
+  const selectionReadersRef = useRef(new Map<number, () => string>())
+  const [copyText, setCopyText] = useState<string | null>(null)
+  const handleCopyAction = async () => {
+    const picked = selectionReadersRef.current.get(activeTab.id)?.() ?? ''
+    if (picked) {
+      try {
+        await copyTextToClipboard(picked)
+        toast.success(t('terminal.copy.copied'))
+      } catch {
+        toast.error(t('terminal.copy.failed'))
+      }
+      return
+    }
+    setCopyText(readersRef.current.get(activeTab.id)?.() ?? '')
+  }
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text) {
+        const act = tabActionsRef.current.get(activeTab.id)
+        await act?.sendInput(text)
+      }
+    } catch {
+      alertLib.fire(t('terminal.paste'), t('terminal.paste.failed'), 'warning', 'host-terminal')
+    }
+  }
+
+  const handleReconnect = () => {
+    const act = tabActionsRef.current.get(activeTab.id)
+    void act?.start(activeTab.target)
+  }
 
   const runPreset = async (command: string) => {
-    const fn = activeTab.sendInputFn
-    if (!fn) return
-    await fn(`${command}\r`)
+    const act = tabActionsRef.current.get(activeTab.id)
+    if (!act) return
+    await act.sendInput(`${command}\r`)
   }
 
   // ── Presets ───────────────────────────────────────────────────────────────
@@ -316,6 +401,16 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     }
   }
 
+  const confirmDeletePreset = async (id: number, name: string) => {
+    const ok = await alertLib.confirm(t('hostTerminal.deleteShortcutTitle'), t('hostTerminal.deleteShortcutMessage', { name }), t('common.delete'), t('common.cancel'), 'warning', 'host-terminal')
+    if (ok) await handleDeletePreset(id)
+  }
+
+  const confirmResetPresets = async () => {
+    const ok = await alertLib.confirm(t('hostTerminal.resetShortcutsTitle'), t('hostTerminal.resetShortcutsMessage'), t('hostTerminal.resetDefault'), t('common.cancel'), 'warning', 'host-terminal')
+    if (ok) await handleResetPresets()
+  }
+
   const handleResetPresets = async () => {
     setResetting(true)
     try {
@@ -327,39 +422,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     }
   }
 
-  // ── Drag to scroll for presets ──────────────────────────────────────────
-  const presetsScrollRef = useRef<HTMLDivElement>(null)
-  const isDraggingRef = useRef(false)
-  const startXRef = useRef(0)
-  const scrollLeftRef = useRef(0)
-  const hasDraggedRef = useRef(false)
-
-  const handlePresetsMouseDown = (e: React.MouseEvent) => {
-    if (!presetsScrollRef.current) return
-    isDraggingRef.current = true
-    hasDraggedRef.current = false
-    startXRef.current = e.pageX - presetsScrollRef.current.offsetLeft
-    scrollLeftRef.current = presetsScrollRef.current.scrollLeft
-  }
-  const handlePresetsMouseLeave = () => { isDraggingRef.current = false }
-  const handlePresetsMouseUp = () => { isDraggingRef.current = false }
-  const handlePresetsMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current || !presetsScrollRef.current) return
-    e.preventDefault()
-    const x = e.pageX - presetsScrollRef.current.offsetLeft
-    const walk = (x - startXRef.current) * 1.5
-    if (Math.abs(walk) > 3) hasDraggedRef.current = true
-    presetsScrollRef.current.scrollLeft = scrollLeftRef.current - walk
-  }
-
-  const handlePresetClick = (command: string, e: React.MouseEvent) => {
-    if (hasDraggedRef.current) {
-      e.stopPropagation()
-      e.preventDefault()
-      return
-    }
-    void runPreset(command)
-  }
+  const [showPresets, setShowPresets] = useState(false)
 
   // ── Drag to scroll for tabs ─────────────────────────────────────────────
   const tabsScrollRef = useRef<HTMLDivElement>(null)
@@ -392,7 +455,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
       e.preventDefault()
       return
     }
-    setActiveTabId(id)
+    selectTab(id)
   }
 
   // ── Auto-focus scroll for active tab ────────────────────────────────────
@@ -415,9 +478,230 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     })
   }, [activeTabId, tabs.length])
 
+  // Actions: with one terminal a small button holds them (opens on hover or click); with several they
+  // are spelled out in the tab strip. Both share the same shortcut list and SSH form.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const closeTimer = useRef<number | undefined>(undefined)
+  const closeMenu = useCallback(() => {
+    window.clearTimeout(closeTimer.current)
+    setMenuOpen(false)
+    setShowPresets(false)
+    setShowSshModal(false)
+  }, [])
+  const openMenu = () => {
+    window.clearTimeout(closeTimer.current)
+    setMenuOpen(true)
+  }
+  // leaving the menu closes it after a moment, except while an address is being typed
+  const leaveMenu = () => {
+    if (showSshModal) return
+    window.clearTimeout(closeTimer.current)
+    closeTimer.current = window.setTimeout(closeMenu, 350)
+  }
+  const popupOpen = menuOpen || showPresets || showSshModal
+  useEffect(() => {
+    if (!popupOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) closeMenu()
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [popupOpen, closeMenu])
+  useEffect(() => () => window.clearTimeout(closeTimer.current), [])
+
+  const view = showSshModal ? 'ssh' : showPresets ? 'presets' : 'main'
+  const backToMenu = () => {
+    setShowPresets(false)
+    setShowSshModal(false)
+  }
+
+  const presetsBody = (
+    <>
+      <div className="ht-presets-menu__list">
+        {presets.length === 0 ? <span className="ht-manager-empty">{t('hostTerminal.noShortcuts')}</span> : null}
+        {presets.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            role="menuitem"
+            className="ht-presets-menu__item"
+            disabled={!activeTab.connected && !activeTab.reconnecting}
+            onClick={() => {
+              closeMenu()
+              void runPreset(p.command)
+            }}
+            title={p.command}
+          >
+            {p.label ? (
+              <>
+                <span className="ht-presets-menu__label">{p.label}</span>
+                <code className="ht-presets-menu__cmd">{p.command}</code>
+              </>
+            ) : (
+              <code className="ht-presets-menu__cmd ht-presets-menu__cmd--main">{p.command}</code>
+            )}
+          </button>
+        ))}
+      </div>
+      <button type="button" className="ht-presets-menu__manage" onClick={() => { closeMenu(); setShowPresetManager(true) }}>
+        {t('hostTerminal.manageCommandShortcuts')}
+      </button>
+    </>
+  )
+
+  const sshBody = (
+    <div className="ht-menu__form">
+      <input
+        autoFocus
+        className="ht-menu__input"
+        placeholder={t('hostTerminal.sshPlaceholder')}
+        aria-label={t('hostTerminal.connectRemote')}
+        value={sshInput}
+        onChange={(e) => setSshInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            handleSshConnect()
+            closeMenu()
+          }
+        }}
+      />
+      <button type="button" className="ht-menu__submit" disabled={!sshInput.trim()} onClick={() => { handleSshConnect(); closeMenu() }}>
+        {t('hostTerminal.connect')}
+      </button>
+    </div>
+  )
+
+  const onPanelKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') closeMenu()
+  }
+
+  // one terminal: the small button and its list
+  const menuActions = (
+    <div className="ht-menu" ref={menuRef} onMouseEnter={openMenu} onMouseLeave={leaveMenu}>
+      <button
+        type="button"
+        className={`ht-menu__trigger${menuOpen ? ' ht-menu__trigger--open' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        aria-label={t('hostTerminal.actions')}
+        title={t('hostTerminal.actions')}
+        onClick={() => (menuOpen ? closeMenu() : openMenu())}
+      >
+        <MoreVertical size={15} />
+      </button>
+
+      {menuOpen && (
+        <div role="menu" className={`ht-menu__panel${view === 'main' ? ' ht-menu__panel--compact' : ''}`} onKeyDown={onPanelKey}>
+          {view === 'main' && (
+            <>
+              <button type="button" role="menuitem" className="ht-menu__item" onClick={() => { addTab(); closeMenu() }}>
+                <Plus size={14} />
+                <span>{t('hostTerminal.newLocalTerminal')}</span>
+              </button>
+              <button type="button" role="menuitem" className="ht-menu__item" onClick={() => setShowPresets(true)}>
+                <Zap size={14} />
+                <span>{t('hostTerminal.shortcuts')}</span>
+                <ChevronRight size={13} className="ht-menu__chevron" />
+              </button>
+              <button type="button" role="menuitem" className="ht-menu__item" onClick={() => setShowSshModal(true)}>
+                <SquareTerminal size={14} />
+                <span>{t('hostTerminal.connectViaSsh')}</span>
+                <ChevronRight size={13} className="ht-menu__chevron" />
+              </button>
+            </>
+          )}
+          {view === 'presets' && (
+            <>
+              <button type="button" className="ht-menu__back" onClick={backToMenu}>
+                <ChevronLeft size={14} />
+                <span>{t('hostTerminal.commandShortcuts')}</span>
+              </button>
+              {presetsBody}
+            </>
+          )}
+          {view === 'ssh' && (
+            <>
+              <button type="button" className="ht-menu__back" onClick={backToMenu}>
+                <ChevronLeft size={14} />
+                <span>{t('hostTerminal.connectRemote')}</span>
+              </button>
+              {sshBody}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
+  // several terminals: the buttons sit in the strip, each list opens under its own button;
+  // Reconnect is on every tab instead
+  const stripActions = (
+    <div className="ht-strip-actions" ref={menuRef}>
+      <button
+        type="button"
+        className="ht-action-btn ht-action-btn--add"
+        title={t('hostTerminal.newLocalTerminal')}
+        aria-label={t('hostTerminal.newLocalTerminal')}
+        onClick={() => { closeMenu(); addTab() }}
+      >
+        <Plus size={14} />
+      </button>
+      <button
+        type="button"
+        className={`ht-action-btn${showKeyBar ? ' ht-action-btn--active' : ''}`}
+        aria-label={showKeyBar ? t('terminal.hideKeys') : t('terminal.showKeys')}
+        title={showKeyBar ? t('terminal.hideKeys') : t('terminal.showKeys')}
+        onClick={() => setShowKeyBar((v) => !v)}
+      >
+        <Keyboard size={13} />
+        <span>{t('terminal.keys')}</span>
+      </button>
+      <button
+        type="button"
+        className={`ht-action-btn${showPresets ? ' ht-action-btn--active' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={showPresets}
+        title={t('hostTerminal.commandShortcuts')}
+        onClick={() => {
+          setShowSshModal(false)
+          setShowPresets((v) => !v)
+        }}
+      >
+        <Zap size={13} />
+        <span>{t('hostTerminal.shortcuts')}</span>
+      </button>
+      <button
+        type="button"
+        className={`ht-action-btn${showSshModal ? ' ht-action-btn--active' : ''}`}
+        aria-haspopup="dialog"
+        aria-expanded={showSshModal}
+        title={t('hostTerminal.connectViaSsh')}
+        onClick={() => {
+          setShowPresets(false)
+          setShowSshModal((v) => !v)
+        }}
+      >
+        <SquareTerminal size={13} />
+        <span>SSH</span>
+      </button>
+      {showPresets && (
+        <div role="menu" className="ht-menu__panel" onKeyDown={onPanelKey}>
+          {presetsBody}
+        </div>
+      )}
+      {showSshModal && (
+        <div className="ht-menu__panel" onKeyDown={onPanelKey}>
+          {sshBody}
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <div className="ht-root">
-      {/* ── Tab bar ─────────────────────────────────────────────────── */}
+      {/* Tab strip: only with more than one terminal */}
+      {tabs.length > 1 ? (
       <div className="ht-tabbar">
         <div 
           className="ht-tabs"
@@ -428,171 +712,207 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
           onMouseMove={handleTabsMouseMove}
         >
           {tabs.map((tab) => (
-            <button
+            <div
               key={tab.id}
+              role="tab"
+              tabIndex={0}
+              aria-selected={tab.id === activeTabId}
               className={`ht-tab${tab.id === activeTabId ? ' ht-tab--active' : ''}`}
               onClick={(e) => handleTabClick(tab.id, e)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  selectTab(tab.id)
+                }
+              }}
             >
-              <span className="ht-status-dot" style={{
-                background: tab.error ? 'var(--status-error)' : tab.connected ? 'var(--status-online)' : 'var(--status-offline)',
-              }} />
+              <span
+                className={`ht-status-dot${tab.reconnecting ? ' ht-status-dot--pulse' : ''}`}
+                title={tab.reconnecting ? t('hostTerminal.reconnecting') : undefined}
+                style={{
+                  background: tab.error
+                    ? 'var(--status-error)'
+                    : tab.reconnecting
+                      ? 'var(--panel-warning-text)'
+                      : tab.connected
+                        ? 'var(--status-online)'
+                        : 'var(--status-offline)',
+                }}
+              />
               <span className="ht-tab-label">{tab.label}</span>
+              <button
+                type="button"
+                className="ht-tab-action"
+                aria-label={t('hostTerminal.reconnect')}
+                title={tab.reconnecting ? t('hostTerminal.reconnecting') : t('hostTerminal.reconnect')}
+                disabled={tab.reconnecting}
+                onClick={(e) => { e.stopPropagation(); void tabActionsRef.current.get(tab.id)?.start(tab.target) }}
+              >
+                <RefreshCcw size={11} className={tab.reconnecting ? 'animate-spin' : ''} />
+              </button>
               {tabs.length > 1 && (
-                <button className="ht-tab-close" onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}>
+                <button
+                  type="button"
+                  className="ht-tab-close"
+                  aria-label={t('common.close')}
+                  onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}
+                >
                   <X size={11} />
                 </button>
               )}
-            </button>
+            </div>
           ))}
         </div>
-        <div className="ht-tabbar-actions">
-          <button className="ht-action-btn" onClick={handleReconnect} title={t('hostTerminal.reconnect')}>
-            <RefreshCcw size={13} /><span>{t('hostTerminal.reconnect')}</span>
-          </button>
-          
-          <div className="relative flex items-center gap-1 ml-1 pl-1 border-l border-[var(--win-border)]">
-            <button 
-              className={`ht-action-btn ${showSshModal ? 'bg-[var(--panel-primary-hover)] text-[var(--panel-primary-text)]' : ''}`} 
-              onClick={() => setShowSshModal(!showSshModal)} 
-              title={t('hostTerminal.connectViaSsh')}
-            >
-              <Plus size={14} className="rotate-45" />
-              <span>SSH</span>
-            </button>
-
-            {showSshModal && (
-              <div className="absolute top-[40px] right-0 w-64 p-3 rounded-2xl bg-[var(--menu-bg)] backdrop-blur-xl border border-[var(--win-border)] shadow-2xl z-[50]">
-                <div className="text-[12px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">{t('hostTerminal.connectRemote')}</div>
-                <input 
-                  autoFocus
-                  className="w-full px-3 py-2 bg-[var(--panel-code-bg)] border border-[var(--win-border)] rounded-xl text-[var(--win-text)] text-[12px] focus:border-[var(--focus-ring)]/50 outline-none transition-all"
-                  placeholder={t('hostTerminal.sshPlaceholder')}
-                  value={sshInput}
-                  onChange={(e) => setSshInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSshConnect()
-                    if (e.key === 'Escape') setShowSshModal(false)
-                  }}
-                />
-                <div className="flex justify-end gap-2 mt-3">
-                  <button className="px-3 py-2 text-[12px] font-bold text-[var(--text-secondary)] hover:text-[var(--win-text)]" onClick={() => setShowSshModal(false)}>{t('common.cancel')}</button>
-                  <button className="px-3 py-2 bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--win-text)] text-[12px] font-bold rounded-lg shadow-lg" onClick={handleSshConnect}>{t('hostTerminal.connect')}</button>
-                </div>
-              </div>
-            )}
-
-            <button className="ht-action-btn ht-action-btn--add" onClick={() => addTab()} title={t('hostTerminal.newLocalTerminal')}>
-              <Plus size={14} />
-            </button>
-          </div>
-        </div>
+        <div className="ht-tabbar-actions">{stripActions}</div>
       </div>
+      ) : null}
 
-      {/* ── Preset shortcut bar ──────────────────────────────────────── */}
-      <div className="ht-footer">
-        <div 
-          className="ht-presets-scroll"
-          ref={presetsScrollRef}
-          onMouseDown={handlePresetsMouseDown}
-          onMouseLeave={handlePresetsMouseLeave}
-          onMouseUp={handlePresetsMouseUp}
-          onMouseMove={handlePresetsMouseMove}
-        >
-          {presets.map((p) => (
-            <button
-              key={p.id}
-              className="ht-preset-btn"
-              onClick={(e) => handlePresetClick(p.command, e)}
-              disabled={!activeTab.connected}
-              title={p.command}
-            >
-              {p.label || p.command}
-            </button>
-          ))}
-        </div>
-        <button
-          className={`ht-action-btn ht-manage-btn${showPresetManager ? ' ht-action-btn--active' : ''}`}
-          onClick={() => setShowPresetManager((v) => !v)}
-          title={t('hostTerminal.manageCommandShortcuts')}
-        >
-          {t('hostTerminal.manage')}
-        </button>
-      </div>
-
-      {/* ── Preset manager panel ─────────────────────────────────────── */}
-      {showPresetManager && (
-        <div className="ht-manager">
-          <div className="ht-manager-header">
-            <span>{t('hostTerminal.manageCommandShortcutsTitle')}</span>
-            <button className="ht-manager-reset" onClick={handleResetPresets} disabled={resetting} title={t('hostTerminal.resetToDefault')}>
-              <RotateCcw size={13} />
-              <span>{resetting ? t('hostTerminal.resetting') : t('hostTerminal.resetDefault')}</span>
-            </button>
-          </div>
-
-          {/* Add form */}
-          <div className="ht-manager-add">
-            <input
-              className="ht-manager-input"
-              placeholder={t('hostTerminal.optionalLabel')}
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-            />
-            <input
-              className="ht-manager-input ht-manager-input--flex"
-              placeholder={t('hostTerminal.commandExample')}
-              value={newCommand}
-              onChange={(e) => setNewCommand(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void handleAddPreset() }}
-            />
-            <button
-              className="ht-manager-save"
-              onClick={() => void handleAddPreset()}
-              disabled={addingPreset || !newCommand.trim()}
-            >
-              {addingPreset ? '...' : <><Plus size={13} /> {t('hostTerminal.add')}</>}
-            </button>
-          </div>
-
-          {/* List */}
-          <div className="ht-manager-list">
-            {presets.length === 0 && (
-              <span className="ht-manager-empty">{t('hostTerminal.noShortcuts')}</span>
-            )}
-            {presets.map((p) => (
-              <div key={p.id} className="ht-manager-row">
-                <span className="ht-manager-row-label">{p.label || <em style={{ opacity: 0.5 }}>—</em>}</span>
-                <code className="ht-manager-row-cmd">{p.command}</code>
-                <button
-                  className="ht-manager-del"
-                  onClick={() => void handleDeletePreset(p.id)}
-                  disabled={deletingId === p.id}
-                  title={t('common.delete')}
+      {/* ── Terminal and, when asked for, the shortcut manager beside it ─ */}
+      <div className="ht-body">
+        <div className="ht-panes">
+          {zoomHint ? <div className="ht-zoom-hint" role="status">{zoomHint}</div> : null}
+          {tabs.length === 1 ? (
+            // status | reconnect | actions; it stays on screen while the terminal is not connected
+            <div className={`ht-floating-actions${activeTab.connected ? '' : ' ht-floating-actions--alert'}`}>
+              <div className="ht-floating-group">
+                <span
+                  className="ht-status"
+                  role="status"
+                  aria-label={t(`hostTerminal.status.${statusOf(activeTab).key}`)}
+                  title={t(`hostTerminal.status.${statusOf(activeTab).key}`)}
                 >
-                  <Trash2 size={13} />
+                  <span className={`ht-status-dot${activeTab.reconnecting ? ' ht-status-dot--pulse' : ''}`} style={{ background: statusOf(activeTab).color }} />
+                </span>
+                <button
+                  type="button"
+                  className={`ht-action-btn ht-action-btn--icon${showKeyBar ? ' ht-action-btn--active' : ''}`}
+                  onClick={() => setShowKeyBar((v) => !v)}
+                  title={showKeyBar ? t('terminal.hideKeys') : t('terminal.showKeys')}
+                  aria-label={showKeyBar ? t('terminal.hideKeys') : t('terminal.showKeys')}
+                >
+                  <Keyboard size={14} />
                 </button>
+                <button
+                  type="button"
+                  className="ht-action-btn ht-action-btn--icon"
+                  disabled={activeTab.reconnecting}
+                  onClick={handleReconnect}
+                  title={activeTab.reconnecting ? t('hostTerminal.reconnecting') : t('hostTerminal.reconnect')}
+                  aria-label={t('hostTerminal.reconnect')}
+                >
+                  <RefreshCcw size={14} className={activeTab.reconnecting ? 'animate-spin' : ''} />
+                </button>
+                {menuActions}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : null}
+          {tabs.map((tab) => (
+            <TerminalTabPane
+              key={tab.id}
+              authenticated={authenticated}
+              active={tab.id === activeTabId}
+              target={tab.target}
+              cwd={tab.cwd}
+              initialSessionId={tab.sessionId}
+              onSessionChange={(sid) => handleSessionChange(tab.id, sid)}
+              fontFamily={fontFamily}
+              fontSize={fontSize}
+              onZoom={zoom}
+              onStatusChange={(c, e, r) => handleStatusChange(tab.id, c, e, r)}
+              onStart={(fn) => {
+                const cur = tabActionsRef.current.get(tab.id) || { start: fn, sendInput: async () => {} }
+                cur.start = fn
+                tabActionsRef.current.set(tab.id, cur)
+              }}
+              onSendInput={(fn) => {
+                const cur = tabActionsRef.current.get(tab.id) || { start: async () => {}, sendInput: fn }
+                cur.sendInput = fn
+                tabActionsRef.current.set(tab.id, cur)
+              }}
+              onReadText={(read) => { readersRef.current.set(tab.id, read) }}
+              onConsumeSelection={(consume) => { selectionReadersRef.current.set(tab.id, consume) }}
+            />
+          ))}
         </div>
-      )}
 
-      {/* ── Terminal panes ───────────────────────────────────────────── */}
-      <div className="ht-panes">
-        {tabs.map((tab) => (
-          <TerminalTabPane
-            key={tab.id}
-            authenticated={authenticated}
-            active={tab.id === activeTabId}
-            target={tab.target}
-            fontFamily={fontFamily}
-            fontSize={fontSize}
-            onStatusChange={(c, e) => handleStatusChange(tab.id, c, e)}
-            onStart={(fn) => handleStart(tab.id, fn)}
-            onSendInput={(fn) => handleSendInput(tab.id, fn)}
-          />
-        ))}
+        {showPresetManager ? (
+          <aside
+            className="ht-side"
+            aria-label={t('hostTerminal.manageCommandShortcutsTitle')}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setShowPresetManager(false)
+            }}
+          >
+            <div className="ht-side__header">
+              <h3 className="ht-side__title">
+                {/* <Zap size={14} /> */}
+                <span>{t('hostTerminal.manageCommandShortcutsTitle')}</span>
+              </h3>
+              <IconButton label={t('common.close')} onClick={() => setShowPresetManager(false)}>
+                <X className="h-4 w-4" />
+              </IconButton>
+            </div>
+
+            <div className="ht-side__body">
+              <form
+                className="space-y-2.5"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void handleAddPreset()
+                }}
+              >
+                <Field label={t('hostTerminal.shortcutLabel')}>
+                  <TextInput placeholder={t('hostTerminal.optionalLabel')} value={newLabel} maxLength={40} onChange={(e) => setNewLabel(e.target.value)} />
+                </Field>
+                <Field label={t('hostTerminal.shortcutCommand')}>
+                  <TextInput mono placeholder={t('hostTerminal.commandExample')} value={newCommand} onChange={(e) => setNewCommand(e.target.value)} />
+                </Field>
+                <Button type="submit" variant="primary" size="sm" block loading={addingPreset} disabled={!newCommand.trim()}>
+                  {t('hostTerminal.add')}
+                </Button>
+              </form>
+
+              {presets.length === 0 ? (
+                <EmptyState icon={<Zap />}>{t('hostTerminal.noShortcuts')}</EmptyState>
+              ) : (
+                <div className="ht-side__list">
+                  {presets.map((p) => (
+                    <ListRow
+                      key={p.id}
+                      title={p.label || <span className="panel-mono">{p.command}</span>}
+                      details={p.label ? <span className="panel-mono break-all">{p.command}</span> : undefined}
+                      actions={
+                        <IconButton label={t('common.delete')} tone="danger" disabled={deletingId === p.id} onClick={() => void confirmDeletePreset(p.id, p.label || p.command)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </IconButton>
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="ht-side__footer">
+              <Button variant="ghost" size="sm" loading={resetting} onClick={() => void confirmResetPresets()}>
+                {t('hostTerminal.resetDefault')}
+              </Button>
+            </div>
+          </aside>
+        ) : null}
       </div>
+
+      {showKeyBar ? (
+        <TerminalKeyBar
+          disabled={!activeTab.connected}
+          onKey={(sequence) => {
+            void tabActionsRef.current.get(activeTab.id)?.sendInput(sequence)
+          }}
+          onCopy={() => void handleCopyAction()}
+          onPaste={() => void pasteFromClipboard()}
+          onZoom={zoom}
+        />
+      ) : null}
+      <TerminalCopyModal text={copyText ?? ''} open={copyText !== null} onClose={() => setCopyText(null)} />
     </div>
   )
 }

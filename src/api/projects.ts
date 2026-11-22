@@ -1,5 +1,6 @@
 import { agentApi } from './client'
-import type { PaginatedResponse, PaginationParams } from '@/types'
+import type { PaginationParams } from '@/types'
+import { listParams, type ListQuery, type TableResult } from '@/lib/listQuery'
 
 export interface ProjectRuntimeState {
   known: boolean
@@ -9,6 +10,35 @@ export interface ProjectRuntimeState {
   driftReason?: string
 }
 
+// One process of a project made of several (a frontend, a backend); one address serves them all
+export interface ProjectService {
+  name: string
+  kind: 'process' | 'static'
+  installCommand: string
+  buildCommand: string
+  startCommand: string
+  /** The folder of the process, inside the project folder */
+  dir: string
+  /** For a static process: the folder it serves, inside dir */
+  serve: string
+  /** Where it sits in the address: "/" takes the rest, "/api" a backend */
+  path: string
+  /** 0 lets the agent pick the port and hand it over as PORT */
+  port: number
+}
+
+// How a project runs when its folder says too little. The variables are shown with their values in the project read on its own, and with
+// the values hidden in the list.
+export interface ProjectRun {
+  installCommand: string
+  buildCommand: string
+  startCommand: string
+  services: ProjectService[]
+  env?: Record<string, string>
+}
+
+export type ProjectRunInput = Required<ProjectRun>
+
 export interface Project {
   id: number
   userId: number
@@ -16,7 +46,7 @@ export interface Project {
   slug: string
   description: string
   status: 'active' | 'stopped' | 'building' | 'error' | 'draft' | 'degraded'
-  projectType: 'static' | 'nodejs' | 'python' | 'php' | 'docker' | 'proxy' | 'custom'
+  projectType: 'static' | 'nodejs' | 'python' | 'php' | 'docker' | 'proxy' | 'custom' | 'stack'
   repoUrl: string
   workingDir: string
   spaFallback: boolean
@@ -24,12 +54,15 @@ export interface Project {
   assignedPort: number
   running: boolean
   runtime: ProjectRuntimeState
+  run?: ProjectRun
   createdAt: string
   updatedAt: string
 }
 
 export interface ProjectListParams extends PaginationParams {
   all?: boolean
+  /** The column filters and the order, applied by the agent */
+  table?: ListQuery
 }
 
 export interface ProjectAttentionSummary {
@@ -39,17 +72,14 @@ export interface ProjectAttentionSummary {
   driftCount: number
 }
 
-export const listProjects = (params?: ProjectListParams) =>
-  agentApi
-    .get<PaginatedResponse<Project>>('/api/v1/projects', {
-      params: {
-        q: params?.q ?? '',
-        limit: params?.limit,
-        offset: params?.offset,
-        all: params?.all ? 1 : undefined,
-      },
-    })
-    .then((r) => r.data)
+export const listProjects = (params?: ProjectListParams) => {
+  const query = params?.table ? listParams(params.table) : new URLSearchParams()
+  if (!params?.table && params?.q) query.set('q', params.q)
+  if (params?.limit !== undefined) query.set('limit', String(params.limit))
+  if (params?.offset !== undefined) query.set('offset', String(params.offset))
+  if (params?.all) query.set('all', '1')
+  return agentApi.get<TableResult<Project>>('/api/v1/projects', { params: query }).then((r) => r.data)
+}
 
 export const getProjectAttentionSummary = (params?: Pick<ProjectListParams, 'q' | 'all'>) =>
   agentApi
@@ -68,6 +98,7 @@ export const createProject = (payload: {
   repoUrl?: string
   workingDir?: string
   spaFallback?: boolean
+  run?: ProjectRunInput
 }) => agentApi.post<Project>('/api/v1/projects', payload).then((r) => r.data)
 
 export const updateProject = (id: number, payload: {
@@ -77,6 +108,7 @@ export const updateProject = (id: number, payload: {
   repoUrl?: string
   workingDir?: string
   spaFallback?: boolean
+  run?: ProjectRunInput
 }) => agentApi.put<Project>(`/api/v1/projects/${id}`, payload).then((r) => r.data)
 
 export const getProject = (id: number) =>
@@ -88,21 +120,76 @@ export const deleteProject = (id: number) =>
 export const startProject = (id: number) =>
   agentApi.post<{ ok: boolean; status: string; project: Project }>(`/api/v1/projects/${id}/start`).then((r) => r.data)
 
+// The end of what the project wrote, and what the agent did to it (starts, crashes, restarts)
+export const getProjectLogs = (id: number, lines = 300) =>
+  agentApi.get<{ lines: string[] }>(`/api/v1/projects/${id}/logs`, { params: { lines } }).then((r) => r.data.lines)
+
+// Takes away the marks that say the project was installed and built, stops it and starts it: the install and build steps run again
+export const rebuildProject = (id: number) =>
+  agentApi.post<{ ok: boolean; status: string; project: Project }>(`/api/v1/projects/${id}/rebuild`).then((r) => r.data)
+
 export const stopProject = (id: number) =>
   agentApi.post<{ ok: boolean; status: string; project: Project }>(`/api/v1/projects/${id}/stop`).then((r) => r.data)
 
-export const uploadStaticProjectBuild = (id: number, file: File, clean = true, rootDir = '', onProgress?: (percent: number) => void) => {
+export type StaticUploadEvent =
+  | { type: 'phase'; phase: 'extracting' | 'installing' | 'building' | 'placing' }
+  | { type: 'log'; line: string }
+  | { type: 'done'; workingDir: string; built: boolean }
+  | { type: 'error'; error: string }
+
+// What went wrong, in the shape the windows read errors from (response.data.error)
+class UploadError extends Error {
+  response: { data: { error: string } }
+  constructor(message: string) {
+    super(message)
+    this.response = { data: { error: message } }
+  }
+}
+
+// An archive of the built site, or of its source: the agent builds the source. It answers with one JSON line per event.
+export const uploadStaticProjectBuild = async (
+  id: number,
+  file: File,
+  clean = true,
+  rootDir = '',
+  onProgress?: (percent: number) => void,
+  onEvent?: (event: StaticUploadEvent) => void,
+) => {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('clean', clean ? 'true' : 'false')
   formData.append('rootDir', rootDir)
-  return agentApi
-    .post<{ ok: boolean; project: Project; workingDir: string }>(`/api/v1/projects/${id}/upload-static`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: (event) => {
-        if (!event.total) return
-        onProgress?.(Math.min(100, Math.round((event.loaded / event.total) * 100)))
-      },
-    })
-    .then((r) => r.data)
+  let seen = 0
+  let result: { workingDir: string; built: boolean } | null = null
+  let failure = ''
+  const read = (text: string, final: boolean) => {
+    const upTo = final ? text.length : text.lastIndexOf('\n') + 1
+    if (upTo <= seen) return
+    for (const line of text.slice(seen, upTo).split('\n')) {
+      if (!line.trim()) continue
+      const event = JSON.parse(line) as StaticUploadEvent
+      onEvent?.(event)
+      if (event.type === 'done') result = { workingDir: event.workingDir, built: event.built }
+      if (event.type === 'error') failure = event.error
+    }
+    seen = upTo
+  }
+  const response = await agentApi.post<string>(`/api/v1/projects/${id}/upload-static`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    responseType: 'text',
+    transformResponse: (data) => data,
+    timeout: 0,
+    onUploadProgress: (event) => {
+      if (!event.total) return
+      onProgress?.(Math.min(100, Math.round((event.loaded / event.total) * 100)))
+    },
+    onDownloadProgress: (event) => {
+      const text = (event.event?.target as XMLHttpRequest | undefined)?.responseText
+      if (typeof text === 'string') read(text, false)
+    },
+  })
+  read(typeof response.data === 'string' ? response.data : '', true)
+  if (failure) throw new UploadError(failure)
+  if (!result) throw new UploadError('the upload ended without an answer')
+  return result as { workingDir: string; built: boolean }
 }

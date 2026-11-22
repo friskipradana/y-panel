@@ -1,4 +1,4 @@
-// Package database provides the PostgreSQL-backed persistence layer for YPanel.
+// Package database provides the PostgreSQL-backed persistence layer for Reneo.
 // It manages schema migrations, all entity CRUD operations, and connection lifecycle.
 package database
 
@@ -30,9 +30,14 @@ type Config struct {
 type Manager struct {
 	cfg       Config
 	db        *sql.DB
+	connector *passwordConnector
+	// voucherMu makes orders that use a voucher one at a time
+	voucherMu sync.Mutex
 	mu        sync.RWMutex
 	connected bool
 	lastError string
+	stats     statsCache
+	auth      authCache
 }
 
 // New creates and initialises a Manager.
@@ -44,14 +49,12 @@ func New(cfg Config) *Manager {
 		return manager
 	}
 
-	db, err := sql.Open("postgres", cfg.DSN)
-	if err != nil {
-		manager.setError(fmt.Sprintf("sql open failed: %v", err))
-		return manager
-	}
+	connector := &passwordConnector{dsn: cfg.DSN}
+	db := sql.OpenDB(connector)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	db.SetMaxIdleConns(5)
-	db.SetMaxOpenConns(20)
+	db.SetConnMaxIdleTime(2 * time.Minute)
+	db.SetMaxIdleConns(8)
+	db.SetMaxOpenConns(25)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
@@ -62,7 +65,12 @@ func New(cfg Config) *Manager {
 	}
 
 	manager.db = db
+	manager.connector = connector
 	manager.setConnected(true)
+
+	if err := manager.ensureSchema(); err != nil {
+		manager.setError(fmt.Sprintf("ensure schema failed: %v", err))
+	}
 
 	if err := manager.seedDefaultChangelog(); err != nil {
 		manager.setError(fmt.Sprintf("changelog seed failed: %v", err))
@@ -148,33 +156,6 @@ func parseDSNFields(dsn string) (host, port, dbname, user string) {
 		port = "5432"
 	}
 	return
-}
-
-func (m *Manager) Status() Status {
-	m.mu.RLock()
-	status := Status{
-		Enabled:   m.cfg.Enabled,
-		Connected: m.connected,
-		LastError: m.lastError,
-	}
-	m.mu.RUnlock()
-
-	// Always populate connection info from DSN (even when not connected)
-	if m.cfg.DSN != "" {
-		status.Host, status.Port, status.Database, status.User = parseDSNFields(m.cfg.DSN)
-	}
-
-	if !status.Connected || m.db == nil {
-		return status
-	}
-
-	status.ChangelogCount = m.scalarCount("SELECT COUNT(*) FROM changelog_entries")
-	status.RuntimeLogCount = m.scalarCount("SELECT COUNT(*) FROM runtime_logs")
-	status.SettingsAuditCount = m.scalarCount("SELECT COUNT(*) FROM settings_audit")
-	status.UserCount = m.scalarCount("SELECT COUNT(*) FROM users")
-	status.ProjectCount = m.scalarCount("SELECT COUNT(*) FROM projects")
-	status.TunnelCount = m.scalarCount("SELECT COUNT(*) FROM tunnels")
-	return status
 }
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
@@ -265,6 +246,25 @@ func (m *Manager) ensureSchema() error {
 			UNIQUE(user_id, slug)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)`,
+		`ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS widgets_data JSONB`,
+		`CREATE TABLE IF NOT EXISTS managed_databases (
+			id                 BIGSERIAL PRIMARY KEY,
+			user_id            BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			name               VARCHAR(48)  NOT NULL,
+			engine             VARCHAR(16)  NOT NULL,
+			version            VARCHAR(32)  NOT NULL DEFAULT '',
+			container_name     VARCHAR(80)  NOT NULL DEFAULT '',
+			host_port          INTEGER      NOT NULL,
+			db_name            VARCHAR(63)  NOT NULL DEFAULT '',
+			db_user            VARCHAR(63)  NOT NULL DEFAULT '',
+			password_encrypted TEXT         NOT NULL,
+			status             VARCHAR(16)  NOT NULL DEFAULT 'creating',
+			last_error         TEXT,
+			created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			UNIQUE(user_id, name),
+			UNIQUE(host_port)
+		)`,
+		`ALTER TABLE user_quotas ADD COLUMN IF NOT EXISTS max_databases INTEGER NOT NULL DEFAULT 3`,
 		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS spa_fallback BOOLEAN NOT NULL DEFAULT true`,
 
 		`CREATE TABLE IF NOT EXISTS project_env_vars (
@@ -447,6 +447,7 @@ func (m *Manager) ensureSchema() error {
 			created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
 			updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 		)`,
+		`ALTER TABLE docs ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT false`,
 		`CREATE INDEX IF NOT EXISTS idx_docs_status_created ON docs(status, created_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_docs_author_id      ON docs(author_user_id)`,
 
@@ -471,6 +472,140 @@ func (m *Manager) ensureSchema() error {
 		WHERE templates.id = ranked_templates.id
 		  AND ranked_templates.duplicate_rank > 1`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS uq_docker_compose_templates_owner_name ON docker_compose_templates (owner_user_id, LOWER(name))`,
+
+		// ── API Tokens ─────────────────────────────────────────────────────
+		`CREATE TABLE IF NOT EXISTS api_tokens (
+			id           BIGSERIAL    PRIMARY KEY,
+			user_id      BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			name         VARCHAR(120) NOT NULL,
+			token_hash   VARCHAR(128) NOT NULL UNIQUE,
+			token_prefix VARCHAR(12)  NOT NULL,
+			last_used_at TIMESTAMPTZ,
+			expires_at   TIMESTAMPTZ,
+			created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id    ON api_tokens(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash)`,
+
+		// ── Hosting State & Email Accounts ─────────────────────────────────
+		`CREATE TABLE IF NOT EXISTS hosting_state (
+			key        VARCHAR(80) PRIMARY KEY,
+			value      TEXT        NOT NULL DEFAULT '',
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS email_accounts (
+			id           BIGSERIAL    PRIMARY KEY,
+			user_id      BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			local_part   VARCHAR(64)  NOT NULL,
+			domain       VARCHAR(253) NOT NULL,
+			address      VARCHAR(320) NOT NULL UNIQUE,
+			display_name VARCHAR(120) NOT NULL DEFAULT '',
+			mode         VARCHAR(20)  NOT NULL DEFAULT 'mailbox' CHECK (mode IN ('mailbox','forward')),
+			forward_to   VARCHAR(320) NOT NULL DEFAULT '',
+			password_enc TEXT         NOT NULL DEFAULT '',
+			quota_mb     INTEGER      NOT NULL DEFAULT 1024,
+			enabled      BOOLEAN      NOT NULL DEFAULT true,
+			note         TEXT         NOT NULL DEFAULT '',
+			created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_email_accounts_user_id ON email_accounts(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_email_accounts_domain  ON email_accounts(domain)`,
+		`CREATE TABLE IF NOT EXISTS email_messages (
+			id           BIGSERIAL    PRIMARY KEY,
+			account_id   BIGINT       NOT NULL DEFAULT 0,
+			direction    VARCHAR(20)  NOT NULL DEFAULT 'inbound',
+			from_addr    VARCHAR(320) NOT NULL,
+			from_name    VARCHAR(120) NOT NULL DEFAULT '',
+			to_addr      VARCHAR(320) NOT NULL,
+			subject      VARCHAR(500) NOT NULL DEFAULT '',
+			snippet      VARCHAR(500) NOT NULL DEFAULT '',
+			body_text    TEXT         NOT NULL DEFAULT '',
+			body_html    TEXT         NOT NULL DEFAULT '',
+			is_read      BOOLEAN      NOT NULL DEFAULT false,
+			is_starred   BOOLEAN      NOT NULL DEFAULT false,
+			message_id   VARCHAR(255) NOT NULL DEFAULT '',
+			received_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_email_messages_account ON email_messages(account_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_email_messages_received ON email_messages(received_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_email_messages_to_addr ON email_messages(to_addr)`,
+		`ALTER TABLE user_quotas ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 3`,
+		`ALTER TABLE hosting_plans ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 2`,
+		`CREATE TABLE IF NOT EXISTS app_licenses (
+			id           BIGSERIAL    PRIMARY KEY,
+			user_id      BIGINT       NOT NULL DEFAULT 1,
+			catalog_id   VARCHAR(80)  NOT NULL,
+			app_name     VARCHAR(120) NOT NULL,
+			license_key  VARCHAR(120) NOT NULL UNIQUE,
+			status       VARCHAR(32)  NOT NULL DEFAULT 'ACTIVE',
+			plan_name    VARCHAR(80)  NOT NULL DEFAULT 'Bulanan (Pro)',
+			period       VARCHAR(32)  NOT NULL DEFAULT 'monthly',
+			price_amount BIGINT       NOT NULL DEFAULT 99000,
+			started_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			expires_at   TIMESTAMPTZ  NOT NULL,
+			features     JSONB,
+			created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			UNIQUE(user_id, catalog_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_app_licenses_user_id ON app_licenses(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_app_licenses_catalog_id ON app_licenses(catalog_id)`,
+		`CREATE TABLE IF NOT EXISTS app_license_plans (
+			id           BIGSERIAL    PRIMARY KEY,
+			catalog_id   VARCHAR(80)  NOT NULL,
+			slug         VARCHAR(80)  NOT NULL,
+			name         VARCHAR(120) NOT NULL,
+			tagline      VARCHAR(255) NOT NULL DEFAULT '',
+			period       VARCHAR(32)  NOT NULL DEFAULT 'monthly',
+			months       INT          NOT NULL DEFAULT 1,
+			trial_days            INT          NOT NULL DEFAULT 7,
+			price_amount          BIGINT       NOT NULL DEFAULT 99000,
+			original_price_amount BIGINT       NOT NULL DEFAULT 0,
+			discount_percent      INT          NOT NULL DEFAULT 0,
+			promo_valid_until     VARCHAR(64)  NOT NULL DEFAULT '',
+			features              JSONB        NOT NULL DEFAULT '{}'::jsonb,
+			highlighted           BOOLEAN      NOT NULL DEFAULT false,
+			is_active             BOOLEAN      NOT NULL DEFAULT true,
+			sort_order            INT          NOT NULL DEFAULT 0,
+			created_at            TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			updated_at            TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			UNIQUE(catalog_id, slug)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_app_license_plans_catalog ON app_license_plans(catalog_id)`,
+		`CREATE TABLE IF NOT EXISTS app_license_orders (
+			id             BIGSERIAL    PRIMARY KEY,
+			public_id      VARCHAR(64)  NOT NULL UNIQUE,
+			invoice_number VARCHAR(80)  NOT NULL UNIQUE,
+			user_id        BIGINT       NOT NULL DEFAULT 1,
+			catalog_id     VARCHAR(80)  NOT NULL,
+			app_name       VARCHAR(120) NOT NULL,
+			plan_slug      VARCHAR(80)  NOT NULL,
+			plan_name      VARCHAR(120) NOT NULL,
+			period         VARCHAR(32)  NOT NULL DEFAULT 'monthly',
+			months         INT          NOT NULL DEFAULT 1,
+			amount_list    BIGINT       NOT NULL,
+			unique_code    INT          NOT NULL DEFAULT 0,
+			amount_total   BIGINT       NOT NULL,
+			status         VARCHAR(32)  NOT NULL DEFAULT 'pending',
+			payment_method VARCHAR(40)  NOT NULL DEFAULT 'transfer',
+			buyer_name     VARCHAR(120) NOT NULL DEFAULT '',
+			buyer_email    VARCHAR(254) NOT NULL DEFAULT '',
+			buyer_phone    VARCHAR(40)  NOT NULL DEFAULT '',
+			created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			expires_at     TIMESTAMPTZ  NOT NULL,
+			paid_at        TIMESTAMPTZ,
+			created_ip     VARCHAR(64)  NOT NULL DEFAULT ''
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_app_license_orders_user ON app_license_orders(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_app_license_orders_catalog ON app_license_orders(catalog_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_app_license_orders_status ON app_license_orders(status)`,
+		`ALTER TABLE app_licenses DROP CONSTRAINT IF EXISTS app_licenses_user_id_catalog_id_key`,
+		`ALTER TABLE app_license_plans ADD COLUMN IF NOT EXISTS trial_days INT NOT NULL DEFAULT 7`,
+		`ALTER TABLE app_license_plans ADD COLUMN IF NOT EXISTS original_price_amount BIGINT NOT NULL DEFAULT 0`,
+		`ALTER TABLE app_license_plans ADD COLUMN IF NOT EXISTS discount_percent INT NOT NULL DEFAULT 0`,
+		`ALTER TABLE app_license_plans ADD COLUMN IF NOT EXISTS promo_valid_until VARCHAR(64) NOT NULL DEFAULT ''`,
 	}
 
 	for _, stmt := range stmts {
@@ -678,6 +813,7 @@ func (m *Manager) UpdateUser(id int64, fields map[string]any) error {
 		"role":         "role",
 		"status":       "status",
 		"avatar_url":   "avatar_url",
+		"parent_id":    "parent_id",
 	}
 	setParts := []string{"updated_at = NOW()"}
 	args := []any{}
@@ -697,6 +833,9 @@ func (m *Manager) UpdateUser(id int64, fields map[string]any) error {
 	args = append(args, id)
 	query := fmt.Sprintf("UPDATE users SET %s WHERE id = $%d", strings.Join(setParts, ", "), i)
 	_, err := m.db.Exec(query, args...)
+	if err == nil {
+		m.auth.invalidateUser(id)
+	}
 	return err
 }
 
@@ -705,6 +844,9 @@ func (m *Manager) UpdateUserPasswordHash(id int64, hash string) error {
 		return fmt.Errorf("database not connected")
 	}
 	_, err := m.db.Exec("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2", hash, id)
+	if err == nil {
+		m.auth.invalidateUser(id)
+	}
 	return err
 }
 
@@ -712,7 +854,15 @@ func (m *Manager) DeleteUser(id int64) error {
 	if !m.IsConnected() {
 		return fmt.Errorf("database not connected")
 	}
+	// the orders of the account stay as a record, but one still waiting would hold its total and address for nothing
+	if _, err := m.db.Exec(`UPDATE hosting_orders SET status = 'cancelled', note = CASE WHEN note = '' THEN 'account deleted' ELSE note END
+		WHERE user_id = $1 AND status IN ('pending', 'review')`, id); err != nil {
+		return err
+	}
 	_, err := m.db.Exec("DELETE FROM users WHERE id = $1", id)
+	if err == nil {
+		m.auth.invalidateUser(id)
+	}
 	return err
 }
 
@@ -761,6 +911,13 @@ func (m *Manager) GetSessionUser(token string) (*User, bool) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, false
 	}
+	now := time.Now()
+	if u, ok := m.auth.getSession(token, now); ok {
+		if m.auth.shouldSlideSession(token, u.ID, now) {
+			go m.db.Exec("UPDATE user_sessions SET expires_at = NOW() + INTERVAL '12 hours' WHERE token = $1", token)
+		}
+		return u, true
+	}
 	row := m.db.QueryRow(`
 		SELECT u.id, u.username, u.email, u.role, u.status,
 			COALESCE(u.display_name,''), COALESCE(u.avatar_url,''),
@@ -773,16 +930,30 @@ func (m *Manager) GetSessionUser(token string) (*User, bool) {
 	if err != nil {
 		return nil, false
 	}
-	// Slide expiry
-	go m.db.Exec("UPDATE user_sessions SET expires_at = NOW() + INTERVAL '12 hours' WHERE token = $1", token)
+	m.auth.setSession(token, *u, now)
+	// Slide expiry at most once per slide interval to avoid row-lock churn on busy polling
+	if m.auth.shouldSlideSession(token, u.ID, now) {
+		go m.db.Exec("UPDATE user_sessions SET expires_at = NOW() + INTERVAL '12 hours' WHERE token = $1", token)
+	}
 	return u, true
 }
 
+// DeleteUserSessions signs a user out everywhere (suspend, delete, password reset).
+func (m *Manager) DeleteUserSessions(userID int64) error {
+	if !m.IsConnected() || m.db == nil {
+		return fmt.Errorf("database not connected")
+	}
+	m.auth.invalidateUserSessions(userID)
+	_, err := m.db.Exec("DELETE FROM user_sessions WHERE user_id = $1", userID)
+	return err
+}
+
 func (m *Manager) DeleteSession(token string) {
+	m.auth.invalidateSession(token)
 	if !m.IsConnected() || m.db == nil {
 		return
 	}
-	go m.db.Exec("DELETE FROM user_sessions WHERE token = $1", token)
+	_, _ = m.db.Exec("DELETE FROM user_sessions WHERE token = $1", token)
 }
 
 func (m *Manager) CleanExpiredSessions() {
@@ -792,29 +963,167 @@ func (m *Manager) CleanExpiredSessions() {
 	go m.db.Exec("DELETE FROM user_sessions WHERE expires_at <= NOW()")
 }
 
+// ─── API Tokens ───────────────────────────────────────────────────────────────
+
+// APIToken is the stored representation of an MCP/API access token.
+// The raw token value is only returned once at creation time.
+type APIToken struct {
+	ID          int64      `json:"id"`
+	UserID      int64      `json:"userId"`
+	Name        string     `json:"name"`
+	TokenPrefix string     `json:"tokenPrefix"`
+	LastUsedAt  *time.Time `json:"lastUsedAt"`
+	ExpiresAt   *time.Time `json:"expiresAt"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}
+
+// CreateAPIToken stores a hashed token and returns the full token metadata.
+// tokenHash is SHA-256 hex of the raw token; tokenPrefix is the first 8 chars of the raw token.
+func (m *Manager) CreateAPIToken(userID int64, name, tokenHash, tokenPrefix string, expiresAt *time.Time) (*APIToken, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	var t APIToken
+	err := m.db.QueryRow(`
+		INSERT INTO api_tokens (user_id, name, token_hash, token_prefix, expires_at)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, user_id, name, token_prefix, last_used_at, expires_at, created_at
+	`, userID, name, tokenHash, tokenPrefix, expiresAt).Scan(
+		&t.ID, &t.UserID, &t.Name, &t.TokenPrefix, &t.LastUsedAt, &t.ExpiresAt, &t.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// GetAPITokenUser looks up the user associated with a raw token hash.
+// Returns nil if the token does not exist, is expired, or the user is suspended.
+func (m *Manager) GetAPITokenUser(tokenHash string) (*User, *APIToken, bool) {
+	if !m.IsConnected() || m.db == nil {
+		return nil, nil, false
+	}
+	now := time.Now()
+	if u, t, ok := m.auth.getAPIToken(tokenHash, now); ok {
+		if m.auth.shouldTouchAPIToken(t.ID, now) {
+			go m.db.Exec("UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1", t.ID)
+		}
+		return u, t, true
+	}
+	var t APIToken
+	row := m.db.QueryRow(`
+		SELECT t.id, t.user_id, t.name, t.token_prefix, t.last_used_at, t.expires_at, t.created_at,
+		       u.id, u.username, u.email, u.role, u.status,
+		       COALESCE(u.display_name,''), COALESCE(u.avatar_url,''),
+		       u.created_at, u.updated_at, u.last_login_at
+		FROM api_tokens t
+		JOIN users u ON u.id = t.user_id
+		WHERE t.token_hash = $1
+		  AND (t.expires_at IS NULL OR t.expires_at > NOW())
+		  AND u.status = 'active'
+	`, tokenHash)
+	var u User
+	if err := row.Scan(
+		&t.ID, &t.UserID, &t.Name, &t.TokenPrefix, &t.LastUsedAt, &t.ExpiresAt, &t.CreatedAt,
+		&u.ID, &u.Username, &u.Email, &u.Role, &u.Status,
+		&u.DisplayName, &u.AvatarURL, &u.CreatedAt, &u.UpdatedAt, &u.LastLoginAt,
+	); err != nil {
+		return nil, nil, false
+	}
+	m.auth.setAPIToken(tokenHash, u, t, now)
+	if m.auth.shouldTouchAPIToken(t.ID, now) {
+		go m.db.Exec("UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1", t.ID)
+	}
+	return &u, &t, true
+}
+
+// ListAPITokens returns all API tokens for a user (without token_hash for security).
+func (m *Manager) ListAPITokens(userID int64) ([]APIToken, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	rows, err := m.db.Query(`
+		SELECT id, user_id, name, token_prefix, last_used_at, expires_at, created_at
+		FROM api_tokens
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	tokens := make([]APIToken, 0)
+	for rows.Next() {
+		var t APIToken
+		if err := rows.Scan(&t.ID, &t.UserID, &t.Name, &t.TokenPrefix, &t.LastUsedAt, &t.ExpiresAt, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, t)
+	}
+	return tokens, rows.Err()
+}
+
+// DeleteAPIToken removes an API token by ID, ensuring ownership.
+func (m *Manager) DeleteAPIToken(id, userID int64) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	res, err := m.db.Exec("DELETE FROM api_tokens WHERE id = $1 AND user_id = $2", id, userID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("token not found")
+	}
+	m.auth.invalidateAPITokenByID(id)
+	return nil
+}
+
 // ─── Quotas ───────────────────────────────────────────────────────────────────
+
 
 type UserQuota struct {
 	UserID        int64 `json:"userId"`
 	MaxProjects   int   `json:"maxProjects"`
 	MaxTunnels    int   `json:"maxTunnels"`
+	MaxDatabases  int   `json:"maxDatabases"`
+	MaxApps       int   `json:"maxApps"`
 	DiskQuotaMB   int64 `json:"diskQuotaMb"`
 	CPULimitPct   int   `json:"cpuLimitPct"`
 	MemoryLimitMB int   `json:"memoryLimitMb"`
 }
 
+// QuotaUnlimited is the count limit of an account that has none; disk, CPU and memory limits of 0 already mean no limit
+const QuotaUnlimited = 1 << 30
+
 func (m *Manager) GetUserQuota(userID int64) (*UserQuota, error) {
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
+	now := time.Now()
+	if cached, ok := m.auth.getQuota(userID, now); ok {
+		return cached, nil
+	}
+	// the superadmin runs the server: a quota is for the accounts it gives out
+	var role string
+	if err := m.db.QueryRow(`SELECT role FROM users WHERE id = $1`, userID).Scan(&role); err == nil && role == "superadmin" {
+		q := UserQuota{UserID: userID, MaxProjects: QuotaUnlimited, MaxTunnels: QuotaUnlimited, MaxDatabases: QuotaUnlimited, MaxApps: QuotaUnlimited}
+		m.auth.setQuota(userID, q, now)
+		return &q, nil
+	}
 	var q UserQuota
 	err := m.db.QueryRow(`
-		SELECT user_id, max_projects, max_tunnels, disk_quota_mb, cpu_limit_pct, memory_limit_mb
+		SELECT user_id, max_projects, max_tunnels, max_databases, max_apps, disk_quota_mb, cpu_limit_pct, memory_limit_mb
 		FROM user_quotas WHERE user_id = $1
-	`, userID).Scan(&q.UserID, &q.MaxProjects, &q.MaxTunnels, &q.DiskQuotaMB, &q.CPULimitPct, &q.MemoryLimitMB)
+	`, userID).Scan(&q.UserID, &q.MaxProjects, &q.MaxTunnels, &q.MaxDatabases, &q.MaxApps, &q.DiskQuotaMB, &q.CPULimitPct, &q.MemoryLimitMB)
 	if err == sql.ErrNoRows {
 		// Return defaults
-		return &UserQuota{UserID: userID, MaxProjects: 5, MaxTunnels: 5, DiskQuotaMB: 5120, CPULimitPct: 100, MemoryLimitMB: 512}, nil
+		q = UserQuota{UserID: userID, MaxProjects: 5, MaxTunnels: 5, MaxDatabases: 3, MaxApps: 3, DiskQuotaMB: 5120, CPULimitPct: 100, MemoryLimitMB: 512}
+		m.auth.setQuota(userID, q, now)
+		return &q, nil
+	}
+	if err == nil {
+		m.auth.setQuota(userID, q, now)
 	}
 	return &q, err
 }
@@ -824,16 +1133,21 @@ func (m *Manager) UpdateUserQuota(q UserQuota) error {
 		return fmt.Errorf("database not connected")
 	}
 	_, err := m.db.Exec(`
-		INSERT INTO user_quotas (user_id, max_projects, max_tunnels, disk_quota_mb, cpu_limit_pct, memory_limit_mb)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO user_quotas (user_id, max_projects, max_tunnels, max_databases, max_apps, disk_quota_mb, cpu_limit_pct, memory_limit_mb)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (user_id) DO UPDATE SET
 			max_projects = EXCLUDED.max_projects,
 			max_tunnels = EXCLUDED.max_tunnels,
+			max_databases = EXCLUDED.max_databases,
+			max_apps = EXCLUDED.max_apps,
 			disk_quota_mb = EXCLUDED.disk_quota_mb,
 			cpu_limit_pct = EXCLUDED.cpu_limit_pct,
 			memory_limit_mb = EXCLUDED.memory_limit_mb,
 			updated_at = NOW()
-	`, q.UserID, q.MaxProjects, q.MaxTunnels, q.DiskQuotaMB, q.CPULimitPct, q.MemoryLimitMB)
+	`, q.UserID, q.MaxProjects, q.MaxTunnels, q.MaxDatabases, q.MaxApps, q.DiskQuotaMB, q.CPULimitPct, q.MemoryLimitMB)
+	if err == nil {
+		m.auth.invalidateQuota(q.UserID)
+	}
 	return err
 }
 
@@ -920,6 +1234,60 @@ type Project struct {
 	AssignedPort int       `json:"assignedPort"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
+	// Run is how the project is installed, built and started when its folder says too little, and the processes of a
+	// project made of several
+	Run ProjectRun `json:"run"`
+}
+
+// ProjectService is one process of a project made of several (a frontend, a backend). One address serves them all: a request goes
+// to the service with the longest Path that starts it.
+type ProjectService struct {
+	Name string `json:"name"`
+	// Kind is process (runs Command) or static (serves the folder Dir, with a fallback to index.html for a single-page app)
+	Kind    string `json:"kind"`
+	Install string `json:"installCommand"`
+	Build   string `json:"buildCommand"`
+	Command string `json:"startCommand"`
+	// Dir is the folder of the service, inside the project folder; empty is the project folder itself
+	Dir string `json:"dir"`
+	// Serve is, for a static service, the folder it serves inside Dir (a build's dist); empty serves Dir itself
+	Serve string `json:"serve"`
+	// Path is where the service sits in the address: "/" for the one that takes the rest, "/api" for a backend
+	Path string `json:"path"`
+	// Port is the port the service listens on; 0 lets the agent pick one and hand it over as PORT
+	Port int `json:"port"`
+}
+
+// ProjectRun is how a project runs. For a project of one process the three commands apply to it; for a project of several each
+// service has its own.
+type ProjectRun struct {
+	Install  string           `json:"installCommand"`
+	Build    string           `json:"buildCommand"`
+	Start    string           `json:"startCommand"`
+	Services []ProjectService `json:"services"`
+	// Env are the variables the project runs with, as typed; they are kept only in EnvEnc, encrypted, and the server fills Env
+	// when it needs to show or use them
+	Env    map[string]string `json:"env,omitempty"`
+	EnvEnc string            `json:"envEnc,omitempty"`
+}
+
+// projectColumns are the columns a Project is read from, in the order scanProject takes them
+const projectColumns = `id, user_id, name, slug, COALESCE(description,''), status, project_type,
+			COALESCE(repo_url,''), COALESCE(working_dir,''),
+			COALESCE(spa_fallback, true),
+			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at, run_config`
+
+func decodeProjectRun(raw []byte) ProjectRun {
+	var run ProjectRun
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &run)
+	}
+	if run.Services == nil {
+		run.Services = []ProjectService{}
+	}
+	// the variables are never read from what is stored in clear: only EnvEnc is kept
+	run.Env = nil
+	return run
 }
 
 func (m *Manager) ListProjects(userID int64) ([]Project, error) {
@@ -957,10 +1325,7 @@ func (m *Manager) ListProjectsFiltered(userID int64, includeAll bool, query stri
 	}
 
 	listQuery := fmt.Sprintf(`
-		SELECT id, user_id, name, slug, COALESCE(description,''), status, project_type,
-			COALESCE(repo_url,''), COALESCE(working_dir,''),
-			COALESCE(spa_fallback, true),
-			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
+		SELECT `+projectColumns+`
 		FROM projects
 		WHERE %s
 		ORDER BY created_at DESC
@@ -985,10 +1350,7 @@ func (m *Manager) GetProject(id, userID int64) (*Project, error) {
 		return nil, fmt.Errorf("database not connected")
 	}
 	row := m.db.QueryRow(`
-		SELECT id, user_id, name, slug, COALESCE(description,''), status, project_type,
-			COALESCE(repo_url,''), COALESCE(working_dir,''),
-			COALESCE(spa_fallback, true),
-			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
+		SELECT `+projectColumns+`
 		FROM projects WHERE id = $1 AND user_id = $2
 	`, id, userID)
 	return scanProject(row)
@@ -998,19 +1360,12 @@ func (m *Manager) CreateProject(userID int64, name, slug, description, projectTy
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
-	var p Project
-	err := m.db.QueryRow(`
+	row := m.db.QueryRow(`
 		INSERT INTO projects (user_id, name, slug, description, project_type, repo_url, working_dir, spa_fallback, assigned_port)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, user_id, name, slug, COALESCE(description,''), status, project_type,
-			COALESCE(repo_url,''), COALESCE(working_dir,''),
-			COALESCE(spa_fallback, true),
-			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
-	`, userID, name, slug, description, projectType, repoURL, workingDir, spaFallback, assignedPort).Scan(
-		&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType,
-		&p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt,
-	)
-	return &p, err
+		RETURNING `+projectColumns+`
+	`, userID, name, slug, description, projectType, repoURL, workingDir, spaFallback, assignedPort)
+	return scanProject(row)
 }
 
 func (m *Manager) UpdateProjectStatus(id int64, status string) error {
@@ -1025,20 +1380,34 @@ func (m *Manager) UpdateProject(id, userID int64, name, description, projectType
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
-	var p Project
-	err := m.db.QueryRow(`
+	row := m.db.QueryRow(`
 		UPDATE projects
 		SET name = $3, description = $4, project_type = $5, repo_url = $6, working_dir = $7, spa_fallback = $8, updated_at = NOW()
 		WHERE id = $1 AND user_id = $2
-		RETURNING id, user_id, name, slug, COALESCE(description,''), status, project_type,
-			COALESCE(repo_url,''), COALESCE(working_dir,''),
-			COALESCE(spa_fallback, true),
-			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
-	`, id, userID, name, description, projectType, repoURL, workingDir, spaFallback).Scan(
-		&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType,
-		&p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt,
-	)
-	return &p, err
+		RETURNING `+projectColumns+`
+	`, id, userID, name, description, projectType, repoURL, workingDir, spaFallback)
+	return scanProject(row)
+}
+
+// UpdateProjectRun saves how a project runs
+func (m *Manager) UpdateProjectRun(id, userID int64, run ProjectRun) (*Project, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	if run.Services == nil {
+		run.Services = []ProjectService{}
+	}
+	// the variables are stored only encrypted
+	run.Env = nil
+	raw, err := json.Marshal(run)
+	if err != nil {
+		return nil, err
+	}
+	row := m.db.QueryRow(`
+		UPDATE projects SET run_config = $3::jsonb, updated_at = NOW() WHERE id = $1 AND user_id = $2
+		RETURNING `+projectColumns+`
+	`, id, userID, string(raw))
+	return scanProject(row)
 }
 
 func (m *Manager) DeleteProject(id, userID int64) error {
@@ -1500,8 +1869,8 @@ var defaultTerminalPresetCommands = []struct {
 	{"", "df -h", 4},
 	{"", "free -h", 5},
 	{"", "docker ps -a", 6},
-	{"", "systemctl status ypanel --no-pager", 7},
-	{"", "journalctl -u ypanel -n 50 --no-pager", 8},
+	{"", "systemctl status reneo --no-pager", 7},
+	{"", "journalctl -u reneo -n 50 --no-pager", 8},
 }
 
 func (m *Manager) seedDefaultTerminalPresets() error {
@@ -1675,6 +2044,42 @@ func (m *Manager) GetWallpaper(userID int64) (string, error) {
 	return data.String, nil
 }
 
+// ─── Desktop widgets (per user) ──────────────────────────────────────────────
+
+// GetWidgets returns the user's stored widget layout JSON ("" when none) and its update time.
+func (m *Manager) GetWidgets(userID int64) (string, time.Time, error) {
+	if !m.IsConnected() || m.db == nil {
+		return "", time.Time{}, fmt.Errorf("database tidak tersambung")
+	}
+	var (
+		data sql.NullString
+		at   time.Time
+	)
+	err := m.db.QueryRow("SELECT widgets_data, updated_at FROM user_preferences WHERE user_id = $1", userID).Scan(&data, &at)
+	if err == sql.ErrNoRows {
+		return "", time.Time{}, nil
+	}
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	if !data.Valid {
+		return "", time.Time{}, nil
+	}
+	return data.String, at, nil
+}
+
+func (m *Manager) SetWidgets(userID int64, raw string) error {
+	if !m.IsConnected() || m.db == nil {
+		return fmt.Errorf("database tidak tersambung")
+	}
+	_, err := m.db.Exec(`
+		INSERT INTO user_preferences (user_id, widgets_data)
+		VALUES ($1, $2::jsonb)
+		ON CONFLICT (user_id) DO UPDATE SET widgets_data = EXCLUDED.widgets_data, updated_at = NOW()
+	`, userID, raw)
+	return err
+}
+
 // ─── TruncateData ─────────────────────────────────────────────────────────────
 
 func (m *Manager) TruncateData(target string, days int) (int64, error) {
@@ -1722,6 +2127,7 @@ type Doc struct {
 	Excerpt      string    `json:"excerpt"`
 	Content      string    `json:"content"`
 	Status       string    `json:"status"`
+	IsPublic     bool      `json:"isPublic"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
@@ -1756,7 +2162,7 @@ func (m *Manager) ListDocs(query string, limit, offset int, includeDrafts bool) 
 		return nil, 0, err
 	}
 	listQuery := fmt.Sprintf(`
-		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, created_at, updated_at
+		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
 		FROM docs
 		WHERE (%s)
 		  AND ($1 = '' OR LOWER(title) LIKE $2 OR LOWER(slug) LIKE $2 OR LOWER(excerpt) LIKE $2 OR LOWER(content) LIKE $2)
@@ -1777,7 +2183,7 @@ func (m *Manager) GetDocByID(id int64, includeDrafts bool) (*Doc, error) {
 		return nil, fmt.Errorf("database not connected")
 	}
 	query := `
-		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, created_at, updated_at
+		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
 		FROM docs WHERE id = $1`
 	if !includeDrafts {
 		query += ` AND status = 'published'`
@@ -1791,7 +2197,7 @@ func (m *Manager) GetDocBySlug(slug string, includeDrafts bool) (*Doc, error) {
 		return nil, fmt.Errorf("database not connected")
 	}
 	query := `
-		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, created_at, updated_at
+		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
 		FROM docs WHERE slug = $1`
 	if !includeDrafts {
 		query += ` AND status = 'published'`
@@ -1800,33 +2206,33 @@ func (m *Manager) GetDocBySlug(slug string, includeDrafts bool) (*Doc, error) {
 	return scanDoc(row)
 }
 
-func (m *Manager) CreateDoc(authorUserID *int64, title, slug, excerpt, content, status string) (*Doc, error) {
+func (m *Manager) CreateDoc(authorUserID *int64, title, slug, excerpt, content, status string, isPublic bool) (*Doc, error) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, fmt.Errorf("database not connected")
 	}
 	var doc Doc
 	err := m.db.QueryRow(`
-		INSERT INTO docs (author_user_id, title, slug, excerpt, content, status)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, created_at, updated_at
-	`, authorUserID, title, slug, excerpt, content, status).Scan(
-		&doc.ID, &doc.AuthorUserID, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.CreatedAt, &doc.UpdatedAt,
+		INSERT INTO docs (author_user_id, title, slug, excerpt, content, status, is_public)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
+	`, authorUserID, title, slug, excerpt, content, status, isPublic).Scan(
+		&doc.ID, &doc.AuthorUserID, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.IsPublic, &doc.CreatedAt, &doc.UpdatedAt,
 	)
 	return &doc, err
 }
 
-func (m *Manager) UpdateDoc(id int64, title, slug, excerpt, content, status string) (*Doc, error) {
+func (m *Manager) UpdateDoc(id int64, title, slug, excerpt, content, status string, isPublic bool) (*Doc, error) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, fmt.Errorf("database not connected")
 	}
 	var doc Doc
 	err := m.db.QueryRow(`
 		UPDATE docs
-		SET title = $1, slug = $2, excerpt = $3, content = $4, status = $5, updated_at = NOW()
-		WHERE id = $6
-		RETURNING id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, created_at, updated_at
-	`, title, slug, excerpt, content, status, id).Scan(
-		&doc.ID, &doc.AuthorUserID, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.CreatedAt, &doc.UpdatedAt,
+		SET title = $1, slug = $2, excerpt = $3, content = $4, status = $5, is_public = $6, updated_at = NOW()
+		WHERE id = $7
+		RETURNING id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
+	`, title, slug, excerpt, content, status, isPublic, id).Scan(
+		&doc.ID, &doc.AuthorUserID, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.IsPublic, &doc.CreatedAt, &doc.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -1840,6 +2246,41 @@ func (m *Manager) DeleteDoc(id int64) error {
 	}
 	_, err := m.db.Exec(`DELETE FROM docs WHERE id = $1`, id)
 	return err
+}
+
+
+// ListPublicDocs returns articles that are published and marked public, newest first.
+func (m *Manager) ListPublicDocs(limit int) ([]Doc, error) {
+	if !m.IsConnected() || m.db == nil {
+		return nil, fmt.Errorf("database not connected")
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+	rows, err := m.db.Query(`
+		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), '', status, is_public, created_at, updated_at
+		FROM docs
+		WHERE status = 'published' AND is_public = true
+		ORDER BY updated_at DESC, id DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanDocs(rows)
+}
+
+// GetPublicDocBySlug returns one public, published article (nil when it is not public).
+func (m *Manager) GetPublicDocBySlug(slug string) (*Doc, error) {
+	if !m.IsConnected() || m.db == nil {
+		return nil, fmt.Errorf("database not connected")
+	}
+	row := m.db.QueryRow(`
+		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
+		FROM docs WHERE slug = $1 AND status = 'published' AND is_public = true
+	`, slug)
+	return scanDoc(row)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1900,10 +2341,12 @@ func scanUserFromRows(rows *sql.Rows) (*User, error) {
 
 func scanProject(row rowScanner) (*Project, error) {
 	var p Project
-	err := row.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt)
+	var run []byte
+	err := row.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt, &run)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
+	p.Run = decodeProjectRun(run)
 	return &p, err
 }
 
@@ -1911,9 +2354,11 @@ func scanProjects(rows *sql.Rows) ([]Project, error) {
 	result := make([]Project, 0)
 	for rows.Next() {
 		var p Project
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		var run []byte
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt, &run); err != nil {
 			return nil, err
 		}
+		p.Run = decodeProjectRun(run)
 		result = append(result, p)
 	}
 	return result, rows.Err()

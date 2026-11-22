@@ -1,0 +1,815 @@
+// Design Tokens & Variables
+
+:root {
+  // Controls: every button, field and select of the kit has this height, radius and text size, as in the bars of the Docker window
+  --control-h: 32px;
+  --control-h-sm: 28px;
+  --control-h-lg: 40px;
+  --control-radius: 8px;
+  --control-font: 0.75rem;
+  --sand: #cfc4a6;
+  --sand-dark: #b5a882;
+  --sand-400: #8a7f68;
+  --sand-500: #62594a;
+  --sand-600: #332d24;
+  --accent: #f76707;
+  --accent-hover: #e05c00;
+
+  // Taskbar
+  --tb-bg: rgba(255, 255, 255, 0.96);
+  --tb-border: rgba(226, 232, 240, 0.92);
+  --tb-text: #0f172a;
+  --text-secondary: #4b5563;
+  --tb-clock: #0f172a;
+  --tb-hover: rgba(15, 23, 42, 0.06);
+  --tb-icon: #0f172a;
+
+  // Window chrome
+  --win-bg: rgba(255, 255, 255, 0.95);
+  --win-border-focus: rgba(203, 213, 225, 0.95);
+  --win-border: rgba(203, 213, 225, 0.88);
+  --win-shadow-focus: 0 28px 70px rgba(15, 23, 42, 0.25), 0 10px 24px rgba(15, 23, 42, 0.12);
+  --win-shadow: 0 12px 36px rgba(15, 23, 42, 0.15), 0 4px 12px rgba(15, 23, 42, 0.08);
+  --win-bar-focus: rgba(255, 255, 255, 1);
+  --win-bar: rgba(255, 255, 255, 0.9);
+  --win-bar-border: rgba(203, 213, 225, 0.88);
+  --win-content-bg: #ffffff;
+  --win-text: #1e293b;
+
+  // Desktop Widgets
+  --widget-bg: rgba(255, 255, 255, 0.94);
+  --widget-border: rgba(203, 213, 225, 0.75);
+  --widget-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  --widget-shadow-hover: 0 8px 24px -4px rgba(15, 23, 42, 0.10), 0 3px 8px -1px rgba(15, 23, 42, 0.06);
+
+  // Shared panel design system
+  --panel-surface: rgba(15, 23, 42, 0.028);
+  --panel-surface-strong: rgba(15, 23, 42, 0.048);
+  --panel-surface-hover: rgba(15, 23, 42, 0.066);
+  --panel-field-bg: rgba(15, 23, 42, 0.032);
+  --panel-field-focus: rgba(15, 23, 42, 0.052);
+  --panel-overlay: rgba(2, 6, 23, 0.46);
+  --panel-card-shadow: 0 18px 48px rgba(15, 23, 42, 0.14);
+  --panel-card-icon-bg: rgba(59, 130, 246, 0.08);
+  --panel-primary-bg: rgba(59, 130, 246, 0.1);
+  --panel-primary-hover: rgba(59, 130, 246, 0.16);
+  --panel-primary-text: #1d4ed8;
+  --panel-primary-solid: #2563eb;
+  --panel-primary: var(--panel-primary-solid);
+  --panel-primary-solid-shadow: 0 8px 16px rgba(37, 99, 235, 0.15);
+  --panel-danger-bg: rgba(220, 38, 38, 0.1);
+  --panel-danger-hover: rgba(220, 38, 38, 0.16);
+  --panel-danger-text: #b91c1c;
+  --panel-success-bg: rgba(5, 150, 105, 0.12);
+  --panel-success-border: rgba(5, 150, 105, 0.35);
+  --panel-success-text: #047857;
+  --win-bg-soft: var(--panel-surface);
+  --panel-warning-bg: rgba(217, 119, 6, 0.12);
+  --panel-warning-text: #b45309;
+  --panel-info-bg: rgba(2, 132, 199, 0.12);
+  --panel-info-text: #0369a1;
+  --panel-neutral-bg: rgba(100, 116, 139, 0.12);
+  --panel-neutral-text: #475569;
+  --panel-primary-soft: rgba(59, 130, 246, 0.10);
+  --panel-elevated-surface: rgba(255, 255, 255, 0.66);
+  --panel-elevated-border: rgba(203, 213, 225, 0.55);
+  --panel-code-bg: #0f172a;
+  --panel-code-text: #dbeafe;
+  --panel-soft-shadow: 0 18px 46px rgba(15, 23, 42, 0.08);
+  --panel-hover-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+
+  // Dock
+  --dock-bg: rgba(255, 255, 255, 0.92);
+  --dock-border: rgba(255, 255, 255, 0.78);
+  --dock-shadow: 0 20px 40px rgba(15, 23, 42, 0.10);
+
+  // Profile / menu
+  --profile-btn-bg: rgba(15, 23, 42, 0.06);
+  --profile-btn-hover: rgba(15, 23, 42, 0.11);
+  --menu-bg: rgba(255, 255, 255, 0.98);
+  --menu-border: rgba(226, 232, 240, 0.9);
+  --menu-divider: rgba(226, 232, 240, 0.8);
+  --menu-shadow: 0 16px 48px rgba(15, 23, 42, 0.16);
+  --focus-ring: #1d4ed8;
+  --focus-ring-offset: #ffffff;
+  --panel-danger-solid: #b91c1c;
+  --panel-danger-solid-hover: #991b1b;
+  --scrollbar-thumb: rgba(15, 23, 42, 0.22);
+  --scrollbar-thumb-hover: rgba(15, 23, 42, 0.42);
+  --scrollbar-track: transparent;
+
+  // Shared semantic colors
+  --color-white: #ffffff;
+  --surface-subtle: rgba(15, 23, 42, 0.03);
+  --surface-subtle-dark: rgba(255, 255, 255, 0.04);
+  --status-online: #4ade80;
+  --status-offline: #6b7280;
+  --status-error: #f87171;
+  --profile-icon-sun: #fbbf24;
+  --profile-icon-moon: #6366f1;
+  --profile-icon-cloud: #f97316;
+  --profile-modal-card-bg: rgba(15, 23, 42, 0.02);
+  --profile-modal-close-hover: rgba(15, 23, 42, 0.05);
+  --profile-resource-scope-bg: var(--panel-elevated-surface);
+  --action-cloudflare-shadow: 0 12px 24px rgba(249, 115, 22, 0.22);
+  --action-warning-hover: rgba(249, 115, 22, 0.18);
+  --file-manager-confirm-danger-bg: rgba(239, 68, 68, 0.90);
+  --file-manager-confirm-danger-hover: #f87171;
+  --file-manager-confirm-danger-shadow: 0 2px 12px rgba(239, 68, 68, 0.30);
+  --file-manager-confirm-primary-bg: rgba(14, 165, 233, 0.90);
+  --file-manager-confirm-primary-hover: var(--panel-primary-text);
+  --file-manager-confirm-primary-shadow: 0 2px 12px rgba(14, 165, 233, 0.30);
+  --file-manager-mode-bg: rgba(255, 255, 255, 0.06);
+  --file-manager-tab-accent: #0ea5e9;
+  --file-manager-drag-ghost-bg: rgba(14, 165, 233, 0.90);
+  --file-manager-floating-shadow: 0 20px 40px rgba(0, 0, 0, 0.40);
+  --file-manager-floating-divider: #475569;
+  --dock-surface-text: var(--text-secondary);
+  --dock-surface-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+  --dock-item-idle-bg: rgba(255, 255, 255, 0.45);
+  --dock-item-idle-text: var(--text-secondary);
+  --dock-item-border: rgba(0, 0, 0, 0.08);
+  --dock-item-idle-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --dock-item-open-border: var(--dock-item-border);
+  --dock-item-open-bg: rgba(255, 255, 255, 0.65);
+  --dock-item-open-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.10);
+  --dock-tooltip-bg: #0f172a;
+  --dock-tooltip-text: #ffffff;
+  --dock-tooltip-shadow: 0 10px 20px rgba(15, 23, 42, 0.28);
+  --dock-menu-bg: rgba(255, 255, 255, 0.98);
+  --dock-menu-border: rgba(226, 232, 240, 0.90);
+  --dock-menu-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
+  --dock-menu-icon-bg: #f1f5f9;
+  --dock-menu-active-icon-bg: #d1fae5;
+  --dock-menu-danger-icon-bg: #fee2e2;
+  --dock-reveal-bg: rgba(226, 232, 240, 0.72);
+  --dock-reveal-shadow: 0 8px 18px rgba(2, 6, 23, 0.24);
+  --dock-preview-bg: rgba(255, 255, 255, 0.94);
+  --dock-preview-border: rgba(203, 213, 225, 0.60);
+  --dock-preview-shadow: 0 28px 58px rgba(15, 23, 42, 0.20);
+  --dock-preview-active-bg: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.98));
+  --dock-preview-active-border: rgba(125, 211, 252, 0.80);
+  --dock-preview-active-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.28);
+  --dock-preview-idle-border: rgba(226, 232, 240, 0.90);
+  --dock-preview-idle-hover-border: #cbd5e1;
+  --dock-preview-status-active-bg: #e0f2fe;
+  --dock-preview-status-idle-bg: rgba(226, 232, 240, 0.80);
+  --dock-preview-icon-bg: #f1f5f9;
+  --dock-preview-icon-shadow: inset 0 1px 0 var(--surface-subtle-dark);
+  --dock-preview-close-bg: #ffffff;
+  --dock-preview-close-border: #e2e8f0;
+  --dock-preview-close-hover-border: #fca5a5;
+  --dock-indicator-visible-bg: rgba(30, 41, 59, 0.80);
+  --dock-indicator-muted-bg: rgba(255, 255, 255, 0.70);
+  --dock-icon-filter: none;
+  --projects-highlight-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(245, 158, 11, 0.06));
+  --projects-highlight-shadow: 0 18px 36px rgba(245, 158, 11, 0.12);
+  --projects-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  --projects-card-highlight-bg: rgba(251, 191, 36, 0.12);
+  --projects-card-highlight-border: rgba(251, 191, 36, 0.60);
+  --projects-card-highlight-ring: rgba(251, 191, 36, 0.35);
+  --projects-card-highlight-shadow: 0 22px 44px rgba(245, 158, 11, 0.18);
+  --settings-audit-card-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  --debug-grid-color: #00ffff;
+  --debug-grid-panel-bg: rgba(0, 0, 0, 0.90);
+  --debug-grid-button-bg: rgba(0, 0, 0, 0.85);
+  --debug-grid-muted-text: #888888;
+  --debug-grid-subtle-text: #666666;
+  --debug-grid-button-muted-text: #4a5568;
+  --debug-grid-preset-bg: rgba(255, 255, 255, 0.05);
+  --debug-grid-preset-border: rgba(255, 255, 255, 0.20);
+  --debug-grid-preset-active-border: #ffffff;
+  --debug-grid-preset-active-shadow: 0 0 8px rgba(255, 255, 255, 0.50);
+  --debug-grid-button-shadow: 0 4px 12px rgba(0, 0, 0, 0.30);
+  --debug-grid-measure-bg: rgba(0, 0, 0, 0.70);
+  --debug-grid-preset-cyan: #00ffff;
+  --debug-grid-preset-magenta: #ff00ff;
+  --debug-grid-preset-green: #00ff00;
+  --debug-grid-preset-red: #ff0000;
+  --debug-grid-preset-yellow: #ffff00;
+  --debug-grid-preset-white: #ffffff;
+  --system-incident-hover-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+  --global-alert-card-highlight: inset 0 1px 0 color-mix(in srgb, white 28%, transparent);
+  --global-alert-confirm-shadow: 0 2px 12px rgba(14, 165, 233, 0.30);
+  --global-alert-question-text: #a78bfa;
+  --desktop-icon-hover-bg: rgba(0, 0, 0, 0.08);
+  --desktop-icon-surface: rgba(255, 255, 255, 0.85);
+  --desktop-icon-border: rgba(0, 0, 0, 0.10);
+  --desktop-icon-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --desktop-icon-label-text: #2a1f0e;
+  --desktop-icon-label-shadow: 0 1px 2px rgba(255, 255, 255, 0.50);
+  --window-title-muted: #94a3b8;
+  --window-close-hover-bg: #ef4444;
+  --window-close-hover-text: #ffffff;
+  --file-editor-tab-active-border: #007acc;
+  --file-editor-save-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.20), 0 4px 6px -4px rgba(59, 130, 246, 0.20);
+  --taskbar-menu-bg: rgba(15, 23, 42, 0.90);
+  --taskbar-menu-hover-bg: rgba(255, 255, 255, 0.05);
+  --taskbar-toggle-active-bg: var(--panel-primary-solid);
+  --debug-panel-bg: rgba(0, 0, 0, 0.85);
+  --debug-panel-button-border: rgba(167, 139, 250, 0.30);
+  --debug-panel-border: rgba(255, 255, 255, 0.10);
+  --debug-panel-row-border: rgba(255, 255, 255, 0.04);
+  --debug-panel-grid-border: rgba(255, 255, 255, 0.15);
+  --debug-panel-button-shadow: 0 4px 12px rgba(0, 0, 0, 0.30);
+  --debug-panel-text: #e5e5e5;
+  --debug-panel-muted: #6b7280;
+  --debug-panel-empty: #4b5563;
+  --debug-panel-focus: #a78bfa;
+  --debug-panel-normal: #60a5fa;
+  --debug-panel-success: #34d399;
+  --debug-panel-warning: #fbbf24;
+  --debug-panel-danger: #ef4444;
+  --debug-panel-row-focus-bg: rgba(167, 139, 250, 0.10);
+  --debug-panel-minimap-bg: #1a1a1a;
+  --debug-panel-minimap-grid: #666666;
+  --debug-panel-minimap-focus-bg: rgba(167, 139, 250, 0.30);
+  --debug-panel-minimap-normal-bg: rgba(96, 165, 250, 0.20);
+  --status-page-divider: rgba(255, 255, 255, 0.08);
+  --status-page-side-bg: rgba(2, 6, 23, 0.18);
+  --status-page-badge-border: rgba(255, 255, 255, 0.12);
+  --status-page-badge-bg: rgba(255, 255, 255, 0.06);
+  --status-page-badge-text: rgba(255, 255, 255, 0.78);
+  --status-page-accent-glow: 0 0 20px rgba(56, 189, 248, 0.42);
+  --status-page-eyebrow-text: rgba(125, 211, 252, 0.82);
+  --status-page-title-text: #ffffff;
+  --status-page-copy-text: rgba(255, 255, 255, 0.70);
+  --status-page-card-border: rgba(255, 255, 255, 0.08);
+  --status-page-card-bg: rgba(255, 255, 255, 0.05);
+  --status-page-muted-text: rgba(255, 255, 255, 0.42);
+  --status-page-value-text: #f8fafc;
+  --status-page-action-primary-shadow: 0 18px 34px rgba(249, 115, 22, 0.24);
+  --status-page-action-secondary-text: #dbeafe;
+  --status-page-action-secondary-bg: rgba(255, 255, 255, 0.06);
+  --status-page-action-secondary-border: rgba(255, 255, 255, 0.10);
+  --status-page-subtle-text: rgba(255, 255, 255, 0.66);
+  --app-placeholder-copy: rgba(226, 232, 240, 0.74);
+  --kvm-viewport-bg: #0b0f19;
+  --app-terminal-bg: #1a1108;
+  --app-terminal-text: #c8f59a;
+  --app-terminal-user: #f76707;
+  --app-terminal-separator: #ffffff;
+  --app-terminal-muted: #888888;
+  --app-loading-spinner: var(--panel-primary-solid);
+  --app-loading-text: #475569;
+  --app-loading-meta: #94a3b8;
+  --app-wallpaper-overlay-bg: rgba(15, 23, 42, 0.14);
+  --app-wallpaper-loader-border: var(--win-border);
+  --app-wallpaper-loader-bg: var(--panel-surface);
+  --app-wallpaper-loader-text: var(--win-text);
+  --app-wallpaper-loader-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  --app-wallpaper-spinner: var(--panel-primary-solid);
+  --color-white: #ffffff;
+  --boot-splash-bg: #0b2a57;
+  --docker-progress-primary: #3b82f6;
+  --docker-progress-accent: #60a5fa;
+  --docker-progress-muted: #9ca3af;
+  --docker-progress-term-bg: #090d16;
+  --docker-progress-term-fg: #e5e7eb;
+  --docker-progress-success: #34d399;
+  --docker-progress-error: #fca5a5;
+  --app-redirect-bg: #020617;
+  --login-page-bg: radial-gradient(circle at 50% 32%, rgba(59, 130, 246, 0.14), transparent 24%), radial-gradient(circle at 44% 45%, rgba(124, 58, 237, 0.10), transparent 22%), linear-gradient(180deg, #f8fafc 0%, #eef6ff 48%, #eaf0f8 100%);
+  --login-panel-bg: rgba(255, 255, 255, 0.88);
+  --login-panel-border: rgba(148, 163, 184, 0.46);
+  --login-panel-shadow: 0 4px 24px rgba(15, 23, 42, 0.11);
+  --login-text: #0f172a;
+  --login-text-muted: #475569;
+  --login-placeholder: #64748b;
+  --login-icon: #2563eb;
+  --login-icon-hover: #1d4ed8;
+  --login-submit-bg: rgba(37, 99, 235, 0.14);
+  --login-submit-hover: rgba(37, 99, 235, 0.24);
+  --login-submit-text: #1d4ed8;
+  --login-avatar-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.24), rgba(124, 58, 237, 0.18));
+  --login-scrim: rgba(248, 250, 252, 0.4);
+  --login-subtitle: rgba(51, 65, 85, 1);
+  --app-overlay-text: #ffffff;
+  --app-glass-muted-text: rgba(255, 255, 255, 0.78);
+  --wallpaper-default-light: radial-gradient(circle at top left, rgba(249,115,22,0.18), transparent 24%), radial-gradient(circle at top right, rgba(14,165,233,0.16), transparent 28%), linear-gradient(180deg, #f8fafc 0%, #eef2ff 45%, #e2e8f0 100%);
+  --wallpaper-default-dark: radial-gradient(circle at top left, rgba(139,92,246,0.18), transparent 28%), radial-gradient(circle at top right, rgba(59,130,246,0.14), transparent 30%), linear-gradient(180deg, #0f172a 0%, #111827 60%, #0b1120 100%);
+  --wallpaper-ocean-light: radial-gradient(circle at top left, rgba(6,182,212,0.22), transparent 30%), radial-gradient(circle at bottom right, rgba(59,130,246,0.20), transparent 35%), linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 50%, #bae6fd 100%);
+  --wallpaper-ocean-dark: radial-gradient(circle at top left, rgba(6,182,212,0.18), transparent 30%), radial-gradient(circle at bottom right, rgba(59,130,246,0.16), transparent 35%), linear-gradient(180deg, #0c1a2e 0%, #0f2744 55%, #0a1e38 100%);
+  --wallpaper-sunset-light: radial-gradient(circle at 20% 30%, rgba(251,146,60,0.30), transparent 30%), radial-gradient(circle at 80% 10%, rgba(244,63,94,0.22), transparent 28%), linear-gradient(160deg, #fff7ed 0%, #fef3c7 40%, #fde68a 100%);
+  --wallpaper-sunset-dark: radial-gradient(circle at 20% 30%, rgba(251,146,60,0.22), transparent 30%), radial-gradient(circle at 80% 10%, rgba(244,63,94,0.18), transparent 28%), linear-gradient(160deg, #1a0a00 0%, #2d1500 45%, #1f0c00 100%);
+  --wallpaper-forest-light: radial-gradient(circle at top left, rgba(34,197,94,0.18), transparent 26%), radial-gradient(circle at bottom right, rgba(20,184,166,0.16), transparent 30%), linear-gradient(180deg, #f0fdf4 0%, #dcfce7 50%, #d1fae5 100%);
+  --wallpaper-forest-dark: radial-gradient(circle at top left, rgba(34,197,94,0.14), transparent 26%), radial-gradient(circle at bottom right, rgba(20,184,166,0.12), transparent 30%), linear-gradient(180deg, #051a0a 0%, #0a2e14 55%, #071a0d 100%);
+  --wallpaper-midnight-light: radial-gradient(circle at 15% 20%, rgba(139,92,246,0.25), transparent 30%), radial-gradient(circle at 85% 80%, rgba(59,130,246,0.20), transparent 30%), linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  --wallpaper-midnight-dark: radial-gradient(circle at 15% 20%, rgba(139,92,246,0.30), transparent 30%), radial-gradient(circle at 85% 80%, rgba(59,130,246,0.25), transparent 30%), linear-gradient(135deg, #0a0f1e 0%, #120f36 50%, #0a0f1e 100%);
+  --wallpaper-aurora-light: radial-gradient(circle at 20% 40%, rgba(52,211,153,0.22), transparent 30%), radial-gradient(circle at 75% 20%, rgba(167,139,250,0.22), transparent 28%), radial-gradient(circle at 50% 90%, rgba(96,165,250,0.18), transparent 30%), linear-gradient(160deg, #ecfdf5 0%, #ede9fe 50%, #dbeafe 100%);
+  --wallpaper-aurora-dark: radial-gradient(circle at 20% 40%, rgba(52,211,153,0.18), transparent 30%), radial-gradient(circle at 75% 20%, rgba(167,139,250,0.20), transparent 28%), radial-gradient(circle at 50% 90%, rgba(96,165,250,0.14), transparent 30%), linear-gradient(160deg, #041a12 0%, #0f0a2e 50%, #051626 100%);
+  --fallback-action-bg: rgba(99, 102, 241, 0.15);
+  --fallback-action-text: rgb(129, 140, 248);
+  --fallback-action-border: rgba(99, 102, 241, 0.25);
+
+  // Host terminal: the surface is the window's own (same as --win-content-bg), and its chrome and ANSI colors follow the theme. In light, "white" and
+  // "bright white" are dark inks, so text and the overlays mixed from bright white stay readable.
+  --terminal-bg: #ffffff;
+  --terminal-fg: #1e293b;
+  --terminal-cursor: #1e293b;
+  --terminal-cursor-accent: #ffffff;
+  --terminal-chrome-fg: #4b5563;
+  --terminal-chrome-dim: #94a3b8;
+  --terminal-chrome-fg-strong: #1e293b;
+  --terminal-scroll: #cbd5e1;
+  --terminal-scroll-hover: #94a3b8;
+  --terminal-accent-solid: #2563eb;
+  --terminal-selection-bg: rgba(37, 99, 235, 0.28);
+  --terminal-selection-fg: #0f172a;
+  --terminal-black: #0f172a;
+  --terminal-red: #dc2626;
+  --terminal-green: #15803d;
+  --terminal-yellow: #a16207;
+  --terminal-blue: #2563eb;
+  --terminal-magenta: #7e22ce;
+  --terminal-cyan: #0e7490;
+  --terminal-white: #475569;
+  --terminal-bright-black: #64748b;
+  --terminal-bright-red: #ef4444;
+  --terminal-bright-green: #16a34a;
+  --terminal-bright-yellow: #ca8a04;
+  --terminal-bright-blue: #1d4ed8;
+  --terminal-bright-magenta: #9333ea;
+  --terminal-bright-cyan: #0891b2;
+  --terminal-bright-white: #0f172a;
+  --adw-preview-light-bg: #f6f8fa;
+  --adw-preview-light-border: #d0d7de;
+  --adw-preview-light-bar: #eaedf1;
+  --adw-preview-light-body: #eef1f5;
+  --adw-preview-light-main: #ffffff;
+  --adw-preview-light-dot: #8c959f;
+  --adw-preview-light-active: #0969da;
+  --adw-preview-dark-bg: #161b22;
+  --adw-preview-dark-border: #30363d;
+  --adw-preview-dark-bar: #21262d;
+  --adw-preview-dark-body: #0d1117;
+  --adw-preview-dark-main: #1c2128;
+  --adw-preview-dark-dot: #8b949e;
+  --adw-preview-dark-active: #58a6ff;
+
+  // Theme color card swatches
+  --theme-card-white-bg: #ffffff;
+  --theme-card-white-bar: #f1f5f9;
+  --theme-card-white-border: #cbd5e1;
+  --theme-card-white-accent: #334155;
+  --theme-card-black-bg: #09090b;
+  --theme-card-black-bar: #18181b;
+  --theme-card-black-border: #3f3f46;
+  --theme-card-black-accent: #f4f4f5;
+  --theme-card-pink-bg: #fff5f8;
+  --theme-card-pink-bar: #fce7f3;
+  --theme-card-pink-border: #f9a8d4;
+  --theme-card-pink-accent: #db2777;
+  --theme-card-blue-bg: #f0f6ff;
+  --theme-card-blue-bar: #dbeafe;
+  --theme-card-blue-border: #93c5fd;
+  --theme-card-blue-accent: #2563eb;
+}
+
+[data-theme="dark"] {
+  --tb-bg: rgba(15, 23, 42, 0.90);
+  --tb-border: rgba(255, 255, 255, 0.07);
+  --tb-text: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --tb-clock: #e2e8f0;
+  --tb-hover: rgba(255, 255, 255, 0.12);
+  --tb-icon: #f1f5f9;
+
+  --win-bg: rgba(15, 23, 42, 0.96);
+  --win-border-focus: rgba(255, 255, 255, 0.2);
+  --win-border: rgba(255, 255, 255, 0.15);
+  --win-shadow-focus: 0 28px 70px rgba(0, 0, 0, 0.75), 0 10px 24px rgba(0, 0, 0, 0.45);
+  --win-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+  --win-bar-focus: rgba(22, 36, 58, 0.98);
+  --win-bar: rgba(17, 27, 45, 0.98);
+  --win-bar-border: rgba(255, 255, 255, 0.15);
+  --win-content-bg: #0f172a;
+  --win-text: #f1f5f9;
+
+  // Desktop Widgets
+  --widget-bg: rgba(15, 23, 42, 0.92);
+  --widget-border: rgba(255, 255, 255, 0.12);
+  --widget-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.30), 0 2px 6px -1px rgba(0, 0, 0, 0.20);
+  --widget-shadow-hover: 0 8px 28px -4px rgba(0, 0, 0, 0.45), 0 3px 8px -1px rgba(0, 0, 0, 0.28);
+
+  --panel-surface: rgba(255, 255, 255, 0.032);
+  --panel-surface-strong: rgba(255, 255, 255, 0.048);
+  --panel-surface-hover: rgba(255, 255, 255, 0.072);
+  --panel-field-bg: rgba(255, 255, 255, 0.045);
+  --panel-field-focus: rgba(255, 255, 255, 0.08);
+  --panel-overlay: rgba(0, 0, 0, 0.56);
+  --panel-card-shadow: 0 20px 48px rgba(0, 0, 0, 0.42);
+  --panel-card-icon-bg: rgba(96, 165, 250, 0.1);
+  --panel-primary-bg: rgba(96, 165, 250, 0.12);
+  --panel-primary-hover: rgba(96, 165, 250, 0.18);
+  --panel-primary-text: #93c5fd;
+  --panel-primary-solid: #3b82f6;
+  --panel-primary: var(--panel-primary-solid);
+  --panel-primary-solid-shadow: 0 8px 16px rgba(59, 130, 246, 0.2);
+  --panel-danger-bg: rgba(248, 113, 113, 0.16);
+  --panel-danger-hover: rgba(248, 113, 113, 0.22);
+  --panel-danger-text: #fecaca;
+  --panel-success-bg: rgba(52, 211, 153, 0.16);
+  --panel-success-border: rgba(52, 211, 153, 0.38);
+  --panel-success-text: #a7f3d0;
+  --win-bg-soft: var(--panel-surface);
+  --panel-warning-bg: rgba(251, 191, 36, 0.16);
+  --panel-warning-text: #fde68a;
+  --panel-info-bg: rgba(56, 189, 248, 0.16);
+  --panel-info-text: #bae6fd;
+  --panel-neutral-bg: rgba(148, 163, 184, 0.16);
+  --panel-neutral-text: #cbd5e1;
+  --panel-primary-soft: rgba(96, 165, 250, 0.14);
+  --panel-elevated-surface: rgba(15, 23, 42, 0.34);
+  --panel-elevated-border: rgba(255, 255, 255, 0.10);
+  --panel-code-bg: rgba(2, 6, 23, 0.86);
+  --panel-code-text: #dbeafe;
+  --panel-soft-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
+  --panel-hover-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
+
+  --dock-bg: rgba(15, 23, 42, 0.92);
+  --dock-border: rgba(255, 255, 255, 0.08);
+  --dock-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+
+  --profile-btn-bg: rgba(255, 255, 255, 0.08);
+  --profile-btn-hover: rgba(255, 255, 255, 0.14);
+  --menu-bg: rgba(15, 23, 42, 0.97);
+  --menu-border: rgba(255, 255, 255, 0.08);
+  --menu-divider: rgba(255, 255, 255, 0.07);
+  --menu-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+  --focus-ring: #93c5fd;
+  --focus-ring-offset: #0f172a;
+  --panel-danger-solid: #dc2626;
+  --panel-danger-solid-hover: #b91c1c;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.22);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.42);
+  --scrollbar-track: transparent;
+  --surface-subtle: rgba(255, 255, 255, 0.04);
+  --surface-subtle-dark: rgba(255, 255, 255, 0.04);
+  --status-online: #4ade80;
+  --status-offline: #6b7280;
+  --status-error: #f87171;
+  --profile-modal-card-bg: rgba(255, 255, 255, 0.03);
+  --profile-modal-close-hover: rgba(255, 255, 255, 0.06);
+  --profile-resource-scope-bg: rgba(0, 0, 0, 0.10);
+  --dock-surface-text: var(--win-text);
+  --dock-surface-shadow: 0 18px 40px rgba(2, 6, 23, 0.26);
+  --dock-item-idle-bg: rgba(255, 255, 255, 0.08);
+  --dock-item-idle-text: var(--win-text);
+  --dock-item-border: rgba(255, 255, 255, 0.07);
+  --dock-item-idle-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --dock-item-open-border: var(--dock-item-border);
+  --dock-item-open-bg: linear-gradient(180deg, rgba(30, 41, 59, 0.86), rgba(15, 23, 42, 0.86));
+  --dock-item-open-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.35);
+  --dock-tooltip-bg: #020617;
+  --dock-tooltip-text: #ffffff;
+  --dock-tooltip-shadow: 0 10px 20px rgba(2, 6, 23, 0.40);
+  --dock-menu-bg: rgba(15, 23, 42, 0.96);
+  --dock-menu-border: var(--win-border);
+  --dock-menu-shadow: 0 14px 28px rgba(2, 6, 23, 0.36);
+  --dock-menu-icon-bg: rgba(255, 255, 255, 0.08);
+  --dock-menu-active-icon-bg: rgba(16, 185, 129, 0.16);
+  --dock-menu-danger-icon-bg: rgba(239, 68, 68, 0.14);
+  --dock-reveal-bg: rgba(255, 255, 255, 0.78);
+  --dock-reveal-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  --dock-preview-bg: rgba(2, 6, 23, 0.95);
+  --dock-preview-border: rgba(255, 255, 255, 0.14);
+  --dock-preview-shadow: 0 30px 65px rgba(2, 6, 23, 0.56);
+  --dock-preview-active-bg: linear-gradient(to right, #1e293b, #0f172a);
+  --dock-preview-active-border: rgba(56, 189, 248, 0.45);
+  --dock-preview-active-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.18);
+  --dock-preview-idle-border: rgba(255, 255, 255, 0.08);
+  --dock-preview-idle-hover-border: rgba(255, 255, 255, 0.12);
+  --dock-preview-status-active-bg: rgba(14, 165, 233, 0.15);
+  --dock-preview-status-idle-bg: rgba(255, 255, 255, 0.06);
+  --dock-preview-icon-bg: rgba(255, 255, 255, 0.06);
+  --dock-preview-close-bg: rgba(255, 255, 255, 0.06);
+  --dock-preview-close-border: var(--win-border);
+  --dock-preview-close-hover-border: rgba(248, 113, 113, 0.30);
+  --dock-indicator-visible-bg: rgba(226, 232, 240, 0.70);
+  --dock-indicator-muted-bg: rgba(255, 255, 255, 0.60);
+  --dock-icon-filter: none;
+  --projects-card-highlight-bg: rgba(251, 191, 36, 0.08);
+  --kvm-viewport-bg: #090d16;
+
+  // Host terminal (dark)
+  --terminal-bg: #0f172a;
+  --terminal-fg: #e2e8f0;
+  --terminal-cursor: #f1f5f9;
+  --terminal-cursor-accent: #0f172a;
+  // chrome around the surface (tabs, scrollbar): flush with the surface
+  --terminal-chrome-fg: #94a3b8;
+  --terminal-chrome-dim: #64748b;
+  --terminal-chrome-fg-strong: #f1f5f9;
+  --terminal-scroll: #334155;
+  --terminal-scroll-hover: #475569;
+  --terminal-accent-solid: #3b82f6;
+  --terminal-selection-bg: rgba(59, 130, 246, 0.36);
+  --terminal-selection-fg: #f8fbff;
+  --terminal-black: #0f172a;
+  --terminal-red: #fb7185;
+  --terminal-green: #34d399;
+  --terminal-yellow: #fbbf24;
+  --terminal-blue: #60a5fa;
+  --terminal-magenta: #a78bfa;
+  --terminal-cyan: #22d3ee;
+  --terminal-white: #cdd9e5;
+  --terminal-bright-black: #475569;
+  --terminal-bright-red: #fda4af;
+  --terminal-bright-green: #6ee7b7;
+  --terminal-bright-yellow: #fcd34d;
+  --terminal-bright-blue: #93c5fd;
+  --terminal-bright-magenta: #c4b5fd;
+  --terminal-bright-cyan: #67e8f9;
+  --terminal-bright-white: #ffffff;
+  --login-page-bg: linear-gradient(180deg, #0f172a 0%, #111827 60%, #0b1120 100%);
+  --login-panel-bg: rgba(255, 255, 255, 0.14);
+  --login-panel-border: rgba(255, 255, 255, 0.2);
+  --login-panel-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  --login-text: rgba(255, 255, 255, 0.9);
+  --login-text-muted: rgba(255, 255, 255, 0.58);
+  --login-placeholder: rgba(255, 255, 255, 0.52);
+  --login-icon: rgba(255, 255, 255, 0.68);
+  --login-icon-hover: rgba(255, 255, 255, 0.92);
+  --login-submit-bg: rgba(255, 255, 255, 0.2);
+  --login-submit-hover: rgba(255, 255, 255, 0.4);
+  --login-submit-text: #ffffff;
+  --login-avatar-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(99, 102, 241, 0.4));
+  --login-scrim: rgba(2, 6, 23, 0.3);
+  --login-subtitle: rgba(226, 232, 240, 0.88);
+  --app-wallpaper-overlay-bg: rgba(0, 0, 0, 0.30);
+  --app-wallpaper-loader-border: var(--win-border);
+  --app-wallpaper-loader-bg: var(--panel-surface);
+  --app-wallpaper-loader-text: var(--win-text);
+  --app-wallpaper-loader-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  --app-wallpaper-spinner: var(--panel-primary-solid);
+  --color-white: #ffffff;
+  --boot-splash-bg: #0b2a57;
+  --docker-progress-primary: #3b82f6;
+  --docker-progress-accent: #60a5fa;
+  --docker-progress-muted: #9ca3af;
+  --docker-progress-term-bg: #090d16;
+  --docker-progress-term-fg: #e5e7eb;
+  --docker-progress-success: #34d399;
+  --docker-progress-error: #fca5a5;
+  --theme-card-pink-bg: #1d0f19;
+  --theme-card-pink-bar: #2d1626;
+  --theme-card-pink-border: #831843;
+  --theme-card-pink-accent: #f472b6;
+  --theme-card-blue-bg: #0f172a;
+  --theme-card-blue-bar: #172554;
+  --theme-card-blue-border: #1e40af;
+  --theme-card-blue-accent: #60a5fa;
+}
+
+// Color Theme: White (Putih)
+:root[data-color-theme="white"] {
+  --tb-bg: rgba(255, 255, 255, 0.98);
+  --tb-border: rgba(203, 213, 225, 0.9);
+  --tb-hover: rgba(15, 23, 42, 0.06);
+  --win-bg: rgba(255, 255, 255, 0.98);
+  --win-border: rgba(203, 213, 225, 0.9);
+  --win-border-focus: rgba(148, 163, 184, 0.95);
+  --win-bar: rgba(250, 250, 252, 0.98);
+  --win-bar-focus: #ffffff;
+  --win-bar-border: rgba(203, 213, 225, 0.85);
+  --win-content-bg: #ffffff;
+  --widget-bg: rgba(255, 255, 255, 0.96);
+  --widget-border: rgba(203, 213, 225, 0.85);
+  --panel-surface: rgba(15, 23, 42, 0.025);
+  --panel-surface-strong: rgba(15, 23, 42, 0.045);
+  --panel-surface-hover: rgba(15, 23, 42, 0.07);
+  --panel-card-icon-bg: rgba(15, 23, 42, 0.06);
+  --panel-primary-bg: rgba(15, 23, 42, 0.08);
+  --panel-primary-hover: rgba(15, 23, 42, 0.14);
+  --panel-primary-text: #0f172a;
+  --panel-primary-solid: #334155;
+  --panel-primary-solid-shadow: 0 8px 16px rgba(15, 23, 42, 0.14);
+  --panel-primary-soft: rgba(15, 23, 42, 0.08);
+  --dock-bg: rgba(255, 255, 255, 0.96);
+  --dock-border: rgba(203, 213, 225, 0.88);
+  --menu-bg: rgba(255, 255, 255, 0.99);
+  --menu-border: rgba(203, 213, 225, 0.9);
+  --menu-divider: rgba(226, 232, 240, 0.85);
+  --focus-ring: #334155;
+  --adw-preview-light-active: #334155;
+}
+
+// Color Theme: Black (Hitam)
+:root[data-color-theme="black"],
+[data-theme="dark"][data-color-theme="black"] {
+  --tb-bg: rgba(9, 9, 11, 0.94);
+  --tb-border: rgba(255, 255, 255, 0.1);
+  --tb-text: #fafafa;
+  --text-secondary: #a1a1aa;
+  --tb-clock: #e4e4e7;
+  --tb-hover: rgba(255, 255, 255, 0.1);
+  --tb-icon: #fafafa;
+  --win-bg: rgba(10, 10, 12, 0.97);
+  --win-border: rgba(255, 255, 255, 0.14);
+  --win-border-focus: rgba(255, 255, 255, 0.24);
+  --win-bar: rgba(17, 17, 20, 0.98);
+  --win-bar-focus: rgba(24, 24, 29, 0.99);
+  --win-bar-border: rgba(255, 255, 255, 0.14);
+  --win-content-bg: #09090b;
+  --win-text: #fafafa;
+  --widget-bg: rgba(12, 12, 15, 0.94);
+  --widget-border: rgba(255, 255, 255, 0.12);
+  --panel-surface: rgba(255, 255, 255, 0.035);
+  --panel-surface-strong: rgba(255, 255, 255, 0.055);
+  --panel-surface-hover: rgba(255, 255, 255, 0.085);
+  --panel-field-bg: rgba(255, 255, 255, 0.05);
+  --panel-field-focus: rgba(255, 255, 255, 0.09);
+  --panel-card-icon-bg: rgba(255, 255, 255, 0.08);
+  --panel-primary-bg: rgba(255, 255, 255, 0.11);
+  --panel-primary-hover: rgba(255, 255, 255, 0.18);
+  --panel-primary-text: #f4f4f5;
+  --panel-primary-solid: #3f3f46;
+  --panel-primary-solid-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+  --panel-primary-soft: rgba(255, 255, 255, 0.12);
+  --dock-bg: rgba(10, 10, 12, 0.94);
+  --dock-border: rgba(255, 255, 255, 0.1);
+  --dock-item-open-bg: linear-gradient(180deg, rgba(39, 39, 42, 0.88), rgba(24, 24, 27, 0.88));
+  --dock-item-open-border: rgba(255, 255, 255, 0.12);
+  --dock-preview-bg: rgba(9, 9, 11, 0.96);
+  --dock-preview-active-bg: linear-gradient(to right, #27272a, #18181b);
+  --dock-preview-active-border: rgba(244, 244, 245, 0.35);
+  --dock-menu-bg: rgba(12, 12, 15, 0.97);
+  --menu-bg: rgba(12, 12, 15, 0.98);
+  --menu-border: rgba(255, 255, 255, 0.12);
+  --menu-divider: rgba(255, 255, 255, 0.09);
+  --focus-ring: #e4e4e7;
+  --focus-ring-offset: #09090b;
+  --adw-preview-dark-active: #e4e4e7;
+}
+
+// Color Theme: Pink (Light & Dark)
+:root[data-color-theme="pink"]:not([data-theme="dark"]) {
+  --tb-bg: rgba(255, 247, 250, 0.96);
+  --tb-border: rgba(244, 114, 182, 0.25);
+  --tb-hover: rgba(219, 39, 119, 0.08);
+  --win-bg: rgba(255, 248, 251, 0.96);
+  --win-border: rgba(244, 114, 182, 0.28);
+  --win-border-focus: rgba(219, 39, 119, 0.4);
+  --win-bar: rgba(253, 242, 248, 0.96);
+  --win-bar-focus: #fff7fa;
+  --win-bar-border: rgba(244, 114, 182, 0.28);
+  --win-content-bg: #fffbfc;
+  --widget-bg: rgba(255, 247, 250, 0.94);
+  --widget-border: rgba(244, 114, 182, 0.26);
+  --panel-surface: rgba(219, 39, 119, 0.03);
+  --panel-surface-strong: rgba(219, 39, 119, 0.055);
+  --panel-surface-hover: rgba(219, 39, 119, 0.085);
+  --panel-field-bg: rgba(219, 39, 119, 0.04);
+  --panel-field-focus: rgba(219, 39, 119, 0.07);
+  --panel-card-icon-bg: rgba(219, 39, 119, 0.1);
+  --panel-primary-bg: rgba(219, 39, 119, 0.11);
+  --panel-primary-hover: rgba(219, 39, 119, 0.18);
+  --panel-primary-text: #be185d;
+  --panel-primary-solid: #db2777;
+  --panel-primary-solid-shadow: 0 8px 16px rgba(219, 39, 119, 0.18);
+  --panel-primary-soft: rgba(219, 39, 119, 0.11);
+  --dock-bg: rgba(255, 244, 249, 0.94);
+  --dock-border: rgba(244, 114, 182, 0.3);
+  --dock-preview-active-border: rgba(219, 39, 119, 0.45);
+  --menu-bg: rgba(255, 249, 252, 0.98);
+  --menu-border: rgba(244, 114, 182, 0.28);
+  --menu-divider: rgba(244, 114, 182, 0.2);
+  --focus-ring: #db2777;
+  --adw-preview-light-active: #db2777;
+}
+
+[data-theme="dark"][data-color-theme="pink"] {
+  --tb-bg: rgba(22, 10, 18, 0.92);
+  --tb-border: rgba(244, 114, 182, 0.16);
+  --tb-hover: rgba(244, 114, 182, 0.14);
+  --win-bg: rgba(24, 11, 20, 0.96);
+  --win-border: rgba(244, 114, 182, 0.22);
+  --win-border-focus: rgba(244, 114, 182, 0.35);
+  --win-bar: rgba(34, 15, 28, 0.98);
+  --win-bar-focus: rgba(44, 19, 36, 0.99);
+  --win-bar-border: rgba(244, 114, 182, 0.22);
+  --win-content-bg: #170b13;
+  --widget-bg: rgba(24, 11, 20, 0.92);
+  --widget-border: rgba(244, 114, 182, 0.18);
+  --panel-surface: rgba(244, 114, 182, 0.045);
+  --panel-surface-strong: rgba(244, 114, 182, 0.075);
+  --panel-surface-hover: rgba(244, 114, 182, 0.11);
+  --panel-field-bg: rgba(244, 114, 182, 0.06);
+  --panel-field-focus: rgba(244, 114, 182, 0.1);
+  --panel-card-icon-bg: rgba(244, 114, 182, 0.14);
+  --panel-primary-bg: rgba(244, 114, 182, 0.16);
+  --panel-primary-hover: rgba(244, 114, 182, 0.24);
+  --panel-primary-text: #f9a8d4;
+  --panel-primary-solid: #db2777;
+  --panel-primary-solid-shadow: 0 8px 16px rgba(219, 39, 119, 0.24);
+  --panel-primary-soft: rgba(244, 114, 182, 0.16);
+  --dock-bg: rgba(22, 10, 18, 0.93);
+  --dock-border: rgba(244, 114, 182, 0.18);
+  --dock-item-open-bg: linear-gradient(180deg, rgba(61, 24, 49, 0.88), rgba(34, 15, 28, 0.88));
+  --dock-preview-bg: rgba(18, 8, 15, 0.96);
+  --dock-preview-active-bg: linear-gradient(to right, #3b172e, #240f1d);
+  --dock-preview-active-border: rgba(244, 114, 182, 0.45);
+  --dock-menu-bg: rgba(24, 11, 20, 0.97);
+  --menu-bg: rgba(24, 11, 20, 0.98);
+  --menu-border: rgba(244, 114, 182, 0.16);
+  --menu-divider: rgba(244, 114, 182, 0.12);
+  --focus-ring: #f472b6;
+  --focus-ring-offset: #170b13;
+  --adw-preview-dark-active: #f472b6;
+}
+
+// Color Theme: Blue (Biru)
+:root[data-color-theme="blue"]:not([data-theme="dark"]) {
+  --tb-bg: rgba(245, 249, 255, 0.96);
+  --tb-border: rgba(147, 197, 253, 0.45);
+  --tb-hover: rgba(37, 99, 235, 0.08);
+  --win-bg: rgba(246, 250, 255, 0.96);
+  --win-border: rgba(147, 197, 253, 0.55);
+  --win-border-focus: rgba(59, 130, 246, 0.45);
+  --win-bar: rgba(236, 244, 255, 0.96);
+  --win-bar-focus: #f4f8ff;
+  --win-bar-border: rgba(147, 197, 253, 0.5);
+  --win-content-bg: #f8fbff;
+  --widget-bg: rgba(245, 249, 255, 0.94);
+  --widget-border: rgba(147, 197, 253, 0.5);
+  --dock-bg: rgba(242, 248, 255, 0.94);
+  --dock-border: rgba(147, 197, 253, 0.52);
+  --menu-bg: rgba(248, 251, 255, 0.98);
+  --menu-border: rgba(147, 197, 253, 0.48);
+  --menu-divider: rgba(191, 219, 254, 0.65);
+}
+
+* {
+  box-sizing: border-box;
+  // margin: 0;
+// padding: 4;
+}
+
+// Global Font Declarations & Tokens
+:root {
+  --font-sans: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+[data-font="outfit"] {
+  --font-sans: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font="inter"] {
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font="plus-jakarta-sans"] {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font="geist"] {
+  --font-sans: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font="roboto"] {
+  --font-sans: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font-size="small"] {
+  font-size: 14.5px;
+}
+
+[data-font-size="medium"] {
+  font-size: 16px;
+}
+
+[data-font-size="large"] {
+  font-size: 17.5px;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  // follows the theme: page changes fade through the page colour, not through black
+  background: var(--win-content-bg);
+  font-size: 1rem;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}

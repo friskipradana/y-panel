@@ -1,45 +1,130 @@
+import { useMemo } from 'react'
 import type { AppShortcut } from '@/types'
 import { useWindowStore } from '@/store/windowStore'
+import { useThemeStore } from '@/store/themeStore'
+import { useWallpaperTone } from '@/lib/wallpaperTone'
+import { AppIcon } from '@/components/common/AppIcon'
+import { useI18n, windowTitleKey } from '@/lib/i18n'
 
-interface Props { app: AppShortcut }
-
-export function DesktopIcon({ app }: Props) {
-  const { openWindow } = useWindowStore()
-
-  const handleDoubleClick = () => {
-    if (app.url) window.open(app.url, '_blank')
-    else if (app.windowId) openWindow(app.windowId)
-  }
-
-  return (
-    <div
-      style={{ width: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '7px 5px', borderRadius: 8, cursor: 'pointer', transition: 'background .1s' }}
-      onDoubleClick={handleDoubleClick}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--desktop-icon-hover-bg)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-    >
-      <div style={{
-        width: 46, height: 46, borderRadius: 10,
-        background: 'var(--desktop-icon-surface)',
-        border: '1px solid var(--desktop-icon-border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 22,
-        boxShadow: 'var(--desktop-icon-shadow)',
-      }}>
-        {app.icon}
-      </div>
-      <span style={{
-        fontSize: 10, fontWeight: 500,
-        color: 'var(--desktop-icon-label-text)',
-        textAlign: 'center', lineHeight: 1.3,
-        textShadow: 'var(--desktop-icon-label-shadow)',
-      }}>
-        {app.label}
-      </span>
-    </div>
-  )
+interface Props {
+  app: AppShortcut
+  /** Arranging the icons: a press picks the icon up instead of opening the app */
+  editing?: boolean
 }
 
+export function DesktopIcon({ app, editing = false }: Props) {
+  const { t } = useI18n()
+  const { openWindow } = useWindowStore()
+  const desktopIconStyle = useThemeStore((s) => s.desktopIconStyle)
+  const desktopIconSize = useThemeStore((s) => s.desktopIconSize)
+  const desktopIconFontSize = useThemeStore((s) => s.desktopIconFontSize)
+  const desktopIconFontWeight = useThemeStore((s) => s.desktopIconFontWeight)
+  const desktopIconShadow = useThemeStore((s) => s.desktopIconShadow)
+  // the labels are read against the wallpaper, so they follow how light it is, not the mode of the panel
+  const isDark = useWallpaperTone() === 'dark'
 
+  const isPlain = desktopIconStyle === 'plain'
 
+  const displayLabel = useMemo(() => {
+    if (app.windowId === 'installed-app') {
+      return app.label
+    }
+    if (app.windowId) {
+      const desktopKey = `desktop.app.${app.windowId}`
+      const localized = t(desktopKey)
+      if (localized && localized !== desktopKey) return localized
+      const winKey = windowTitleKey(app.windowId)
+      const winLocalized = t(winKey)
+      if (winLocalized && winLocalized !== winKey) return winLocalized
+    }
+    return app.label
+  }, [app.label, app.windowId, t])
 
+  const handleClick = () => {
+    if (editing) return
+    if (app.url) {
+      window.open(app.url, '_blank')
+    } else if (app.windowId) {
+      openWindow(app.windowId, app.params)
+    }
+  }
+
+  const sizeConfig = {
+    small: {
+      btnWidth: 'w-[66px]',
+      boxSize: 'h-10 w-10 rounded-xl',
+      iconSize: isPlain ? 28 : 22,
+      maxTextWidth: 'max-w-[62px]',
+    },
+    medium: {
+      btnWidth: 'w-[76px]',
+      boxSize: 'h-12 w-12 rounded-2xl',
+      iconSize: isPlain ? 34 : 28,
+      maxTextWidth: 'max-w-[72px]',
+    },
+    large: {
+      btnWidth: 'w-[88px]',
+      boxSize: 'h-14 w-14 rounded-2xl',
+      iconSize: isPlain ? 42 : 34,
+      maxTextWidth: 'max-w-[82px]',
+    },
+  }[desktopIconSize] || {
+    btnWidth: 'w-[66px]',
+    boxSize: 'h-10 w-10 rounded-xl',
+    iconSize: isPlain ? 28 : 22,
+    maxTextWidth: 'max-w-[62px]',
+  }
+
+  const textSizeClass = {
+    small: 'text-[10px]',
+    medium: 'text-[11px]',
+    large: 'text-[12.5px]',
+  }[desktopIconFontSize] || 'text-[11px]'
+
+  const fontWeightClass = {
+    normal: 'font-normal',
+    medium: 'font-medium',
+    bold: 'font-bold',
+  }[desktopIconFontWeight] || 'font-medium'
+
+  const shadowClass = desktopIconShadow
+    ? isDark
+      ? 'drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'
+      : 'drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]'
+    : ''
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      title={displayLabel}
+      className={`group flex ${sizeConfig.btnWidth} flex-col items-center gap-1 rounded-xl p-1.5 active:scale-95 ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'} focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--panel-primary-solid)] select-none ${editing ? 'cursor-grab' : 'cursor-pointer'} transition-colors duration-150`}
+    >
+      <div
+        className={`flex ${sizeConfig.boxSize} items-center justify-center transition-all duration-150 ${
+          isPlain
+            ? 'group-hover:scale-105'
+            : isDark
+              ? 'bg-black/25 backdrop-blur-md border border-white/10 shadow-md shadow-black/20 group-hover:border-white/25 group-hover:shadow-lg'
+              : 'bg-white/50 backdrop-blur-md border border-black/10 shadow-sm shadow-black/5 group-hover:border-black/20 group-hover:shadow-md'
+        }`}
+      >
+        <AppIcon
+          kind={app.windowId || app.id}
+          iconKey={app.iconKey}
+          iconColor={app.iconColor}
+          size={sizeConfig.iconSize}
+        />
+      </div>
+      <span
+        className={`${sizeConfig.maxTextWidth} truncate text-center ${textSizeClass} ${fontWeightClass} ${shadowClass} tracking-wide ${
+          isDark
+            ? 'text-white/95'
+            : 'text-slate-800'
+        }`}
+      >
+        {displayLabel}
+      </span>
+    </button>
+  )
+}

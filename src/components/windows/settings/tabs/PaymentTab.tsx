@@ -1,0 +1,70 @@
+import { useState } from "react";
+import { useI18n } from "@/lib/i18n";
+import { Button } from "@/components/ui/Button";
+import { Stepper } from "@/components/ui/Stepper";
+import type { PaymentSettings } from "../hooks/usePaymentSettings";
+import type { NotificationSettings } from "../hooks/useNotificationSettings";
+import type { SettingsTabKey } from "../constants";
+import { GatewaySection } from "./payment/GatewaySection";
+import { ListenerEndpoints } from "./payment/ListenerConnect";
+import { ListenerDeviceList } from "./payment/ListenerDeviceList";
+import { ListenerDevices } from "./payment/ListenerDevices";
+
+export type PaymentSection = "bank" | "gateway";
+type Step = 1 | 2 | 3;
+
+// Payments. A transfer is noticed by the phone that reads the bank notifications, set up in three steps (the addresses, the
+// key of the device, then watching what arrives); the payment gateways of Midtrans and Xendit are the other section, for the
+// superadmin. The window picks the section; an admin sees the bank notifications only.
+export function PaymentTab({
+  section,
+  payment,
+  listener,
+  setActiveTab,
+  canManageGateways,
+}: {
+  section: PaymentSection;
+  payment: PaymentSettings;
+  listener: NotificationSettings;
+  setActiveTab: (tab: SettingsTabKey) => void;
+  canManageGateways: boolean;
+}) {
+  const { t } = useI18n();
+  // with a phone already connected the page opens on what it sends; with none, on how to connect one
+  const [step, setStep] = useState<Step>(listener.notificationDevices.length > 0 ? 3 : 1);
+
+  const steps: { key: Step; label: string }[] = [
+    { key: 1, label: t("settings.payment.stepAddresses") },
+    { key: 2, label: t("settings.payment.stepDevice") },
+    { key: 3, label: t("settings.payment.stepWatch") },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {section === "bank" ? (
+        <div className="panel-shell-card settings-card !p-3.5 flex flex-col gap-3.5">
+          <Stepper label={t("settings.payment.steps")} items={steps} value={step} onChange={setStep} />
+
+          <div className="border-t border-[var(--win-border)] pt-3.5">
+            {step === 1 ? <ListenerEndpoints listener={listener} /> : null}
+            {step === 2 ? <ListenerDeviceList listener={listener} setActiveTab={setActiveTab} /> : null}
+            {step === 3 ? <ListenerDevices bare listener={listener} /> : null}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 border-t border-[var(--win-border)] pt-3.5">
+            <Button variant="ghost" size="sm" disabled={step === 1} onClick={() => setStep((step - 1) as Step)}>
+              {t("common.previous")}
+            </Button>
+            {step < 3 ? (
+              <Button variant="primary" size="sm" onClick={() => setStep((step + 1) as Step)}>
+                {t("common.next")}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {section === "gateway" && canManageGateways ? <GatewaySection payment={payment} /> : null}
+    </div>
+  );
+}

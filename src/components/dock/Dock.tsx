@@ -1,89 +1,105 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { EyeOff, PanelBottom, X } from 'lucide-react'
 import { useWindowStore, selectAutoHideDock, selectFocusedId, selectWindows } from '@/store/windowStore'
+import { useAuthStore } from '@/store/authStore'
 import { useThemeStore } from '@/store/themeStore'
+import { AppIcon } from '@/components/common/AppIcon'
+import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import type { WindowKind, WindowState } from '@/types'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
 
-const DOCK_ITEMS: { kind: WindowKind; icon: string; label: string }[] = [
-  { kind: 'apps', icon: '🐋', label: 'Docker' },
-  { kind: 'projects', icon: '🗂️', label: 'Projects' },
-  { kind: 'tunnels', icon: '🌐', label: 'Cloudflare' },
-  { kind: 'profile', icon: '👤', label: 'Profile' },
-  { kind: 'host-terminal', icon: '💻', label: 'Host Terminal' },
-  { kind: 'system', icon: '⚙️', label: 'System' },
-  { kind: 'settings', icon: '🔧', label: 'Settings' },
-  { kind: 'users', icon: '👥', label: 'Users' },
-  { kind: 'database', icon: '🗄️', label: 'Database' },
-  { kind: 'system-logs', icon: '📜', label: 'System Logs' },
-  { kind: 'file-manager', icon: '📁', label: 'Explorer' },
-  { kind: 'file-editor', icon: '📝', label: 'Code Editor' },
-  { kind: 'changelog', icon: '🔔', label: 'Changelog' },
+const DOCK_ITEMS: { kind: WindowKind; label: string }[] = [
+  { kind: 'apps', label: 'Docker' },
+  { kind: 'projects', label: 'Projects' },
+  { kind: 'tunnels', label: 'Cloudflare' },
+  { kind: 'profile', label: 'Profile' },
+  { kind: 'host-terminal', label: 'Host Terminal' },
+  { kind: 'system', label: 'System' },
+  { kind: 'settings', label: 'Settings' },
+  { kind: 'users', label: 'Users' },
+  { kind: 'database', label: 'Database' },
+  { kind: 'system-logs', label: 'System Logs' },
+  { kind: 'file-manager', label: 'Files' },
+  { kind: 'file-editor', label: 'Code Editor' },
+  { kind: 'docs', label: 'Docs' },
+  { kind: 'widgets', label: 'Widgets' },
+  { kind: 'speedtest', label: 'Speed Test' },
+  { kind: 'hosting', label: 'Hosting' },
+  { kind: 'firewall', label: 'Firewall' },
+  { kind: 'email', label: 'Email' },
+  { kind: 'kvm', label: 'KVM Display' },
+  { kind: 'app-catalog', label: 'App Catalog' },
+  { kind: 'app-licenses', label: 'Lisensi Aplikasi' },
+  { kind: 'changelog', label: 'Changelog' },
 ]
-
-const NON_ADMIN_HIDDEN_KINDS = new Set<WindowKind>(['host-terminal', 'users'])
 
 type DockMenuState = {
   x: number
   y: number
   kind: WindowKind
+  windowId?: string
 } | null
+
+interface DockEntry {
+  key: string
+  kind: WindowKind
+  label: string
+  related: WindowState[]
+  iconKey?: string
+  iconColor?: string
+  windowId?: string
+}
 
 const CONTEXT_MENU_WIDTH = 178
 const CONTEXT_MENU_ESTIMATED_HEIGHT = 108
-const menuButtonClass = 'group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium transition'
+const menuButtonClass = 'group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium transition cursor-pointer'
 
 export function Dock() {
   const { t } = useI18n()
-  const { openWindow, focusWindow, closeWindow, toggleDockAutoHide, closeWindowsByKind } = useWindowStore()
+  const { openWindow, focusWindow, minimizeWindow, toggleDockAutoHide, closeWindowsByKind, closeWindow } = useWindowStore()
   const autoHideDock = useWindowStore(selectAutoHideDock)
   const focusedId = useWindowStore(selectFocusedId)
   const windows = useWindowStore(selectWindows)
-  const themeMode = useThemeStore((state) => state.mode)
-  const isDark = themeMode === 'dark'
-  const meRaw = typeof window !== 'undefined' ? window.localStorage.getItem('me-v2-cache') : null
-  const me = meRaw ? JSON.parse(meRaw) as { role?: string } : null
-  const isAdmin = me?.role === 'admin' || me?.role === 'superadmin'
+  const desktopIconStyle = useThemeStore((state) => state.desktopIconStyle)
+  const role = useAuthStore((state) => state.user?.role)
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [revealed, setRevealed] = useState(false)
   const [menu, setMenu] = useState<DockMenuState>(null)
-  const [previewKind, setPreviewKind] = useState<WindowKind | null>(null)
   const dockRef = useRef<HTMLDivElement | null>(null)
-  const previewCloseTimerRef = useRef<number | null>(null)
   const dockHideTimerRef = useRef<number | null>(null)
 
-  const groupedWindows = useMemo(() => {
-    return DOCK_ITEMS.reduce<Record<WindowKind, WindowState[]>>((acc, item) => {
-      acc[item.kind] = windows.filter((windowItem: WindowState) => windowItem.kind === item.kind)
-      return acc
-    }, {
-      apps: [],
-      terminal: [],
-      'host-terminal': [],
-      system: [],
-      'system-logs': [],
-      docs: [],
-      changelog: [],
-      portainer: [],
-      settings: [],
-      database: [],
-      trash: [],
-      'file-manager': [],
-      'file-editor': [],
-      users: [],
-      projects: [],
-      tunnels: [],
-      profile: [],
-    })
-  }, [windows])
+  const visibleDockItems = useMemo<DockEntry[]>(() => {
+    const builtin: DockEntry[] = DOCK_ITEMS
+      .filter((item) => canAccessWindow(item.kind, role))
+      .map((item) => ({
+        key: item.kind,
+        kind: item.kind,
+        label: t(windowTitleKey(item.kind)),
+        related: windows.filter((windowItem) => windowItem.kind === item.kind),
+      }))
+      .filter((entry) => entry.related.length > 0)
 
-  const visibleDockItems = useMemo(
-    () => DOCK_ITEMS
-      .filter((item) => isAdmin || !NON_ADMIN_HIDDEN_KINDS.has(item.kind))
-      .filter((item) => groupedWindows[item.kind].length > 0),
-    [groupedWindows, isAdmin],
-  )
+    const installedEntries: DockEntry[] = canAccessWindow('installed-app', role)
+      ? windows
+          .filter((windowItem) => windowItem.kind === 'installed-app')
+          .map((windowItem) => ({
+            key: windowItem.id,
+            kind: 'installed-app' as WindowKind,
+            label:
+              typeof windowItem.params?.appName === 'string' && windowItem.params.appName
+                ? windowItem.params.appName
+                : windowItem.title,
+            related: [windowItem],
+            iconKey: typeof windowItem.params?.iconKey === 'string' ? windowItem.params.iconKey : undefined,
+            iconColor: typeof windowItem.params?.iconColor === 'string' ? windowItem.params.iconColor : undefined,
+            windowId: windowItem.id,
+          }))
+      : []
+
+    return [...builtin, ...installedEntries]
+  }, [role, t, windows])
   const openKinds = useMemo(() => [...new Set(windows.map((windowItem) => windowItem.kind))], [windows])
   const hasMaximizedWindow = useMemo(
     () => windows.some((windowItem) => !windowItem.isMinimized && windowItem.isMaximized),
@@ -94,18 +110,12 @@ export function Dock() {
     [windows],
   )
   const hasExpandedWindow = hasMaximizedWindow || hasFullscreenWindow
-  // When any window is maximized/fullscreen, force auto-hide (dock slides away)
-  // but do NOT fully remove it — the reveal handle must remain so user can pull it back
   const forceAutoHideDock = autoHideDock || hasExpandedWindow
-  const isDockForcedHidden = false // never fully hide — always allow reveal trigger
 
   useEffect(() => {
     const handleClickAway = () => setMenu(null)
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setMenu(null)
-        setPreviewKind(null)
-      }
+      if (event.key === 'Escape') setMenu(null)
     }
 
     window.addEventListener('click', handleClickAway)
@@ -116,7 +126,6 @@ export function Dock() {
       window.removeEventListener('click', handleClickAway)
       window.removeEventListener('contextmenu', handleClickAway)
       window.removeEventListener('keydown', handleEscape)
-      if (previewCloseTimerRef.current) window.clearTimeout(previewCloseTimerRef.current)
       if (dockHideTimerRef.current) window.clearTimeout(dockHideTimerRef.current)
     }
   }, [])
@@ -133,42 +142,19 @@ export function Dock() {
     setRevealed(true)
   }
 
-  const scheduleDockHide = () => {
+  const scheduleDockHide = useCallback(() => {
     clearDockHideTimer()
-    if (!forceAutoHideDock || isDockForcedHidden) return
+    if (!forceAutoHideDock) return
     dockHideTimerRef.current = window.setTimeout(() => {
       const activeElement = document.activeElement
       const dockContainsFocus = !!(dockRef.current && activeElement instanceof Node && dockRef.current.contains(activeElement))
       if (dockContainsFocus) return
       setRevealed(false)
       setHovered(null)
-      setPreviewKind(null)
     }, 900)
-  }
-
-  const clearPreviewCloseTimer = () => {
-    if (previewCloseTimerRef.current) {
-      window.clearTimeout(previewCloseTimerRef.current)
-      previewCloseTimerRef.current = null
-    }
-  }
-
-  const schedulePreviewClose = (kind?: WindowKind | null) => {
-    clearPreviewCloseTimer()
-    previewCloseTimerRef.current = window.setTimeout(() => {
-      setPreviewKind((current) => (kind && current !== kind ? current : null))
-    }, 220)
-  }
+  }, [forceAutoHideDock])
 
   useEffect(() => {
-    if (isDockForcedHidden) {
-      clearDockHideTimer()
-      setHovered(null)
-      setPreviewKind(null)
-      setRevealed(false)
-      return
-    }
-
     if (!visibleDockItems.length) {
       setRevealed(false)
       return
@@ -180,30 +166,28 @@ export function Dock() {
     }
 
     scheduleDockHide()
-  }, [forceAutoHideDock, isDockForcedHidden, visibleDockItems.length])
+  }, [forceAutoHideDock, visibleDockItems.length, scheduleDockHide])
 
   const dockLayerClass = 'z-[62000]'
   const revealHandleLayerClass = 'z-[61990]'
   const dockSurfaceClass = 'border-[var(--win-border)] text-[var(--dock-surface-text)] shadow-[var(--dock-surface-shadow)]'
-  const itemIdleClass = 'border-[var(--win-border)] bg-[var(--dock-item-idle-bg)] text-[var(--dock-item-idle-text)] shadow-[var(--dock-item-idle-shadow)]'
-  const itemOpenClass = 'border-[var(--dock-item-open-border)] bg-[var(--dock-item-open-bg)] text-[var(--win-text)] shadow-[var(--dock-item-open-shadow)]'
-  const tooltipClass = 'bg-[var(--dock-tooltip-bg)] text-[var(--win-text)] shadow-[var(--dock-tooltip-shadow)]'
+  const itemIdleClass = 'border border-[var(--dock-item-border)] bg-[var(--dock-item-idle-bg)] text-[var(--dock-item-idle-text)] shadow-[var(--dock-item-idle-shadow)]'
+  const itemOpenClass = 'border border-[var(--dock-item-border)] bg-[var(--dock-item-open-bg)] text-[var(--win-text)] shadow-[var(--dock-item-open-shadow)]'
+  const tooltipClass = 'bg-[var(--dock-tooltip-bg)] text-[var(--dock-tooltip-text)] shadow-[var(--dock-tooltip-shadow)]'
   const menuPanelClass = 'border-[var(--dock-menu-border)] bg-[var(--dock-menu-bg)] text-[var(--dock-surface-text)] shadow-[var(--dock-menu-shadow)]'
   const menuButtonToneClass = 'text-[var(--dock-surface-text)] hover:bg-[var(--panel-primary-bg)] hover:text-[var(--win-text)]'
   const menuDangerToneClass = 'text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-bg)] hover:text-[var(--panel-danger-text)]'
   const menuIconWrapClass = 'bg-[var(--dock-menu-icon-bg)] text-[var(--dock-surface-text)]'
   const menuIconActiveClass = 'bg-[var(--dock-menu-active-icon-bg)] text-[var(--panel-success-text)]'
   const menuDangerIconClass = 'bg-[var(--dock-menu-danger-icon-bg)] text-[var(--panel-danger-text)]'
-  const isDockVisible = !isDockForcedHidden && (!forceAutoHideDock || revealed)
-  const dockTransformClass = isDockForcedHidden
-    ? 'translate-y-[calc(100%+24px)] opacity-0'
-    : isDockVisible
-      ? 'translate-y-0 opacity-100'
-      : 'translate-y-[calc(100%+18px)] opacity-100'
+  const isDockVisible = !forceAutoHideDock || revealed
+  const dockTransformClass = isDockVisible
+    ? 'translate-y-0 opacity-100'
+    : 'translate-y-[calc(100%+18px)] opacity-100'
 
   return (
     <>
-      {forceAutoHideDock && !isDockForcedHidden && !revealed && visibleDockItems.length > 0 && (
+      {forceAutoHideDock && !revealed && visibleDockItems.length > 0 && (
         <button
           id="dock-reveal-handle"
           onMouseEnter={revealDock}
@@ -215,157 +199,123 @@ export function Dock() {
       <div
         ref={dockRef}
         className={`fixed left-1/2 bottom-[8px] flex -translate-x-1/2 flex-col items-center gap-1.5 transition-[transform,opacity] duration-200 ${dockLayerClass} ${dockTransformClass} ${isDockVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}
-        onMouseEnter={() => {
-          if (isDockForcedHidden) return
-          revealDock()
-        }}
+        onMouseEnter={revealDock}
         onMouseLeave={() => {
           setHovered(null)
-          schedulePreviewClose(null)
           scheduleDockHide()
         }}
       >
         {visibleDockItems.length > 0 && (
-          <div
+          <motion.div
+            layout
             id="desktop-dock"
-            className={`relative flex items-end gap-1.5 rounded-[16px] border px-3 py-2 backdrop-blur-[24px] ${dockSurfaceClass}`}
+            className={`relative flex max-w-[calc(100vw-16px)] items-end gap-2.5 overflow-x-auto rounded-2xl border px-3.5 pb-4 pt-2.5 backdrop-blur-[24px] ${dockSurfaceClass}`}
+            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
           >
-            {visibleDockItems.map((item) => {
-              const related = groupedWindows[item.kind]
-              const isOpen = openKinds.includes(item.kind)
-              const isHovered = hovered === item.kind
-              const showPreview = previewKind === item.kind && related.length > 0
-              const hasVisible = related.some((windowItem) => !windowItem.isMinimized)
+            <AnimatePresence mode="popLayout">
+              {visibleDockItems.map((item) => {
+                const related = item.related
+                const isOpen = item.windowId ? true : openKinds.includes(item.kind)
+                const isHovered = hovered === item.key
+                const isFocused = related.some((w) => w.id === focusedId && !w.isMinimized)
+                const allMinimized = related.length > 0 && related.every((w) => w.isMinimized)
+                const hasVisible = related.some((w) => !w.isMinimized)
 
-              return (
-                <div
-                  key={item.kind}
-                  className="relative flex cursor-pointer flex-col items-center gap-1"
-                  onContextMenu={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    const nextX = Math.min(event.clientX, window.innerWidth - CONTEXT_MENU_WIDTH - 12)
-                    const nextY = Math.min(event.clientY, window.innerHeight - CONTEXT_MENU_ESTIMATED_HEIGHT - 12)
-                    setMenu({ x: nextX, y: nextY, kind: item.kind })
-                    setPreviewKind(null)
-                  }}
-                  onMouseEnter={() => {
-                    clearPreviewCloseTimer()
-                    setHovered(item.kind)
-                    setPreviewKind(related.length > 0 ? item.kind : null)
-                  }}
-                  onMouseLeave={() => {
-                    setHovered((current) => (current === item.kind ? null : current))
-                    if (related.length > 0) schedulePreviewClose(item.kind)
-                  }}
-                  onClick={() => {
-                    const visible = [...related].reverse().find((windowItem) => !windowItem.isMinimized)
-                    const minimized = [...related].reverse().find((windowItem) => windowItem.isMinimized)
-                    if (visible) {
-                      focusWindow(visible.id)
-                      return
-                    }
-                    if (minimized) {
-                      focusWindow(minimized.id)
-                      return
-                    }
-                    openWindow(item.kind)
-                  }}
-                >
-                  {showPreview && (
-                    <div
-                      onMouseEnter={() => {
-                        clearPreviewCloseTimer()
-                        setPreviewKind(item.kind)
-                      }}
-                      onMouseLeave={() => schedulePreviewClose(item.kind)}
-                      className="absolute bottom-[60px] left-1/2 z-[62100] flex min-w-[250px] max-w-[340px] max-h-[calc(100vh-112px)] -translate-x-1/2 flex-col gap-2 overflow-hidden rounded-[20px] border border-[var(--dock-preview-border)] bg-[var(--dock-preview-bg)] p-2 shadow-[var(--dock-preview-shadow)] backdrop-blur-xl"
-                    >
-                      <div className={`px-1 pb-1 text-[12px] uppercase tracking-[0.18em] ${isDark ? 'text-[var(--text-secondary)]' : 'text-[var(--text-secondary)]'}`}>
-                        {t('dock.openWindows', { count: related.length })}
-                      </div>
-                      <div className="flex max-h-[calc(100vh-154px)] flex-col gap-2 overflow-y-auto pr-1">
-                        {related.slice().reverse().map((windowItem: WindowState) => {
-                          const active = windowItem.id === focusedId
-                          return (
-                            <div
-                              key={windowItem.id}
-                              id={`dock-preview-${windowItem.id.replace(/[^a-z0-9-:]/gi, '-')}`}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                focusWindow(windowItem.id)
-                                setPreviewKind(null)
-                              }}
-                              className={[
-                                'group flex items-center gap-2.5 rounded-[16px] border px-3 py-2.5 transition',
-                                active
-                                  ? 'border-[var(--dock-preview-active-border)] bg-[var(--dock-preview-active-bg)] text-[var(--win-text)] shadow-[var(--dock-preview-active-shadow)]'
-                                  : 'border-[var(--dock-preview-idle-border)] bg-[var(--win-content-bg)]/95 text-[var(--dock-surface-text)] hover:border-[var(--dock-preview-idle-hover-border)] hover:bg-[var(--dock-preview-close-bg)]',
-                              ].join(' ')}
-                            >
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-[var(--dock-preview-icon-bg)] text-[15px] shadow-[var(--dock-preview-icon-shadow)]">
-                                {item.icon}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate text-[12px] font-semibold leading-[1.35] text-[var(--dock-surface-text)]">{t(windowTitleKey(windowItem.kind))}</div>
-                                <div className="mt-1 flex flex-wrap items-center gap-2">
-                                  <span className={[
-                                    'rounded-full px-2 py-0.5 text-[12px] font-medium',
-                                    active
-                                      ? 'bg-[var(--dock-preview-status-active-bg)] text-[var(--panel-primary-text)]'
-                                      : 'bg-[var(--dock-preview-status-idle-bg)] text-[var(--text-secondary)]',
-                                  ].join(' ')}>
-                                    {windowItem.isMinimized ? t('common.minimized') : active ? t('common.activeState') : t('common.open')}
-                                  </span>
-                                </div>
-                              </div>
-                              <button
-                                id={`dock-preview-close-${windowItem.id.replace(/[^a-z0-9-:]/gi, '-')}`}
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  closeWindow(windowItem.id)
-                                }}
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--dock-preview-close-border)] bg-[var(--dock-preview-close-bg)] text-[var(--text-secondary)] transition hover:border-[var(--dock-preview-close-hover-border)] hover:bg-[var(--panel-danger-bg)] hover:text-[var(--panel-danger-text)]"
-                                title={t('dock.closeWindow', { title: t(windowTitleKey(windowItem.kind)) })}
-                              >
-                                <X size={13} strokeWidth={2} />
-                              </button>
-                            </div>
-                          )
-                        })}
-                      </div>
+                return (
+                  <motion.div
+                    key={item.key}
+                    layout
+                    initial={{ opacity: 0, scale: 0.7, y: 6 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.7, y: 6 }}
+                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    className="relative flex cursor-pointer flex-col items-center select-none"
+                    onContextMenu={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      const nextX = Math.min(event.clientX, window.innerWidth - CONTEXT_MENU_WIDTH - 12)
+                      const nextY = Math.min(event.clientY, window.innerHeight - CONTEXT_MENU_ESTIMATED_HEIGHT - 12)
+                      setMenu({ x: nextX, y: nextY, kind: item.kind, windowId: item.windowId })
+                    }}
+                    onMouseEnter={() => setHovered(item.key)}
+                    onMouseLeave={() => setHovered((current) => (current === item.key ? null : current))}
+                    onClick={() => {
+                      const visible = [...related].reverse().find((windowItem) => !windowItem.isMinimized)
+                      const minimized = [...related].reverse().find((windowItem) => windowItem.isMinimized)
+                      const isCurrentlyActive = visible && visible.id === focusedId
 
-                    </div>
-                  )}
-
-                  {!showPreview && isHovered && (
-                    <div className={`pointer-events-none absolute bottom-[49px] whitespace-nowrap rounded-full px-3 py-2 text-[12px] font-medium ${tooltipClass}`}>
-                      {t(windowTitleKey(item.kind))}
-                    </div>
-                  )}
-
-                  <div
-                    className={[
-                      'flex h-[34px] w-[34px] items-center justify-center rounded-[12px] border text-[15px] transition-all duration-200',
-                      isOpen ? itemOpenClass : itemIdleClass,
-                      isHovered ? 'scale-[1.08] -translate-y-[4px]' : 'scale-100',
-                    ].join(' ')}
+                      if (isCurrentlyActive) {
+                        minimizeWindow(visible.id)
+                        return
+                      }
+                      if (visible) {
+                        focusWindow(visible.id)
+                        return
+                      }
+                      if (minimized) {
+                        focusWindow(minimized.id)
+                        return
+                      }
+                      openWindow(item.kind)
+                    }}
                   >
-                    {item.icon}
-                  </div>
+                    <AnimatePresence>
+                      {isHovered && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 4, scale: 0.92 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 4, scale: 0.92 }}
+                          transition={{ duration: 0.12 }}
+                          className={`pointer-events-none absolute bottom-full mb-2.5 whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide border border-white/10 ${tooltipClass}`}
+                        >
+                          {item.label}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
-                  <div className="flex min-h-2 items-center gap-1">
-                    <div className={[
-                      'h-[3px] rounded-full transition-all duration-150',
-                      hasVisible ? 'w-3.5 bg-[var(--dock-indicator-active-bg)]' : related.length > 0 ? 'w-2 bg-[var(--dock-indicator-visible-bg)]' : 'w-1 bg-[var(--dock-indicator-muted-bg)]',
-                      isOpen ? 'opacity-100' : 'opacity-0',
-                    ].join(' ')} />
-                    {related.length > 1 && <span className={`text-[8px] font-bold ${isDark ? 'text-[var(--text-secondary)]' : 'text-[var(--text-secondary)]'}`}>{related.length}</span>}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                    <motion.div
+                      whileHover={{ scale: 1.1, y: -2 }}
+                      whileTap={{ scale: 0.92 }}
+                      transition={{ type: 'spring', stiffness: 450, damping: 24 }}
+                      className={[
+                        'flex h-[38px] w-[38px] items-center justify-center rounded-xl cursor-pointer',
+                        desktopIconStyle === 'plain'
+                          ? 'hover:bg-white/10'
+                          : isOpen
+                            ? itemOpenClass
+                            : itemIdleClass,
+                      ].join(' ')}
+                    >
+                      <AppIcon
+                        kind={item.kind}
+                        iconKey={item.iconKey}
+                        iconColor={item.iconColor}
+                        size={22}
+                        style={{ filter: 'var(--dock-icon-filter)' }}
+                      />
+                    </motion.div>
+
+                    <div className="pointer-events-none absolute -bottom-[11px] left-0 right-0 flex h-1.5 items-center justify-center gap-1">
+                      {isFocused ? (
+                        <div className="h-[3px] w-3.5 rounded-full bg-[var(--panel-primary-solid)] transition-all duration-150" />
+                      ) : hasVisible ? (
+                        <div className="h-1.5 w-1.5 rounded-full bg-[var(--panel-primary-solid)] opacity-90 transition-all duration-150" />
+                      ) : allMinimized ? (
+                        <div className="h-1.5 w-1.5 rounded-full bg-[var(--panel-warning-text)] transition-all duration-150" />
+                      ) : isOpen ? (
+                        <div className="h-1.5 w-1.5 rounded-full bg-[var(--dock-indicator-visible-bg)] opacity-70 transition-all duration-150" />
+                      ) : null}
+                      {related.length > 1 && (
+                        <span className="text-[9px] font-bold text-[var(--text-secondary)] font-mono leading-none">
+                          {related.length}
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
 
@@ -395,7 +345,11 @@ export function Dock() {
           <button
             id="dock-menu-close-group"
             onClick={() => {
-              closeWindowsByKind(menu.kind)
+              if (menu.windowId) {
+                closeWindow(menu.windowId)
+              } else {
+                closeWindowsByKind(menu.kind)
+              }
               setMenu(null)
             }}
             className={`${menuButtonClass} ${menuDangerToneClass}`}
@@ -412,7 +366,3 @@ export function Dock() {
     </>
   )
 }
-
-
-
-

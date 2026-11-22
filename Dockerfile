@@ -19,7 +19,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd/ cmd/
 COPY internal/ internal/
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /ypanel-agent ./cmd/panel-agent/
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /reneo-agent ./cmd/panel-agent/
 
 # ──────────────────────────────────────────────
 # Stage 3 — Final runtime image
@@ -28,22 +28,22 @@ FROM debian:bookworm-slim AS runtime
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates && \
     rm -rf /var/lib/apt/lists/* && \
-    useradd --system --shell /usr/sbin/nologin ypanel
+    useradd --system --shell /usr/sbin/nologin reneo
 
 # Copy compiled binary
-COPY --from=backend-build /ypanel-agent /usr/local/bin/ypanel-agent
+COPY --from=backend-build /reneo-agent /usr/local/bin/reneo-agent
 
 # Copy built frontend assets
-COPY --from=frontend-build /app/dist /opt/ypanel/frontend
+COPY --from=frontend-build /app/dist /opt/reneo/frontend
 
 # Prepare runtime directories
-RUN mkdir -p /var/lib/ypanel /etc/ypanel && \
-    chown -R ypanel:ypanel /var/lib/ypanel /opt/ypanel
+RUN mkdir -p /var/lib/reneo /etc/reneo && \
+    chown -R reneo:reneo /var/lib/reneo /opt/reneo
 
 EXPOSE 8787
 
 # Health check — lightweight HTTP probe
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["/usr/local/bin/ypanel-agent", "--version"] || exit 1
+    CMD ["/usr/local/bin/reneo-agent", "--version"] || exit 1
 
-ENTRYPOINT ["/usr/local/bin/ypanel-agent"]
+ENTRYPOINT ["/usr/local/bin/reneo-agent"]

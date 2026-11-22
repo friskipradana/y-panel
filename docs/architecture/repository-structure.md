@@ -1,6 +1,6 @@
 # Repository Structure
 
-Dokumen ini menjelaskan struktur repository YPanel Desktop UI dan aturan penempatan file baru.
+Dokumen ini menjelaskan struktur repository Reneo dan aturan penempatan file baru.
 Tujuannya agar frontend React, backend Go, deployment script, dan dokumentasi tidak bercampur tanpa batas yang jelas.
 
 ## Struktur Saat Ini

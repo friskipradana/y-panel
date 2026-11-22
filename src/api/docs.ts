@@ -1,4 +1,5 @@
 import { agentApi } from './client'
+import { listParams, type ListQuery, type TableResult } from '@/lib/listQuery'
 import type { PaginatedResponse, PaginationParams } from '@/types'
 
 export interface DocRecord {
@@ -9,8 +10,24 @@ export interface DocRecord {
   excerpt: string
   content: string
   status: 'published' | 'draft' | 'archived'
+  isPublic: boolean
+  /** official: synced from the project repository, read-only */
+  source?: 'official'
   createdAt: string
   updatedAt: string
+}
+
+export interface PublicDocSummary {
+  title: string
+  slug: string
+  excerpt: string
+  /** first image of the article, when it has one */
+  cover?: string
+  updatedAt: string
+}
+
+export interface PublicDoc extends PublicDocSummary {
+  content: string
 }
 
 export interface DocPayload {
@@ -19,6 +36,7 @@ export interface DocPayload {
   excerpt?: string
   content: string
   status?: 'published' | 'draft' | 'archived'
+  isPublic?: boolean
 }
 
 export interface DocListParams extends PaginationParams {
@@ -48,3 +66,33 @@ export const updateDoc = (id: number, payload: DocPayload) =>
 
 export const deleteDoc = (id: number) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/docs/${id}`).then((r) => r.data)
+
+// Readable without a session: only published articles marked public
+export const listPublicDocs = () =>
+  agentApi.get<{ items: PublicDocSummary[] }>('/api/v1/public/docs').then((r) => r.data.items)
+
+export const getPublicDoc = (slug: string) =>
+  agentApi.get<PublicDoc>(`/api/v1/public/docs/${encodeURIComponent(slug)}`).then((r) => r.data)
+
+// Official articles synced from the project repository (same on every installation)
+// Local and official articles in one list: the search, the column filters and the order are the agent's to apply (lib/listQuery)
+export const listDocsTable = (query: ListQuery, page: { limit: number; offset: number }) => {
+  const params = listParams(query)
+  params.set('limit', String(page.limit))
+  params.set('offset', String(page.offset))
+  return agentApi.get<TableResult<DocRecord>>('/api/v1/docs/table', { params }).then((r) => r.data)
+}
+
+export const listOfficialDocs = (refresh = false) =>
+  agentApi
+    .get<{ items: DocRecord[] }>('/api/v1/docs/official', { params: { refresh: refresh ? 1 : undefined } })
+    .then((r) => r.data.items.map((doc) => ({ ...doc, source: 'official' as const })))
+
+// Stored by content hash; the returned url works in markdown as ![alt](url)
+export const uploadDocImage = (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return agentApi
+    .post<{ url: string; name: string }>('/api/v1/docs/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    .then((r) => r.data)
+}

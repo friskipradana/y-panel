@@ -7,7 +7,10 @@ import (
 	osuser "os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/toolchain"
 )
 
 const usernamePrefix = "panel-"
@@ -45,18 +48,59 @@ func EnsureUser(panelUsername, displayName string) (string, error) {
 	if runtime.GOOS != "linux" {
 		return mapped, nil
 	}
-	if _, err := osuser.Lookup(mapped); err == nil {
+	if account, err := osuser.Lookup(mapped); err == nil {
+		lockHome(account)
 		return mapped, nil
 	}
 	comment := strings.TrimSpace(displayName)
 	if comment == "" {
-		comment = "YPanel user " + strings.TrimSpace(panelUsername)
+		comment = "Reneo user " + strings.TrimSpace(panelUsername)
 	}
 	cmd := exec.Command("useradd", "-m", "-s", "/bin/bash", "-c", comment, mapped)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("create os user %q: %w (%s)", mapped, err, strings.TrimSpace(string(output)))
 	}
+	if account, err := osuser.Lookup(mapped); err == nil {
+		lockHome(account)
+	}
 	return mapped, nil
+}
+
+// lockHome keeps one account's files unreadable to the other accounts: distro defaults
+// leave a new home world-readable (0755), which would expose every user's projects. The home
+// must belong to the account first, or closing it would lock the account out of its own files
+// (a home the agent created as root, for example).
+func lockHome(account *osuser.User) {
+	home := filepath.Clean(strings.TrimSpace(account.HomeDir))
+	if !strings.HasPrefix(home, "/home/") {
+		return
+	}
+	info, err := os.Lstat(home)
+	if err != nil || !info.IsDir() {
+		return
+	}
+	if uid, gid, ok := ownerOf(info); ok {
+		wantUID, uidErr := strconv.Atoi(account.Uid)
+		wantGID, gidErr := strconv.Atoi(account.Gid)
+		if uidErr == nil && gidErr == nil && uid != wantUID {
+			_ = os.Lchown(home, wantUID, wantGID)
+		} else if gidErr == nil && gid != wantGID {
+			_ = os.Lchown(home, uid, wantGID)
+		}
+	}
+	if info.Mode().Perm()&0o077 != 0 {
+		_ = os.Chmod(home, 0o700)
+	}
+}
+
+// safePath is the PATH of a user shell: the system directories, never the agent's own.
+const safePath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+// BaseEnv is the environment of a command run for an account: nothing is inherited from
+// the agent, whose environment holds the session secret, the database DSN and the
+// encryption key. extra entries (TERM and so on) are added after the fixed ones.
+func BaseEnv(extra ...string) []string {
+	return append([]string{"PATH=" + safePath, "LANG=C.UTF-8", "SHELL=/bin/bash"}, extra...)
 }
 
 // EnsureUserForRole creates/syncs the mapped OS account and applies host sudo policy
@@ -98,18 +142,33 @@ func WrapCommand(cmd *exec.Cmd, osUsername string) (*exec.Cmd, error) {
 	if cmd == nil || runtime.GOOS != "linux" || strings.TrimSpace(osUsername) == "" {
 		return cmd, nil
 	}
-	wrapped := exec.Command("runuser", append([]string{"-u", osUsername, "--", cmd.Path}, cmd.Args[1:]...)...)
+	account, accountErr := osuser.Lookup(osUsername)
+	program := cmd.Path
+	// a command called by its bare name ("node", "bun", "npm") runs the one the account installed, when it has one
+	if accountErr == nil && account.HomeDir != "" && len(cmd.Args) > 0 {
+		if own := toolchain.ResolveCommand(cmd.Args[0], account.HomeDir); own != "" {
+			program = own
+		}
+	}
+	wrapped := exec.Command("runuser", append([]string{"-u", osUsername, "--", program}, cmd.Args[1:]...)...)
 	wrapped.Dir = cmd.Dir
-	wrapped.Env = append([]string(nil), cmd.Env...)
+	// a command without its own environment must not fall back to the agent's
+	if cmd.Env == nil {
+		wrapped.Env = BaseEnv()
+	} else {
+		wrapped.Env = append([]string(nil), cmd.Env...)
+	}
 	wrapped.Stdin = cmd.Stdin
 	wrapped.Stdout = cmd.Stdout
 	wrapped.Stderr = cmd.Stderr
-	if account, err := osuser.Lookup(osUsername); err == nil && account.HomeDir != "" {
+	if accountErr == nil && account.HomeDir != "" {
 		wrapped.Env = append(wrapped.Env,
 			"HOME="+account.HomeDir,
 			"USER="+osUsername,
 			"LOGNAME="+osUsername,
 		)
+		// the folders of the tools of the account and its own variables, in front of the system ones
+		wrapped.Env = toolchain.EnvFor(wrapped.Env, account.HomeDir)
 	}
 	return wrapped, nil
 }
