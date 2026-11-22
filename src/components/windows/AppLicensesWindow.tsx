@@ -64,6 +64,7 @@ function formatFeatureBadge(key: string, value: unknown): string | null {
   if (k === 'livechat' || k === 'livechatcrm') return 'Live Chat CRM'
   if (k === 'multisession') return 'Multi-Sesi WA'
   if (k === 'maxsessions') return `${Number(value).toLocaleString('id-ID')} Sesi WA`
+  if (k === 'maxsessionidentityswitches') return `Maks ${Number(value).toLocaleString('id-ID')}x Ganti Nomor/Sesi`
   if (k === 'multiagent') return 'Multi-Agent'
   if (k === 'maxagents') return `${Number(value).toLocaleString('id-ID')} Agen CS`
   if (k === 'customroles') return 'Role Kustom Granular'
@@ -1034,7 +1035,21 @@ export function AppLicensesWindow() {
                           {p.tagline}
                         </p>
 
-                        <div className="pt-1">
+                        <div className="pt-1 space-y-1">
+                          {Number(p.originalPriceAmount || 0) > p.priceAmount && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="line-through text-xs text-[var(--text-secondary)] tabular-nums">
+                                Rp {Number(p.originalPriceAmount).toLocaleString('id-ID')}
+                              </span>
+                              <Badge tone="danger" size="sm">
+                                Hemat{' '}
+                                {p.discountPercent && p.discountPercent > 0
+                                  ? p.discountPercent
+                                  : Math.round(((Number(p.originalPriceAmount) - p.priceAmount) / Number(p.originalPriceAmount)) * 100)}
+                                %
+                              </Badge>
+                            </div>
+                          )}
                           <div className="text-xl font-bold text-[var(--panel-primary-text)] tabular-nums">
                             Rp {p.priceAmount.toLocaleString('id-ID')}
                             <span className="text-xs font-normal text-[var(--text-secondary)]">
@@ -1042,6 +1057,11 @@ export function AppLicensesWindow() {
                               / {p.period === 'annual' ? 'tahun' : 'bulan'}
                             </span>
                           </div>
+                          {p.promoValidUntil && (
+                            <div className="text-[11px] text-[var(--text-secondary)]">
+                              Promo s/d {p.promoValidUntil}
+                            </div>
+                          )}
                         </div>
 
                         {/* Feature list */}
@@ -1153,11 +1173,20 @@ export function AppLicensesWindow() {
                       </div>
 
                       <div className="docker-cell docker-cell--mono font-semibold">
-                        Rp {p.priceAmount.toLocaleString('id-ID')}
-                        <span className="text-[10px] font-normal text-[var(--text-secondary)]">
-                          {' '}
-                          / {p.period === 'annual' ? 'thn' : 'bln'}
-                        </span>
+                        <div className="flex flex-col">
+                          {Number(p.originalPriceAmount || 0) > p.priceAmount && (
+                            <span className="line-through text-[10px] font-normal text-[var(--text-secondary)]">
+                              Rp {Number(p.originalPriceAmount).toLocaleString('id-ID')}
+                            </span>
+                          )}
+                          <span>
+                            Rp {p.priceAmount.toLocaleString('id-ID')}
+                            <span className="text-[10px] font-normal text-[var(--text-secondary)]">
+                              {' '}
+                              / {p.period === 'annual' ? 'thn' : 'bln'}
+                            </span>
+                          </span>
+                        </div>
                       </div>
 
                       <div className="docker-cell text-xs">
