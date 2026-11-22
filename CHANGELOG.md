@@ -2,6 +2,16 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.46] - 2026-11-22
+
+2 perubahan, utamanya align tiered benefit scaling and realistic quota progressions from starter baseline.
+
+### Perbaikan
+- **license:** Align tiered benefit scaling and realistic quota progressions from starter baseline ([`139d2f6`](https://github.com/friskipradana/y-panel/commit/139d2f6))
+- **license:** Sync crm app license plans and profitable enterprise pricing ([`4c251dd`](https://github.com/friskipradana/y-panel/commit/4c251dd))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.45...v1.88.46
+
 ## [1.88.45] - 2026-11-21
 
 Optimize mobile view with collapsible feature details and expandable order summary.
