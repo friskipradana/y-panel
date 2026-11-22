@@ -43,6 +43,9 @@ func publicBaseURL(r *http.Request) string {
 	if configured := strings.TrimRight(runtimepath.Getenv("PUBLIC_URL"), "/"); configured != "" {
 		return configured
 	}
+	if r == nil {
+		return ""
+	}
 	scheme := "http"
 	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
 		scheme = "https"
@@ -59,13 +62,15 @@ func (s *Server) orderBaseURL(r *http.Request) string {
 	}
 	if s.database != nil && s.database.IsConnected() {
 		if main := s.mainHostingDomain(); main != nil && main.Name != "" {
-			host := strings.ToLower(r.Host)
-			if i := strings.LastIndex(host, ":"); i > 0 && !strings.Contains(host[i:], "]") {
-				host = host[:i]
-			}
 			name := strings.ToLower(main.Name)
-			if host == name || strings.HasSuffix(host, "."+name) {
-				return publicBaseURL(r)
+			if r != nil {
+				host := strings.ToLower(r.Host)
+				if i := strings.LastIndex(host, ":"); i > 0 && !strings.Contains(host[i:], "]") {
+					host = host[:i]
+				}
+				if host == name || strings.HasSuffix(host, "."+name) {
+					return publicBaseURL(r)
+				}
 			}
 			return "https://" + name
 		}
