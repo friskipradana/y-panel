@@ -1835,6 +1835,7 @@ export function AppLicensesWindow() {
       <EditPlanModal
         open={editPlanModalOpen}
         plan={editingPlan}
+        allPlans={plans}
         onClose={() => {
           setEditPlanModalOpen(false)
           setEditingPlan(null)

@@ -26,11 +26,12 @@ export function CreatePlanModal({
 
   const [name, setName] = useState('')
   const [tagline, setTagline] = useState('')
-  const [period, setPeriod] = useState<'monthly' | 'annual'>('monthly')
+  const [billingMode, setBillingMode] = useState<'both' | 'monthly' | 'annual'>('both')
   const [months, setMonths] = useState<number>(1)
   const [trialDays, setTrialDays] = useState<number>(7)
   const [priceAmount, setPriceAmount] = useState<number>(99000)
   const [originalPriceAmount, setOriginalPriceAmount] = useState<number>(199000)
+  const [annualDiscountPercent, setAnnualDiscountPercent] = useState<number>(17)
   const [promoValidUntil, setPromoValidUntil] = useState<string>('30 November 2026')
   const [highlighted, setHighlighted] = useState(false)
 
@@ -59,17 +60,29 @@ export function CreatePlanModal({
 
   const [loading, setLoading] = useState(false)
 
-  const handlePeriodChange = (p: 'monthly' | 'annual') => {
-    setPeriod(p)
-    if (p === 'annual') {
+  const computeAnnualPrice = (monthlyPrice: number, discPct: number) => {
+    const cleanDisc = Math.max(0, Math.min(80, discPct))
+    if (cleanDisc === 17) return monthlyPrice * 10 // standar hemat 2 bulan (10x bulanan)
+    return Math.round((monthlyPrice * 12 * (1 - cleanDisc / 100)) / 1000) * 1000
+  }
+
+  const handleBillingModeChange = (mode: 'both' | 'monthly' | 'annual') => {
+    setBillingMode(mode)
+    if (mode === 'annual') {
       setMonths(12)
       if (priceAmount < 500000) {
-        setPriceAmount(3490000)
+        setPriceAmount(computeAnnualPrice(priceAmount, annualDiscountPercent))
+      }
+      if (originalPriceAmount > 0 && originalPriceAmount < 500000) {
+        setOriginalPriceAmount(originalPriceAmount * 12)
       }
     } else {
       setMonths(1)
-      if (priceAmount > 1000000) {
-        setPriceAmount(179000)
+      if (priceAmount >= 500000) {
+        setPriceAmount(Math.round(priceAmount / 10 / 1000) * 1000)
+      }
+      if (originalPriceAmount >= 500000) {
+        setOriginalPriceAmount(Math.round(originalPriceAmount / 12 / 1000) * 1000)
       }
     }
   }
@@ -90,58 +103,112 @@ export function CreatePlanModal({
 
     setLoading(true)
     try {
-      const slug = name
+      const baseName = name.trim().replace(/\s+(Bulanan|Tahunan)$/i, '')
+      const slugBase = baseName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
-
-      const payload: CreateAppPlanPayload = {
-        catalogId: targetCatalogId,
-        slug: `${slug}-${period}-${Date.now().toString().slice(-4)}`,
-        name: name.trim(),
-        tagline: tagline.trim() || undefined,
-        period,
-        months,
-        trialDays: Math.max(0, trialDays),
-        priceAmount: Math.max(0, priceAmount),
-        originalPriceAmount: Math.max(0, originalPriceAmount),
-        discountPercent:
-          originalPriceAmount > priceAmount
-            ? Math.round(((originalPriceAmount - priceAmount) / originalPriceAmount) * 100)
-            : 0,
-        promoValidUntil: promoValidUntil.trim(),
-        highlighted,
-        isActive: true,
-        features: {
-          maxContacts: Math.max(0, maxContacts),
-          unlimitedContacts: maxContacts === 0,
-          unlimitedBroadcast: featBroadcast,
-          maxBroadcastPerMonth: featBroadcast ? 0 : Math.max(0, maxBroadcastPerMonth),
-          liveChat: featLiveChat,
-          multiSession: featMultiSession || maxSessions > 1,
-          maxSessions: Math.max(1, maxSessions),
-          maxSessionIdentitySwitches: Math.max(1, maxSessionIdentitySwitches),
-          maxTemplates: Math.max(0, maxTemplates),
-          maxUsers: Math.max(1, maxUsers),
-          maxAgents: Math.max(1, maxUsers),
-          multiAgent: maxUsers > 1,
-          customRoles: featCustomRoles,
-          omnichannel: featOmnichannel,
-          maxChannels: Math.max(0, maxChannels),
-          scheduledPosts: featScheduledPosts,
-          autoReply: featAutoReply,
-          aiAgent: featAiAgent,
-          mcpTools: featMcpTools,
-          exportReports: featExportReports,
-          birthdayBot: featBotUltah,
-          wahaSync: featWahaSync,
-          apiAccess: featApiAccess,
-          supportPriority,
-        },
+      const sharedFeatures = {
+        maxContacts: Math.max(0, maxContacts),
+        unlimitedContacts: maxContacts === 0,
+        unlimitedBroadcast: featBroadcast,
+        maxBroadcastPerMonth: featBroadcast ? 0 : Math.max(0, maxBroadcastPerMonth),
+        liveChat: featLiveChat,
+        multiSession: featMultiSession || maxSessions > 1,
+        maxSessions: Math.max(1, maxSessions),
+        maxSessionIdentitySwitches: Math.max(1, maxSessionIdentitySwitches),
+        maxTemplates: Math.max(0, maxTemplates),
+        maxUsers: Math.max(1, maxUsers),
+        maxAgents: Math.max(1, maxUsers),
+        multiAgent: maxUsers > 1,
+        customRoles: featCustomRoles,
+        omnichannel: featOmnichannel,
+        maxChannels: Math.max(0, maxChannels),
+        scheduledPosts: featScheduledPosts,
+        autoReply: featAutoReply,
+        aiAgent: featAiAgent,
+        mcpTools: featMcpTools,
+        exportReports: featExportReports,
+        birthdayBot: featBotUltah,
+        wahaSync: featWahaSync,
+        apiAccess: featApiAccess,
+        supportPriority,
       }
 
-      await createAppLicensePlan(payload)
-      toast.success(`Paket "${name}" berhasil ditambahkan ke aplikasi!`)
+      if (billingMode === 'both') {
+        const monthlyPrice = Math.max(0, priceAmount)
+        const monthlyOrig = Math.max(0, originalPriceAmount)
+        const annualPrice = computeAnnualPrice(monthlyPrice, annualDiscountPercent)
+        const annualOrig = monthlyOrig > monthlyPrice ? monthlyOrig * 12 : monthlyPrice * 12
+
+        const monthlyPayload: CreateAppPlanPayload = {
+          catalogId: targetCatalogId,
+          slug: `${slugBase}-monthly`,
+          name: `${baseName} Bulanan`,
+          tagline: tagline.trim() || undefined,
+          period: 'monthly',
+          months: 1,
+          trialDays: Math.max(0, trialDays),
+          priceAmount: monthlyPrice,
+          originalPriceAmount: monthlyOrig,
+          discountPercent:
+            monthlyOrig > monthlyPrice
+              ? Math.round(((monthlyOrig - monthlyPrice) / monthlyOrig) * 100)
+              : 0,
+          promoValidUntil: promoValidUntil.trim(),
+          highlighted,
+          isActive: true,
+          features: sharedFeatures,
+        }
+
+        const annualPayload: CreateAppPlanPayload = {
+          catalogId: targetCatalogId,
+          slug: `${slugBase}-annual`,
+          name: `${baseName} Tahunan`,
+          tagline: tagline.trim() || undefined,
+          period: 'annual',
+          months: 12,
+          trialDays: Math.max(0, trialDays),
+          priceAmount: annualPrice,
+          originalPriceAmount: annualOrig,
+          discountPercent:
+            annualOrig > annualPrice
+              ? Math.round(((annualOrig - annualPrice) / annualOrig) * 100)
+              : 0,
+          promoValidUntil: promoValidUntil.trim(),
+          highlighted: false,
+          isActive: true,
+          features: sharedFeatures,
+        }
+
+        await createAppLicensePlan(monthlyPayload)
+        await createAppLicensePlan(annualPayload)
+        toast.success(`Paket "${baseName}" (Bulanan & Tahunan dengan fitur identik) berhasil ditambahkan!`)
+      } else {
+        const period = billingMode
+        const payload: CreateAppPlanPayload = {
+          catalogId: targetCatalogId,
+          slug: `${slugBase}-${period}`,
+          name: name.trim(),
+          tagline: tagline.trim() || undefined,
+          period,
+          months: period === 'annual' ? Math.max(12, months) : Math.max(1, months),
+          trialDays: Math.max(0, trialDays),
+          priceAmount: Math.max(0, priceAmount),
+          originalPriceAmount: Math.max(0, originalPriceAmount),
+          discountPercent:
+            originalPriceAmount > priceAmount
+              ? Math.round(((originalPriceAmount - priceAmount) / originalPriceAmount) * 100)
+              : 0,
+          promoValidUntil: promoValidUntil.trim(),
+          highlighted,
+          isActive: true,
+          features: sharedFeatures,
+        }
+
+        await createAppLicensePlan(payload)
+        toast.success(`Paket "${name.trim()}" berhasil ditambahkan ke aplikasi!`)
+      }
       onSuccess()
       onClose()
     } catch (err: unknown) {
@@ -239,50 +306,57 @@ export function CreatePlanModal({
           </div>
         </div>
 
-        {/* Period & Months */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block font-medium text-[var(--win-text)] mb-1">
-              Periode Penagihan:
-            </label>
-            <div className="flex items-center gap-2">
+        {/* Billing Mode (Bulanan + Tahunan | Bulanan Saja | Tahunan Saja) */}
+        <div className="space-y-2">
+          <label className="block font-medium text-[var(--win-text)]">
+            Opsi Penagihan Paket:
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {(
+              [
+                { id: 'both', label: 'Bulanan + Tahunan' },
+                { id: 'monthly', label: 'Bulanan Saja' },
+                { id: 'annual', label: 'Tahunan Saja' },
+              ] as const
+            ).map((opt) => (
               <button
+                key={opt.id}
                 type="button"
-                onClick={() => handlePeriodChange('monthly')}
-                className={`flex-1 py-1.5 rounded-lg border text-center transition ${
-                  period === 'monthly'
+                onClick={() => handleBillingModeChange(opt.id)}
+                className={`py-1.5 px-2 rounded-lg border text-center transition text-xs cursor-pointer ${
+                  billingMode === opt.id
                     ? 'border-[var(--panel-primary)] bg-[var(--panel-primary-soft)] text-[var(--panel-primary-text)] font-bold'
                     : 'border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]'
                 }`}
               >
-                Bulanan
+                {opt.label}
               </button>
-              <button
-                type="button"
-                onClick={() => handlePeriodChange('annual')}
-                className={`flex-1 py-1.5 rounded-lg border text-center transition ${
-                  period === 'annual'
-                    ? 'border-[var(--panel-primary)] bg-[var(--panel-primary-soft)] text-[var(--panel-primary-text)] font-bold'
-                    : 'border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]'
-                }`}
-              >
-                Tahunan
-              </button>
+            ))}
+          </div>
+          {billingMode === 'both' && (
+            <div className="p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--win-bg)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="space-y-0.5">
+                <div className="font-medium text-[var(--win-text)]">
+                  Diskon Tahunan (%) — Fitur &amp; Kuota 100% Identik
+                </div>
+                <div className="text-[11px] font-mono text-[var(--text-secondary)]">
+                  Tahunan: Rp {computeAnnualPrice(Math.max(0, priceAmount), annualDiscountPercent).toLocaleString('id-ID')}/thn
+                  {' '}(coret Rp {(originalPriceAmount > priceAmount ? originalPriceAmount * 12 : priceAmount * 12).toLocaleString('id-ID')})
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <input
+                  type="number"
+                  min={0}
+                  max={80}
+                  value={annualDiscountPercent}
+                  onChange={(e) => setAnnualDiscountPercent(Math.max(0, Math.min(80, Number(e.target.value))))}
+                  className="panel-input panel-input--mono w-20 text-xs"
+                />
+                <span className="text-[11px] text-[var(--text-secondary)]">%</span>
+              </div>
             </div>
-          </div>
-
-          <div>
-            <label className="block font-medium text-[var(--win-text)] mb-1">
-              Durasi (Bulan):
-            </label>
-            <input
-              type="number"
-              min={1}
-              value={months}
-              onChange={(e) => setMonths(Math.max(1, Number(e.target.value)))}
-              className="panel-input panel-input--mono w-full text-xs"
-            />
-          </div>
+          )}
         </div>
 
         {/* Trial & Price & Promo */}

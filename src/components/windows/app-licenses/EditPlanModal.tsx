@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Pencil, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateAppLicensePlan, type AppLicensePlan } from '@/api/appLicenses'
+import { createAppLicensePlan, updateAppLicensePlan, type AppLicensePlan } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 
 interface EditPlanModalProps {
   open: boolean
   plan: AppLicensePlan | null
+  allPlans?: AppLicensePlan[]
   onClose: () => void
   onSuccess: () => void
 }
@@ -15,6 +16,7 @@ interface EditPlanModalProps {
 export function EditPlanModal({
   open,
   plan,
+  allPlans = [],
   onClose,
   onSuccess,
 }: EditPlanModalProps) {
@@ -53,8 +55,25 @@ export function EditPlanModal({
   const [supportPriority, setSupportPriority] = useState<string>('standard')
   const [maxStorageMb, setMaxStorageMb] = useState<number>(5120)
   const [maxAttachmentSizeMb, setMaxAttachmentSizeMb] = useState<number>(25)
+  const [syncPairedFeatures, setSyncPairedFeatures] = useState<boolean>(true)
+  const [alsoCreateAnnual, setAlsoCreateAnnual] = useState<boolean>(false)
+  const [annualDiscountPercent, setAnnualDiscountPercent] = useState<number>(17)
 
   const [loading, setLoading] = useState(false)
+
+  const pairedPlan = useMemo(() => {
+    if (!plan || !allPlans.length) return null
+    const baseSlug = plan.slug.replace(/-(monthly|annual)$/i, '')
+    const targetSuffix = plan.period === 'annual' ? '-monthly' : '-annual'
+    return (
+      allPlans.find(
+        (p) =>
+          p.id !== plan.id &&
+          p.catalogId === plan.catalogId &&
+          p.slug.toLowerCase() === `${baseSlug}${targetSuffix}`.toLowerCase()
+      ) || null
+    )
+  }, [plan, allPlans])
 
   useEffect(() => {
     if (open && plan) {
@@ -95,6 +114,9 @@ export function EditPlanModal({
       setSupportPriority(String(feats.supportPriority || 'standard').toLowerCase())
       setMaxStorageMb(Number(feats.maxStorageMb ?? 5120) || 5120)
       setMaxAttachmentSizeMb(Number(feats.maxAttachmentSizeMb ?? 25) || 25)
+      setSyncPairedFeatures(true)
+      setAlsoCreateAnnual(false)
+      setAnnualDiscountPercent(17)
     }
   }, [open, plan])
 
@@ -167,7 +189,62 @@ export function EditPlanModal({
         features: mergedFeatures,
       })
 
-      toast.success('Paket tarif berhasil diperbarui')
+      if (pairedPlan && syncPairedFeatures) {
+        await updateAppLicensePlan(pairedPlan.id, {
+          catalogId: pairedPlan.catalogId,
+          slug: pairedPlan.slug,
+          name: pairedPlan.name,
+          tagline: pairedPlan.tagline || tagline.trim() || undefined,
+          period: pairedPlan.period,
+          months: pairedPlan.months || (pairedPlan.period === 'annual' ? 12 : 1),
+          trialDays: Math.max(0, trialDays),
+          priceAmount: pairedPlan.priceAmount,
+          originalPriceAmount: pairedPlan.originalPriceAmount ?? 0,
+          discountPercent: pairedPlan.discountPercent ?? 0,
+          promoValidUntil: promoValidUntil.trim(),
+          highlighted: pairedPlan.highlighted,
+          isActive: pairedPlan.isActive,
+          features: mergedFeatures,
+        })
+      } else if (!pairedPlan && period === 'monthly' && alsoCreateAnnual) {
+        const cleanDisc = Math.max(0, Math.min(80, annualDiscountPercent))
+        const monthlyPrice = Math.max(0, priceAmount)
+        const annualPrice =
+          cleanDisc === 17
+            ? monthlyPrice * 10
+            : Math.round((monthlyPrice * 12 * (1 - cleanDisc / 100)) / 1000) * 1000
+        const annualOrig =
+          originalPriceAmount > monthlyPrice ? originalPriceAmount * 12 : monthlyPrice * 12
+        const baseName = name.trim().replace(/\s+(Bulanan|Tahunan)$/i, '')
+        const baseSlug = plan.slug.replace(/-(monthly|annual)$/i, '')
+        await createAppLicensePlan({
+          catalogId: plan.catalogId,
+          slug: `${baseSlug}-annual`,
+          name: `${baseName} Tahunan`,
+          tagline: tagline.trim() || undefined,
+          period: 'annual',
+          months: 12,
+          trialDays: Math.max(0, trialDays),
+          priceAmount: annualPrice,
+          originalPriceAmount: annualOrig,
+          discountPercent:
+            annualOrig > annualPrice
+              ? Math.round(((annualOrig - annualPrice) / annualOrig) * 100)
+              : 0,
+          promoValidUntil: promoValidUntil.trim(),
+          highlighted: false,
+          isActive: true,
+          features: mergedFeatures,
+        })
+      }
+
+      toast.success(
+        pairedPlan && syncPairedFeatures
+          ? `Paket & pasangannya (${pairedPlan.name}) berhasil disinkronkan`
+          : !pairedPlan && period === 'monthly' && alsoCreateAnnual
+            ? 'Paket diperbarui & versi Tahunan dengan fitur identik berhasil dibuat'
+            : 'Paket tarif berhasil diperbarui'
+      )
       onSuccess()
       onClose()
     } catch (err: unknown) {
@@ -342,6 +419,61 @@ export function EditPlanModal({
             <span>Paket Aktif</span>
           </label>
         </div>
+
+        {pairedPlan ? (
+          <div className="p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--win-bg)] text-xs">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={syncPairedFeatures}
+                onChange={(e) => setSyncPairedFeatures(e.target.checked)}
+                className="rounded border-[var(--win-border)] mt-0.5"
+              />
+              <div>
+                <span className="font-medium text-[var(--win-text)]">
+                  Sinkronkan fitur, kuota &amp; promo ke pasangan ({pairedPlan.name})
+                </span>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                  Menjaga kuota &amp; fitur Bulanan dan Tahunan selalu 100% identik secara otomatis.
+                </p>
+              </div>
+            </label>
+          </div>
+        ) : period === 'monthly' ? (
+          <div className="p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--win-bg)] text-xs space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={alsoCreateAnnual}
+                onChange={(e) => setAlsoCreateAnnual(e.target.checked)}
+                className="rounded border-[var(--win-border)]"
+              />
+              <span className="font-medium text-[var(--win-text)]">
+                Sekalian buatkan versi Tahunan (fitur &amp; kuota identik)
+              </span>
+            </label>
+            {alsoCreateAnnual && (
+              <div className="flex items-center justify-between gap-2 pl-5">
+                <span className="text-[11px] font-mono text-[var(--text-secondary)]">
+                  Diskon Tahunan: {annualDiscountPercent}% → Rp{' '}
+                  {(annualDiscountPercent === 17
+                    ? Math.max(0, priceAmount) * 10
+                    : Math.round((Math.max(0, priceAmount) * 12 * (1 - annualDiscountPercent / 100)) / 1000) * 1000
+                  ).toLocaleString('id-ID')}
+                  /thn
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={80}
+                  value={annualDiscountPercent}
+                  onChange={(e) => setAnnualDiscountPercent(Math.max(0, Math.min(80, Number(e.target.value))))}
+                  className="panel-input panel-input--mono w-16 text-xs"
+                />
+              </div>
+            )}
+          </div>
+        ) : null}
 
         <div className="pt-2 border-t border-[var(--win-border)] space-y-2.5">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--win-text)]">

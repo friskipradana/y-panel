@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.51] - 2026-11-22
+
+Support monthly+annual bundled creation with annual discount and auto-sync paired plan features.
+
+### Fitur baru
+- **app-licenses:** Support monthly+annual bundled creation with annual discount and auto-sync paired plan features ([`57d6d6c`](https://github.com/friskipradana/y-panel/commit/57d6d6c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.50...v1.88.51
+
 ## [1.88.50] - 2026-11-22
 
 Keep annual plan quotas and features identical to monthly plans (billing discount only).
