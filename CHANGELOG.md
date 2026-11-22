@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.48] - 2026-11-22
+
+Add original price, discount badge, promo validity, and identity switch limit controls in plan modals and UI.
+
+### Fitur baru
+- **app-licenses:** Add original price, discount badge, promo validity, and identity switch limit controls in plan modals and UI ([`25e011f`](https://github.com/friskipradana/y-panel/commit/25e011f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.47...v1.88.48
+
 ## [1.88.47] - 2026-11-22
 
 3 perubahan, utamanya add original_price_amount, discount_percent, and promo_valid_until to app_license_plans.
