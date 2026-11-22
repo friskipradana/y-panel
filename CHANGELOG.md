@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.50] - 2026-11-22
+
+Keep annual plan quotas and features identical to monthly plans (billing discount only).
+
+### Perbaikan
+- **license:** Keep annual plan quotas and features identical to monthly plans (billing discount only) ([`df787ba`](https://github.com/friskipradana/y-panel/commit/df787ba))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.49...v1.88.50
+
 ## [1.88.49] - 2026-11-22
 
 Set starter baseline to 1000 contacts, 250MB, 2000 broadcasts, no live chat/CSAT.
