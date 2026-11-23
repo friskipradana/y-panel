@@ -41,7 +41,8 @@ function isOfficialReneoApp(catalogId?: string): boolean {
     catalogId === 'reneo-crm' ||
     catalogId === 'reneo-sidesa' ||
     catalogId === 'reneo-skills' ||
-    catalogId === 'reneo-icons'
+    catalogId === 'reneo-icons' ||
+    catalogId === 'reneo-resto'
   )
 }
 
