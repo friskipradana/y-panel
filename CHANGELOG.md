@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.58] - 2026-11-23
+
+Add desktop icon and dock style presets in settings.
+
+### Fitur baru
+- **appearance:** Add desktop icon and dock style presets in settings ([`d605709`](https://github.com/friskipradana/y-panel/commit/d605709))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.57...v1.88.58
+
 ## [1.88.57] - 2026-11-23
 
 Show Official Reneo badge for reneo-skills in installed apps view.
