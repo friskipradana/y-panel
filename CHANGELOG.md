@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.57] - 2026-11-23
+
+Show Official Reneo badge for reneo-skills in installed apps view.
+
+### Perbaikan
+- **app-catalog:** Show Official Reneo badge for reneo-skills in installed apps view ([`33a08be`](https://github.com/friskipradana/y-panel/commit/33a08be))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.56...v1.88.57
+
 ## [1.88.56] - 2026-11-23
 
 Self-heal firewall restore errors and attach reneo-internal on access restore.
