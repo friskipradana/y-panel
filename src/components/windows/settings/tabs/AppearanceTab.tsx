@@ -6,9 +6,6 @@ import {
   normalizeHexColor,
   useThemeStore,
   type ColorTheme,
-  type DesktopIconSize,
-  type DesktopIconStyle,
-  type DockStyle,
 } from "@/store/themeStore";
 import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/Field";
@@ -44,12 +41,6 @@ export function AppearanceTab() {
     setFontFamily,
     fontSize,
     setFontSize,
-    desktopIconStyle,
-    setDesktopIconStyle,
-    desktopIconSize,
-    setDesktopIconSize,
-    dockStyle,
-    setDockStyle,
     resetToDefaults,
   } = useThemeStore();
 
@@ -219,165 +210,6 @@ export function AppearanceTab() {
             }
           />
         ) : null}
-      </SettingsGroup>
-
-      {/* Desktop Icon & Dock Style Group */}
-      <SettingsGroup title={t("settings.appearance.desktopAndDockTitle")} cardClassName="!p-0">
-        <div className="p-3.5 sm:p-4 space-y-4">
-          <div>
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <div>
-                <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
-                  {t("settings.appearance.desktopIconStyleLabel")}
-                </div>
-                <div className="text-[11px] text-[var(--text-secondary)]">
-                  {t("settings.appearance.desktopIconStyleDesc")}
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-              {(
-                [
-                  { key: "glass", labelKey: "settings.appearance.iconStyleGlass" },
-                  { key: "solid", labelKey: "settings.appearance.iconStyleSolid" },
-                  { key: "framed", labelKey: "settings.appearance.iconStyleFramed" },
-                  { key: "plain", labelKey: "settings.appearance.iconStylePlain" },
-                ] as ReadonlyArray<{ key: DesktopIconStyle; labelKey: string }>
-              ).map((opt) => {
-                const active = desktopIconStyle === opt.key;
-                const boxPreviewClass =
-                  opt.key === "glass"
-                    ? "bg-[var(--win-content-bg)]/80 border border-[var(--win-border-focus)] shadow-sm backdrop-blur-md"
-                    : opt.key === "solid"
-                      ? "bg-[var(--win-content-bg)] border border-[var(--win-border)] shadow-sm"
-                      : opt.key === "framed"
-                        ? "bg-[var(--panel-surface-strong)] border border-[var(--win-border)]"
-                        : "bg-transparent border border-dashed border-[var(--win-border)]";
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() => setDesktopIconStyle(opt.key)}
-                    aria-pressed={active}
-                    className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors cursor-pointer ${
-                      active
-                        ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)]"
-                        : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
-                    }`}
-                  >
-                    <div className="flex h-12 w-full flex-col items-center justify-center gap-1 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-strong)] py-1.5">
-                      <span className={`block h-5 w-5 rounded-md ${boxPreviewClass}`}>
-                        <span className="m-1 block h-2.5 w-2.5 rounded-xs bg-[var(--panel-primary-solid)]" />
-                      </span>
-                      <span
-                        className={
-                          opt.key === "glass" || opt.key === "solid"
-                            ? "h-1.5 w-7 rounded-full bg-[var(--win-content-bg)] border border-[var(--win-border)]"
-                            : "h-1.5 w-7 rounded-full bg-[var(--text-secondary)] opacity-50"
-                        }
-                      />
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--win-text)]">
-                      {t(opt.labelKey)}
-                      {active ? <Check className="h-3 w-3 text-[var(--panel-primary-text)]" aria-hidden="true" /> : null}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-2">
-              <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
-                {t("settings.appearance.dockStyleLabel")}
-              </div>
-              <div className="text-[11px] text-[var(--text-secondary)]">
-                {t("settings.appearance.dockStyleDesc")}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-              {(
-                [
-                  { key: "floating", labelKey: "settings.appearance.dockStyleFloating" },
-                  { key: "panel", labelKey: "settings.appearance.dockStylePanel" },
-                  { key: "compact", labelKey: "settings.appearance.dockStyleCompact" },
-                ] as ReadonlyArray<{ key: DockStyle; labelKey: string }>
-              ).map((opt) => {
-                const active = dockStyle === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() => setDockStyle(opt.key)}
-                    aria-pressed={active}
-                    className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors cursor-pointer ${
-                      active
-                        ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)]"
-                        : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
-                    }`}
-                  >
-                    <div className="flex h-10 w-full items-end justify-center overflow-hidden rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-1">
-                      <div
-                        className={
-                          opt.key === "panel"
-                            ? "flex w-full items-center justify-center gap-1.5 border-t border-[var(--win-border)] bg-[var(--win-content-bg)] py-1"
-                            : opt.key === "compact"
-                              ? "mb-0.5 flex items-center gap-1 rounded-md border border-[var(--win-border)] bg-[var(--win-content-bg)] px-2 py-0.5"
-                              : "mb-0.5 flex items-center gap-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--win-content-bg)] px-2.5 py-1 shadow-xs"
-                        }
-                      >
-                        <span className="h-2 w-2 rounded-xs bg-[var(--panel-primary-solid)]" />
-                        <span className="h-2 w-2 rounded-xs bg-[var(--text-secondary)] opacity-60" />
-                        <span className="h-2 w-2 rounded-xs bg-[var(--text-secondary)] opacity-60" />
-                      </div>
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--win-text)]">
-                      {t(opt.labelKey)}
-                      {active ? <Check className="h-3 w-3 text-[var(--panel-primary-text)]" aria-hidden="true" /> : null}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <AdwActionRow
-          title={t("settings.appearance.desktopIconSizeLabel")}
-          subtitle={t("settings.appearance.desktopIconSizeDesc")}
-          control={
-            <div
-              role="group"
-              aria-label={t("settings.appearance.desktopIconSizeLabel")}
-              className="inline-flex rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-0.5"
-            >
-              {(
-                [
-                  { key: "small", label: t("settings.fonts.sizeSmall") },
-                  { key: "medium", label: t("settings.fonts.sizeMedium") },
-                  { key: "large", label: t("settings.fonts.sizeLarge") },
-                ] as ReadonlyArray<{ key: DesktopIconSize; label: string }>
-              ).map((opt) => {
-                const selected = desktopIconSize === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() => setDesktopIconSize(opt.key)}
-                    className={`px-3 py-1 text-[11.5px] font-medium rounded-md transition-all cursor-pointer ${
-                      selected
-                        ? "bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-semibold shadow-xs"
-                        : "text-[var(--text-secondary)] hover:text-[var(--win-text)]"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          }
-        />
       </SettingsGroup>
 
       {/* ── 2. Preferences Group (Flat GNOME Action Rows) ── */}

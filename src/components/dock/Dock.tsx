@@ -192,10 +192,10 @@ export function Dock() {
     ? 'fixed bottom-0 left-0 right-0 flex flex-col items-center'
     : 'fixed left-1/2 bottom-[10px] flex -translate-x-1/2 flex-col items-center gap-1.5'
   const dockBarClass = isPanelDock
-    ? `relative flex w-full items-center justify-center gap-2 overflow-x-auto rounded-none border-t border-x-0 border-b-0 px-4 pb-3 pt-2 backdrop-blur-[24px] ${dockSurfaceClass}`
+    ? `relative flex w-full items-center justify-center gap-2 overflow-visible rounded-none border-t border-x-0 border-b-0 px-4 pb-3 pt-2 backdrop-blur-[24px] ${dockSurfaceClass}`
     : isCompactDock
-      ? `relative flex max-w-[calc(100vw-16px)] items-end gap-1.5 overflow-x-auto rounded-xl border px-2.5 pb-3 pt-2 backdrop-blur-[24px] ${dockSurfaceClass}`
-      : `relative flex max-w-[calc(100vw-16px)] items-end gap-2.5 overflow-x-auto rounded-2xl border px-3.5 pb-4 pt-2.5 backdrop-blur-[24px] ${dockSurfaceClass}`
+      ? `relative flex max-w-[calc(100vw-16px)] items-end gap-1.5 overflow-visible rounded-xl border px-2.5 pb-3 pt-2 backdrop-blur-[24px] ${dockSurfaceClass}`
+      : `relative flex max-w-[calc(100vw-16px)] items-end gap-2.5 overflow-visible rounded-2xl border px-3.5 pb-4 pt-2.5 backdrop-blur-[24px] ${dockSurfaceClass}`
   const dockItemBoxClass = isCompactDock
     ? 'flex h-[32px] w-[32px] items-center justify-center rounded-lg cursor-pointer'
     : 'flex h-[38px] w-[38px] items-center justify-center rounded-xl cursor-pointer'
