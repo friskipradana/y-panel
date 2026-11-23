@@ -68,6 +68,7 @@ const BRAND_ICON_MAP: Record<string, string> = {
   memos: '/icons/apps/memos.png',
   'reneo-crm': '/icons/apps/reneo-crm.svg?v=3',
   'reneo-sidesa': '/icons/apps/reneo-sidesa.svg?v=2',
+  'reneo-skills': '/icons/apps/reneo-skills.svg?v=1',
   'adguard-home': '/icons/apps/adguard-home.svg',
   jellyfin: '/icons/apps/jellyfin.svg',
   nextcloud: '/icons/apps/nextcloud.svg',
