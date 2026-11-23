@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.66] - 2026-11-23
+
+Scope DBX connection list strictly to the opened database.
+
+### Perbaikan
+- **dbx:** Scope DBX connection list strictly to the opened database ([`04e157c`](https://github.com/friskipradana/y-panel/commit/04e157c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.65...v1.88.66
+
 ## [1.88.65] - 2026-11-23
 
 Escape ampersand in Docker panel SVG aria-label.
