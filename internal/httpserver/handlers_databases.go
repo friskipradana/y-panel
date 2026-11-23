@@ -415,6 +415,10 @@ func (s *Server) RecoverDatabases() {
 		if item.Status != "ready" {
 			continue
 		}
+		// Databases with IP allow-list are started by RestoreDatabaseAccess after firewall rules are applied.
+		if item.AccessMode == userdb.AccessIPs && len(item.AccessIPs) > 0 {
+			continue
+		}
 
 		cName := strings.TrimSpace(item.ContainerName)
 		if cName == "" {

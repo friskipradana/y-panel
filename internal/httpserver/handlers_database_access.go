@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/docker"
 	"github.com/friskipradana/panel-desktop-ui/internal/userdb"
 )
 
@@ -195,9 +198,26 @@ func (s *Server) restoreDatabaseAccess(item database.ManagedDatabase) {
 		_ = s.database.SetManagedDatabaseStatus(item.ID, "error", "the firewall rules for its allowed addresses could not be restored: "+err.Error())
 		return
 	}
+	// Self-heal databases that previously entered error solely because firewall rules failed to restore at boot.
+	recoveredFromFirewallErr := item.Status == "error" && strings.HasPrefix(strings.TrimSpace(item.LastError), "the firewall rules for its allowed addresses could not be restored:")
+	if recoveredFromFirewallErr {
+		if err := s.database.SetManagedDatabaseStatus(item.ID, "ready", ""); err == nil {
+			item.Status = "ready"
+			item.LastError = ""
+		}
+	}
 	if item.Autostart && item.Status == "ready" && userdb.State(item.ID) != "running" {
 		if err := userdb.Start(item.ID); err != nil {
 			log.Printf("[databases] start id=%d after restoring its rules: %v", item.ID, err)
+		}
+	}
+	if item.Status == "ready" {
+		cName := strings.TrimSpace(item.ContainerName)
+		if cName == "" {
+			cName = fmt.Sprintf("reneo-db-%d", item.ID)
+		}
+		if netErr := docker.EnsureContainerOnNetwork("reneo-internal", cName); netErr != nil {
+			log.Printf("[databases] ensure reneo-internal for %s: %v", cName, netErr)
 		}
 	}
 }
