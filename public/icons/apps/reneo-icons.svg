@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Reneo Icons">
+  <rect x="40" y="40" width="432" height="432" rx="92" fill="#0B2A57" />
+  <rect x="112" y="112" width="128" height="128" rx="30" fill="#FFFFFF" />
+  <circle cx="176" cy="176" r="32" fill="#0B2A57" />
+  <rect x="272" y="112" width="128" height="128" rx="30" fill="#3B82F6" />
+  <polygon points="336,144 370,204 302,204" fill="#FFFFFF" />
+  <rect x="112" y="272" width="128" height="128" rx="30" fill="#1D4ED8" />
+  <rect x="148" y="308" width="56" height="56" rx="14" fill="#FFFFFF" />
+  <rect x="272" y="272" width="128" height="128" rx="30" fill="#FFFFFF" />
+  <path d="M308 336h56M336 308v56" stroke="#0B2A57" stroke-width="22" stroke-linecap="round" />
+</svg>

@@ -37,7 +37,12 @@ interface InstalledAppsViewProps {
 }
 
 function isOfficialReneoApp(catalogId?: string): boolean {
-  return catalogId === 'reneo-crm' || catalogId === 'reneo-sidesa' || catalogId === 'reneo-skills'
+  return (
+    catalogId === 'reneo-crm' ||
+    catalogId === 'reneo-sidesa' ||
+    catalogId === 'reneo-skills' ||
+    catalogId === 'reneo-icons'
+  )
 }
 
 function appStatusTone(app: InstalledApp): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
