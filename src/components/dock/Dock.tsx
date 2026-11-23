@@ -62,6 +62,7 @@ export function Dock() {
   const focusedId = useWindowStore(selectFocusedId)
   const windows = useWindowStore(selectWindows)
   const desktopIconStyle = useThemeStore((state) => state.desktopIconStyle)
+  const dockStyle = useThemeStore((state) => state.dockStyle)
   const role = useAuthStore((state) => state.user?.role)
 
   const [hovered, setHovered] = useState<string | null>(null)
@@ -185,6 +186,21 @@ export function Dock() {
     ? 'translate-y-0 opacity-100'
     : 'translate-y-[calc(100%+18px)] opacity-100'
 
+  const isPanelDock = dockStyle === 'panel'
+  const isCompactDock = dockStyle === 'compact'
+  const dockWrapperPositionClass = isPanelDock
+    ? 'fixed bottom-0 left-0 right-0 flex flex-col items-center'
+    : 'fixed left-1/2 bottom-[10px] flex -translate-x-1/2 flex-col items-center gap-1.5'
+  const dockBarClass = isPanelDock
+    ? `relative flex w-full items-center justify-center gap-2 overflow-x-auto rounded-none border-t border-x-0 border-b-0 px-4 pb-3 pt-2 backdrop-blur-[24px] ${dockSurfaceClass}`
+    : isCompactDock
+      ? `relative flex max-w-[calc(100vw-16px)] items-end gap-1.5 overflow-x-auto rounded-xl border px-2.5 pb-3 pt-2 backdrop-blur-[24px] ${dockSurfaceClass}`
+      : `relative flex max-w-[calc(100vw-16px)] items-end gap-2.5 overflow-x-auto rounded-2xl border px-3.5 pb-4 pt-2.5 backdrop-blur-[24px] ${dockSurfaceClass}`
+  const dockItemBoxClass = isCompactDock
+    ? 'flex h-[32px] w-[32px] items-center justify-center rounded-lg cursor-pointer'
+    : 'flex h-[38px] w-[38px] items-center justify-center rounded-xl cursor-pointer'
+  const dockIconPx = isCompactDock ? 19 : 22
+
   return (
     <>
       {forceAutoHideDock && !revealed && visibleDockItems.length > 0 && (
@@ -198,7 +214,7 @@ export function Dock() {
 
       <div
         ref={dockRef}
-        className={`fixed left-1/2 bottom-[8px] flex -translate-x-1/2 flex-col items-center gap-1.5 transition-[transform,opacity] duration-200 ${dockLayerClass} ${dockTransformClass} ${isDockVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        className={`${dockWrapperPositionClass} transition-[transform,opacity] duration-200 ${dockLayerClass} ${dockTransformClass} ${isDockVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}
         onMouseEnter={revealDock}
         onMouseLeave={() => {
           setHovered(null)
@@ -209,7 +225,7 @@ export function Dock() {
           <motion.div
             layout
             id="desktop-dock"
-            className={`relative flex max-w-[calc(100vw-16px)] items-end gap-2.5 overflow-x-auto rounded-2xl border px-3.5 pb-4 pt-2.5 backdrop-blur-[24px] ${dockSurfaceClass}`}
+            className={dockBarClass}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
           >
             <AnimatePresence mode="popLayout">
@@ -278,7 +294,7 @@ export function Dock() {
                       whileTap={{ scale: 0.92 }}
                       transition={{ type: 'spring', stiffness: 450, damping: 24 }}
                       className={[
-                        'flex h-[38px] w-[38px] items-center justify-center rounded-xl cursor-pointer',
+                        dockItemBoxClass,
                         desktopIconStyle === 'plain'
                           ? 'hover:bg-white/10'
                           : isOpen
@@ -290,7 +306,7 @@ export function Dock() {
                         kind={item.kind}
                         iconKey={item.iconKey}
                         iconColor={item.iconColor}
-                        size={22}
+                        size={dockIconPx}
                         style={{ filter: 'var(--dock-icon-filter)' }}
                       />
                     </motion.div>

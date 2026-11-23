@@ -30,7 +30,8 @@ export type WallpaperKey =
   | 'custom'
 
 export type WallpaperFit = 'cover' | 'contain' | 'stretch' | 'center' | 'tile'
-export type DesktopIconStyle = 'framed' | 'plain'
+export type DesktopIconStyle = 'glass' | 'solid' | 'framed' | 'plain'
+export type DockStyle = 'floating' | 'panel' | 'compact'
 export type DesktopIconSize = 'small' | 'medium' | 'large'
 export type DesktopIconFontSize = 'small' | 'medium' | 'large'
 export type DesktopIconFontWeight = 'normal' | 'medium' | 'bold'
@@ -151,6 +152,7 @@ interface StoredTheme {
   wallpaperFit?: WallpaperFit
   customImageUrl?: string | null
   desktopIconStyle?: DesktopIconStyle
+  dockStyle?: DockStyle
   desktopIconSize?: DesktopIconSize
   desktopIconFontSize?: DesktopIconFontSize
   desktopIconFontWeight?: DesktopIconFontWeight
@@ -175,6 +177,7 @@ interface ThemeStore {
   /** Data URL or blob URL for custom wallpaper image */
   customImageUrl: string | null
   desktopIconStyle: DesktopIconStyle
+  dockStyle: DockStyle
   desktopIconSize: DesktopIconSize
   desktopIconFontSize: DesktopIconFontSize
   desktopIconFontWeight: DesktopIconFontWeight
@@ -196,6 +199,7 @@ interface ThemeStore {
   setWallpaper: (key: WallpaperKey) => void
   setWallpaperFit: (fit: WallpaperFit) => void
   setDesktopIconStyle: (style: DesktopIconStyle) => void
+  setDockStyle: (style: DockStyle) => void
   setDesktopIconSize: (size: DesktopIconSize) => void
   setDesktopIconFontSize: (size: DesktopIconFontSize) => void
   setDesktopIconFontWeight: (weight: DesktopIconFontWeight) => void
@@ -229,7 +233,8 @@ const THEME_DEFAULTS: Required<StoredTheme> = {
   wallpaper: 'default',
   wallpaperFit: 'cover',
   customImageUrl: null,
-  desktopIconStyle: 'framed',
+  desktopIconStyle: 'glass',
+  dockStyle: 'floating',
   desktopIconSize: 'small',
   desktopIconFontSize: 'medium',
   desktopIconFontWeight: 'medium',
@@ -388,7 +393,8 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     wallpaper: stored.wallpaper ?? 'default',
     wallpaperFit: stored.wallpaperFit ?? 'cover',
     customImageUrl: stored.customImageUrl ?? null,
-    desktopIconStyle: stored.desktopIconStyle ?? 'framed',
+    desktopIconStyle: stored.desktopIconStyle ?? 'glass',
+    dockStyle: stored.dockStyle ?? 'floating',
     desktopIconSize: stored.desktopIconSize ?? 'small',
     desktopIconFontSize: stored.desktopIconFontSize ?? 'medium',
     desktopIconFontWeight: stored.desktopIconFontWeight ?? 'medium',
@@ -487,6 +493,11 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     setDesktopIconStyle: (desktopIconStyle) => {
       persist({ desktopIconStyle })
       set({ desktopIconStyle })
+    },
+
+    setDockStyle: (dockStyle) => {
+      persist({ dockStyle })
+      set({ dockStyle })
     },
 
     setDesktopIconSize: (desktopIconSize) => {
@@ -643,7 +654,8 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
         wallpaper: 'default',
         wallpaperFit: 'cover',
         customImageUrl: null,
-        desktopIconStyle: 'framed',
+        desktopIconStyle: 'glass',
+        dockStyle: 'floating',
         desktopIconSize: 'small',
         desktopIconFontSize: 'medium',
         desktopIconFontWeight: 'medium',

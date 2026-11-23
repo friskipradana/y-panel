@@ -25,6 +25,33 @@ export function DesktopIcon({ app, editing = false }: Props) {
 
   const isPlain = desktopIconStyle === 'plain'
 
+  const iconContainerClass = (() => {
+    if (desktopIconStyle === 'plain') {
+      return 'group-hover:scale-105'
+    }
+    if (desktopIconStyle === 'solid') {
+      return 'bg-[var(--win-content-bg)] border border-[var(--win-border)] shadow-md group-hover:border-[var(--panel-primary-solid)] group-hover:shadow-lg'
+    }
+    if (desktopIconStyle === 'glass') {
+      return isDark
+        ? 'bg-slate-900/55 backdrop-blur-md border border-white/20 shadow-md group-hover:bg-slate-900/70 group-hover:border-white/35 group-hover:shadow-lg'
+        : 'bg-white/80 backdrop-blur-md border border-white/85 shadow-md group-hover:bg-white/95 group-hover:border-[var(--panel-primary-solid)] group-hover:shadow-lg'
+    }
+    // framed (classic)
+    return isDark
+      ? 'bg-black/25 backdrop-blur-md border border-white/10 shadow-md shadow-black/20 group-hover:border-white/25 group-hover:shadow-lg'
+      : 'bg-white/50 backdrop-blur-md border border-black/10 shadow-sm shadow-black/5 group-hover:border-black/20 group-hover:shadow-md'
+  })()
+
+  const labelPillClass =
+    desktopIconStyle === 'solid' || desktopIconStyle === 'glass'
+      ? isDark
+        ? 'rounded-md px-1.5 py-0.5 bg-slate-950/45 text-white/95 backdrop-blur-[2px]'
+        : 'rounded-md px-1.5 py-0.5 bg-white/75 text-slate-900 backdrop-blur-[2px]'
+      : isDark
+        ? 'text-white/95'
+        : 'text-slate-800'
+
   const displayLabel = useMemo(() => {
     if (app.windowId === 'installed-app') {
       return app.label
@@ -101,13 +128,7 @@ export function DesktopIcon({ app, editing = false }: Props) {
       className={`group flex ${sizeConfig.btnWidth} flex-col items-center gap-1 rounded-xl p-1.5 active:scale-95 ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'} focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--panel-primary-solid)] select-none ${editing ? 'cursor-grab' : 'cursor-pointer'} transition-colors duration-150`}
     >
       <div
-        className={`flex ${sizeConfig.boxSize} items-center justify-center transition-all duration-150 ${
-          isPlain
-            ? 'group-hover:scale-105'
-            : isDark
-              ? 'bg-black/25 backdrop-blur-md border border-white/10 shadow-md shadow-black/20 group-hover:border-white/25 group-hover:shadow-lg'
-              : 'bg-white/50 backdrop-blur-md border border-black/10 shadow-sm shadow-black/5 group-hover:border-black/20 group-hover:shadow-md'
-        }`}
+        className={`flex ${sizeConfig.boxSize} items-center justify-center transition-all duration-150 ${iconContainerClass}`}
       >
         <AppIcon
           kind={app.windowId || app.id}
@@ -117,11 +138,7 @@ export function DesktopIcon({ app, editing = false }: Props) {
         />
       </div>
       <span
-        className={`${sizeConfig.maxTextWidth} truncate text-center ${textSizeClass} ${fontWeightClass} ${shadowClass} tracking-wide ${
-          isDark
-            ? 'text-white/95'
-            : 'text-slate-800'
-        }`}
+        className={`${sizeConfig.maxTextWidth} line-clamp-2 leading-tight text-center ${textSizeClass} ${fontWeightClass} ${shadowClass} ${labelPillClass}`}
       >
         {displayLabel}
       </span>
