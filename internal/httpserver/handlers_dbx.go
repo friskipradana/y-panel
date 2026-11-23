@@ -32,9 +32,10 @@ import (
 // dbx_gate.go decides what each account may ask of it.
 
 const (
-	dbxContainer  = "reneo-dbx"
-	dbxImage      = "t8y2/dbx:latest"
-	dbxDataVolume = "reneo-dbx-data"
+	dbxContainer   = "reneo-dbx"
+	dbxImage       = "t8y2/dbx:latest"
+	dbxDataVolume  = "reneo-dbx-data"
+	dbxScopeCookie = "reneo_dbx_scope"
 	// dbxSetupLabel says how the container was made; one made another way (an older version of the panel started it open
 	// on every address and without a password) is replaced
 	dbxSetupLabel = "reneo.dbx.setup"
@@ -268,6 +269,14 @@ func (s *Server) handleDatabaseDbx(w http.ResponseWriter, r *http.Request) {
 	}
 	s.auditSensitiveAction(r, u, "database.dbx", "ok", map[string]any{"id": item.ID})
 
+	http.SetCookie(w, &http.Cookie{
+		Name:     dbxScopeCookie,
+		Value:    dbxConnectionID(item.ID),
+		Path:     "/dbx",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https"),
+	})
 	open, _ := json.Marshal(map[string]any{"name": item.Name, "steps": dbxOpenSteps(item.Engine, item.DatabaseName)})
 	w.Header().Set("Cache-Control", "no-store")
 	http.Redirect(w, r, "/dbx/?reneo_open="+url.QueryEscape(string(open)), http.StatusFound)
@@ -363,7 +372,21 @@ func (s *Server) newDbxProxy(baseURL func() string, connections func(*database.U
 			}
 		}
 		// the page itself and its scripts are not judged like the API, but still only read
-		verdict := dbxDecide(r.Method, inner, r.URL.Query(), body, connections(u))
+		conns := connections(u)
+		if scopeCookie, err := r.Cookie(dbxScopeCookie); err == nil {
+			scopeID := strings.TrimSpace(scopeCookie.Value)
+			if scopeID != "" {
+				filtered := make([]dbxConn, 0, 1)
+				for _, c := range conns {
+					if c.ID == scopeID {
+						filtered = append(filtered, c)
+						break
+					}
+				}
+				conns = filtered
+			}
+		}
+		verdict := dbxDecide(r.Method, inner, r.URL.Query(), body, conns)
 		switch verdict.Action {
 		case dbxAnswer:
 			w.Header().Set("Content-Type", "application/json")
