@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pengguna">
+  <rect x="4" y="4" width="56" height="56" rx="15" fill="#DB2777" />
+  <circle cx="26" cy="24" r="7" fill="#FFFFFF" />
+  <path d="M14 46c0-6.5 5.4-11 12-11s12 4.5 12 11" fill="#FFFFFF" />
+  <circle cx="42" cy="26" r="5.2" fill="#FBCFE8" />
+  <path d="M36 46c0-4.6 3.5-8 8-8 3.2 0 6 1.8 7 4.8V46H36Z" fill="#FBCFE8" />
+</svg>

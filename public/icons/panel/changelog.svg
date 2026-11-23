@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Catatan Rilis">
+  <rect x="4" y="4" width="56" height="56" rx="15" fill="#7C3AED" />
+  <path d="M16 28v8a3 3 0 0 0 3 3h5l14 8V17l-14 8h-5a3 3 0 0 0-3 3Z" fill="#FFFFFF" />
+  <path d="M44 25a8 8 0 0 1 0 14" fill="none" stroke="#DDD6FE" stroke-width="3.2" stroke-linecap="round" />
+  <rect x="21" y="39" width="4.5" height="9" rx="2.2" fill="#DDD6FE" />
+</svg>

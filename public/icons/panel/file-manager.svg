@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Berkas">
+  <rect x="4" y="4" width="56" height="56" rx="15" fill="#CA8A04" />
+  <path d="M13 21a4 4 0 0 1 4-4h10l4 4h16a4 4 0 0 1 4 4v21a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V21Z" fill="#FEF08A" />
+  <rect x="13" y="26" width="38" height="24" rx="4" fill="#FFFFFF" />
+  <rect x="20" y="34" width="16" height="3" rx="1.5" fill="#CA8A04" />
+  <rect x="20" y="40" width="24" height="3" rx="1.5" fill="#EAB308" />
+</svg>

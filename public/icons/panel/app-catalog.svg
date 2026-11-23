@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Katalog Aplikasi">
+  <rect x="4" y="4" width="56" height="56" rx="15" fill="#0B2A57" />
+  <rect x="15" y="15" width="15" height="15" rx="4" fill="#FFFFFF" />
+  <rect x="34" y="15" width="15" height="15" rx="4" fill="#3B82F6" />
+  <rect x="15" y="34" width="15" height="15" rx="4" fill="#38BDF8" />
+  <rect x="34" y="34" width="15" height="15" rx="4" fill="#FFFFFF" />
+</svg>

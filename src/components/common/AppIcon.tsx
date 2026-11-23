@@ -1,32 +1,5 @@
 import React from 'react'
 import {
-  Box24Filled,
-  Code24Filled,
-  Database24Filled,
-  Folder24Filled,
-  DocumentEdit24Filled,
-  CodeBlock24Filled,
-  Cloud24Filled,
-  Info24Filled,
-  DocumentBulletList24Filled,
-  Settings24Filled,
-  People24Filled,
-  DocumentText24Filled,
-  Megaphone24Filled,
-  PersonCircle24Filled,
-  Delete24Filled,
-  Apps24Filled,
-  AppStore24Filled,
-  AppGeneric24Filled,
-  WindowApps24Filled,
-  Gauge24Filled,
-  BuildingRetail24Filled,
-  Shield24Filled,
-  Key24Filled,
-  Mail24Filled,
-  DesktopKeyboard24Filled,
-} from '@fluentui/react-icons'
-import {
   Activity,
   BarChart3,
   Box,
@@ -253,40 +226,39 @@ export function InstalledAppGlyph({
   )
 }
 
-const ICON_MAP: Record<string, { icon: React.ComponentType<{ style?: React.CSSProperties; className?: string }>; color: string }> = {
-  apps: { icon: Box24Filled, color: '#38bdf8' },
-  'host-terminal': { icon: Code24Filled, color: '#4ade80' },
-  terminal: { icon: Code24Filled, color: '#4ade80' },
-  database: { icon: Database24Filled, color: '#f59e0b' },
-  'file-manager': { icon: Folder24Filled, color: '#fbbf24' },
-  'file-editor': { icon: DocumentEdit24Filled, color: '#60a5fa' },
-  projects: { icon: CodeBlock24Filled, color: '#a78bfa' },
-  tunnels: { icon: Cloud24Filled, color: '#f97316' },
-  system: { icon: Info24Filled, color: '#06b6d4' },
-  'system-logs': { icon: DocumentBulletList24Filled, color: '#94a3b8' },
-  settings: { icon: Settings24Filled, color: '#94a3b8' },
-  users: { icon: People24Filled, color: '#ec4899' },
-  docs: { icon: DocumentText24Filled, color: '#10b981' },
-  changelog: { icon: Megaphone24Filled, color: '#8b5cf6' },
-  profile: { icon: PersonCircle24Filled, color: '#6366f1' },
-  widgets: { icon: WindowApps24Filled, color: '#3b82f6' },
-  speedtest: { icon: Gauge24Filled, color: '#14b8a6' },
-  hosting: { icon: BuildingRetail24Filled, color: '#f43f5e' },
-  firewall: { icon: Shield24Filled, color: '#f87171' },
-  email: { icon: Mail24Filled, color: '#0ea5e9' },
-  kvm: { icon: DesktopKeyboard24Filled, color: '#06b6d4' },
-  trash: { icon: Delete24Filled, color: '#ef4444' },
-  'app-catalog': { icon: AppStore24Filled, color: 'var(--panel-primary-text)' },
-  'installed-app': { icon: AppGeneric24Filled, color: 'var(--panel-primary-text)' },
-  'app-licenses': { icon: Key24Filled, color: 'var(--panel-primary-text)' },
+const PANEL_ICON_MAP: Record<string, string> = {
+  apps: '/icons/panel/apps.svg?v=1',
+  'host-terminal': '/icons/panel/host-terminal.svg?v=1',
+  terminal: '/icons/panel/host-terminal.svg?v=1',
+  database: '/icons/panel/database.svg?v=1',
+  'file-manager': '/icons/panel/file-manager.svg?v=1',
+  'file-editor': '/icons/panel/file-editor.svg?v=1',
+  projects: '/icons/panel/projects.svg?v=1',
+  tunnels: '/icons/panel/tunnels.svg?v=1',
+  system: '/icons/panel/system.svg?v=1',
+  'system-logs': '/icons/panel/system-logs.svg?v=1',
+  settings: '/icons/panel/settings.svg?v=1',
+  users: '/icons/panel/users.svg?v=1',
+  docs: '/icons/panel/docs.svg?v=1',
+  changelog: '/icons/panel/changelog.svg?v=1',
+  profile: '/icons/panel/profile.svg?v=1',
+  widgets: '/icons/panel/widgets.svg?v=1',
+  speedtest: '/icons/panel/speedtest.svg?v=1',
+  hosting: '/icons/panel/hosting.svg?v=1',
+  firewall: '/icons/panel/firewall.svg?v=1',
+  email: '/icons/panel/email.svg?v=1',
+  kvm: '/icons/panel/kvm.svg?v=1',
+  trash: '/icons/panel/trash.svg?v=1',
+  'app-catalog': '/icons/panel/app-catalog.svg?v=1',
+  'installed-app': '/icons/panel/installed-app.svg?v=1',
+  'app-licenses': '/icons/panel/app-licenses.svg?v=1',
 }
 
 export function AppIcon({ kind, size = 24, className = '', style = {}, iconKey, iconColor }: AppIconProps) {
   if (kind === 'installed-app' || iconKey) {
     return <InstalledAppGlyph iconKey={iconKey} iconColor={iconColor} size={size} className={className} style={style} />
   }
-  const item = ICON_MAP[kind] || { icon: Apps24Filled, color: 'var(--panel-neutral-text)' }
-  const IconComponent = item.icon
+  const panelSrc = PANEL_ICON_MAP[kind] || PANEL_ICON_MAP['installed-app']
 
   return (
     <span
@@ -294,12 +266,18 @@ export function AppIcon({ kind, size = 24, className = '', style = {}, iconKey, 
       style={{
         width: size,
         height: size,
-        fontSize: size,
-        color: item.color,
         ...style,
       }}
     >
-      <IconComponent style={{ fontSize: `${size}px`, width: `${size}px`, height: `${size}px` }} />
+      <img
+        src={panelSrc}
+        alt=""
+        width={size}
+        height={size}
+        className="object-contain"
+        style={{ width: size, height: size }}
+        draggable={false}
+      />
     </span>
   )
 }

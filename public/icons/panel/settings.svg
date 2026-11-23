@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pengaturan">
+  <rect x="4" y="4" width="56" height="56" rx="15" fill="#475569" />
+  <line x1="16" y1="22" x2="48" y2="22" stroke="#CBD5E1" stroke-width="3.2" stroke-linecap="round" />
+  <circle cx="26" cy="22" r="5" fill="#FFFFFF" />
+  <line x1="16" y1="34" x2="48" y2="34" stroke="#CBD5E1" stroke-width="3.2" stroke-linecap="round" />
+  <circle cx="39" cy="34" r="5" fill="#38BDF8" />
+  <line x1="16" y1="46" x2="48" y2="46" stroke="#CBD5E1" stroke-width="3.2" stroke-linecap="round" />
+  <circle cx="24" cy="46" r="5" fill="#FFFFFF" />
+</svg>

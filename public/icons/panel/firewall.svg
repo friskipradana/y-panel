@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Firewall">
+  <rect x="4" y="4" width="56" height="56" rx="15" fill="#DC2626" />
+  <path d="M32 13l16 6v12c0 10.5-6.8 18-16 21-9.2-3-16-10.5-16-21V19l16-6Z" fill="#FFFFFF" />
+  <path d="M25.5 32.5l4.5 4.5 9-9.5" fill="none" stroke="#DC2626" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
