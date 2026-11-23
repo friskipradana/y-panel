@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.53] - 2026-11-23
+
+2 perubahan, utamanya add Reneo Skills app and icon (v1.88.53).
+
+### Fitur baru
+- **catalog:** Add Reneo Skills app and icon (v1.88.53) ([`41fa0b6`](https://github.com/friskipradana/y-panel/commit/41fa0b6))
+
+### Pemeliharaan
+- Align version before release:patch ([`e1ec847`](https://github.com/friskipradana/y-panel/commit/e1ec847))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.52...v1.88.53
+
 ## [1.88.52] - 2026-11-22
 
 Fix nil-pointer panic in `orderBaseURL` when background app license expiry reminders run without an HTTP request.
