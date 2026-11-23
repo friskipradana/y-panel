@@ -420,7 +420,7 @@ var builtinCatalogApps = []CatalogApp{
 		SuperadminOnly:  true,
 		Official:        true,
 		Image:           "ghcr.io/aknalre/icons-services:latest",
-		Versions:        []string{"1.0.1", "1.0.0", "latest"},
+		Versions:        []string{"1.0.2", "1.0.1", "latest"},
 		ContainerPort:   5056,
 		DefaultHostPort: 18024,
 		OpenPath:        "/",
@@ -449,17 +449,17 @@ var builtinCatalogApps = []CatalogApp{
 		SuperadminOnly:  true,
 		Official:        true,
 		Image:           "ghcr.io/aknalre/resto-services:latest",
-		Versions:        []string{"1.0.0", "latest"},
+		Versions:        []string{"1.1.0", "1.0.0", "latest"},
 		ContainerPort:   5057,
 		DefaultHostPort: 18025,
 		OpenPath:        "/",
-		NotesID:         "Beranda direktori restoran tampil di (/), website demo di /r/kedai-heritage, panel admin restoran di /admin, dan portal superadmin di /superadmin/restaurants. Isi DATABASE_URL PostgreSQL dari menu Database panel.",
-		NotesEN:         "Platform home loads at (/), demo storefront at /r/kedai-heritage, tenant admin at /admin, and superadmin portal at /superadmin/restaurants. Provide a PostgreSQL DATABASE_URL from the panel Database app.",
+		NotesID:         "Database PostgreSQL (reneo-resto-db) disiapkan otomatis saat pemasangan. Beranda platform tampil di (/), website demo di /r/kedai-heritage, panel admin restoran di /admin, dan portal superadmin di /superadmin/restaurants.",
+		NotesEN:         "PostgreSQL database (reneo-resto-db) is provisioned automatically on install. Platform home loads at (/), demo storefront at /r/kedai-heritage, tenant admin at /admin, and superadmin portal at /superadmin/restaurants.",
 		Volumes: []catalogVolumeSpec{
 			{HostSubdir: "data", ContainerPath: "/app/data", Label: "Data & Media Reneo Resto"},
 		},
 		Env: []catalogEnvSpec{
-			{Key: "DATABASE_URL", DefaultValue: "", LabelID: "Koneksi PostgreSQL (DATABASE_URL)", LabelEN: "PostgreSQL Connection URL"},
+			{Key: "DATABASE_URL", DefaultValue: "", LabelID: "Koneksi PostgreSQL", LabelEN: "PostgreSQL Database URL", Hidden: true},
 			{Key: "ADMIN_EMAIL", DefaultValue: "admin@reneo.my.id", LabelID: "Email Superadmin", LabelEN: "Superadmin Email"},
 			{Key: "ADMIN_PASSWORD", DefaultValue: "", LabelID: "Kata Sandi Superadmin", LabelEN: "Superadmin Password", Secret: true},
 			{Key: "SESSION_SECRET", DefaultValue: "", LabelID: "Kunci Rahasia Sesi (acak)", LabelEN: "Session Secret Key", Secret: true},
@@ -1642,10 +1642,12 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		}
 	}
 
-	if spec.ID == "reneo-crm" || spec.ID == "reneo-sidesa" {
+	if spec.ID == "reneo-crm" || spec.ID == "reneo-sidesa" || spec.ID == "reneo-resto" {
 		dbName := "reneo-crm-db"
 		if spec.ID == "reneo-sidesa" {
 			dbName = "reneo-sidesa-db"
+		} else if spec.ID == "reneo-resto" {
+			dbName = "reneo-resto-db"
 		}
 		if v, ok := envMap["DATABASE_URL"]; !ok || strings.TrimSpace(v) == "" {
 			pgURL, pgErr := s.ensureManagedDependencyDB(actor, "postgres", dbName)
@@ -1726,7 +1728,7 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 	}
 
 	deployNetwork := ""
-	if spec.ID == "reneo-crm" || spec.ID == "reneo-sidesa" {
+	if spec.ID == "reneo-crm" || spec.ID == "reneo-sidesa" || spec.ID == "reneo-resto" {
 		deployNetwork = "reneo-internal"
 		_ = docker.EnsureContainerOnNetwork(deployNetwork, "reneo-waha")
 	}
@@ -2096,9 +2098,11 @@ func (s *Server) handleAppCatalogAction(w http.ResponseWriter, r *http.Request) 
 		ensureAppVolumePermissions(owner, app.ContainerName)
 	}
 
-	if (actionName == "start" || actionName == "restart") && (app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa") {
+	if (actionName == "start" || actionName == "restart") && (app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" || app.CatalogID == "reneo-resto") {
 		if app.CatalogID == "reneo-sidesa" {
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
+		} else if app.CatalogID == "reneo-resto" {
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-resto-db")
 		} else {
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
@@ -2329,9 +2333,11 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 		if !ok {
 			return http.StatusUnprocessableEntity, errors.New("gagal memperbarui baris image di compose.yml aplikasi")
 		}
-		if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" {
+		if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" || app.CatalogID == "reneo-resto" {
 			if app.CatalogID == "reneo-sidesa" {
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
+			} else if app.CatalogID == "reneo-resto" {
+				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-resto-db")
 			} else {
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
@@ -2398,10 +2404,12 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 			}
 		}
 		deployNet := cfg.Network
-		if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" {
+		if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" || app.CatalogID == "reneo-resto" {
 			deployNet = "reneo-internal"
 			if app.CatalogID == "reneo-sidesa" {
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
+			} else if app.CatalogID == "reneo-resto" {
+				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-resto-db")
 			} else {
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
@@ -2423,9 +2431,11 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 
 	ensureAppVolumePermissions(owner, app.ContainerName)
 	docker.InvalidateAll()
-	if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" {
+	if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" || app.CatalogID == "reneo-resto" {
 		if app.CatalogID == "reneo-sidesa" {
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
+		} else if app.CatalogID == "reneo-resto" {
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-resto-db")
 		} else {
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
@@ -4307,7 +4317,7 @@ func sanitizeExistingAppCompose(composeYAML, projectName, catalogID string) (str
 		changed = true
 	}
 
-	if (catalogID == "reneo-crm" || catalogID == "reneo-sidesa") && !strings.Contains(updated, "reneo-internal") {
+	if (catalogID == "reneo-crm" || catalogID == "reneo-sidesa" || catalogID == "reneo-resto") && !strings.Contains(updated, "reneo-internal") {
 		if strings.Contains(updated, "    extra_hosts:\n") {
 			updated = strings.Replace(updated, "    extra_hosts:\n", "    networks:\n      - reneo-internal\n    extra_hosts:\n", 1)
 			changed = true
