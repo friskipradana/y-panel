@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.56] - 2026-11-23
+
+Self-heal firewall restore errors and attach reneo-internal on access restore.
+
+### Perbaikan
+- **databases:** Self-heal firewall restore errors and attach reneo-internal on access restore ([`187e639`](https://github.com/friskipradana/y-panel/commit/187e639))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.55...v1.88.56
+
 ## [1.88.55] - 2026-11-23
 
 Auto-start ready managed DBs and repair reneo-internal network for all apps on startup.
