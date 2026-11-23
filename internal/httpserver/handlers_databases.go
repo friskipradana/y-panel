@@ -13,6 +13,7 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/docker"
 	"github.com/friskipradana/panel-desktop-ui/internal/userdb"
 )
 
@@ -392,7 +393,8 @@ func (s *Server) handleUpgradeUserDatabase(w http.ResponseWriter, r *http.Reques
 }
 
 // RecoverDatabases marks the databases that were still being created when the agent stopped: the image
-// pull and the first start run in the agent, so no one is finishing them any more.
+// RecoverDatabases restores managed database containers and repairs the shared
+// reneo-internal Docker network for both databases and installed catalog apps on startup.
 func (s *Server) RecoverDatabases() {
 	if s.database == nil || !s.database.IsConnected() {
 		return
@@ -402,11 +404,51 @@ func (s *Server) RecoverDatabases() {
 		log.Printf("[databases] recover: %v", err)
 		return
 	}
+
+	states := userdb.States()
 	for _, item := range list {
-		if item.Status != "creating" {
+		if item.Status == "creating" {
+			_ = userdb.Remove(item.ID)
+			_ = s.database.SetManagedDatabaseStatus(item.ID, "error", "creation was interrupted when the agent stopped; delete it and create it again")
 			continue
 		}
-		_ = userdb.Remove(item.ID)
-		_ = s.database.SetManagedDatabaseStatus(item.ID, "error", "creation was interrupted when the agent stopped; delete it and create it again")
+		if item.Status != "ready" {
+			continue
+		}
+
+		cName := strings.TrimSpace(item.ContainerName)
+		if cName == "" {
+			cName = fmt.Sprintf("reneo-db-%d", item.ID)
+		}
+
+		liveState := strings.ToLower(strings.TrimSpace(states[cName]))
+		if liveState != "running" {
+			if startErr := userdb.Start(item.ID); startErr != nil {
+				log.Printf("[databases] auto-start container=%s failed: %v", cName, startErr)
+			} else {
+				log.Printf("[databases] auto-started container=%s (was %q)", cName, liveState)
+			}
+		}
+
+		if netErr := docker.EnsureContainerOnNetwork("reneo-internal", cName); netErr != nil {
+			log.Printf("[databases] ensure reneo-internal for %s: %v", cName, netErr)
+		}
+	}
+
+	// Re-attach all Docker-backed installed catalog apps to reneo-internal so
+	// container-name DNS resolution (e.g. reneo-db-4) stays intact after updates or prunes.
+	apps, appErr := s.database.ListAllInstalledApps()
+	if appErr != nil {
+		log.Printf("[apps] recover network list: %v", appErr)
+		return
+	}
+	for _, app := range apps {
+		cName := strings.TrimSpace(app.ContainerName)
+		if cName == "" {
+			continue
+		}
+		if netErr := docker.EnsureContainerOnNetwork("reneo-internal", cName); netErr != nil {
+			log.Printf("[apps] ensure reneo-internal for %s: %v", cName, netErr)
+		}
 	}
 }

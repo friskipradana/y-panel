@@ -391,7 +391,7 @@ var builtinCatalogApps = []CatalogApp{
 		SuperadminOnly:  true,
 		Official:        true,
 		Image:           "ghcr.io/aknalre/skills-services:latest",
-		Versions:        []string{"1.0.0", "latest"},
+		Versions:        []string{"1.0.1", "1.0.0", "latest"},
 		ContainerPort:   5055,
 		DefaultHostPort: 18023,
 		OpenPath:        "/",

@@ -51,6 +51,29 @@ func scanInstalledApp(row interface{ Scan(dest ...any) error }) (*InstalledApp, 
 	return &item, nil
 }
 
+func (m *Manager) ListAllInstalledApps() ([]InstalledApp, error) {
+	if m == nil || !m.IsConnected() {
+		return []InstalledApp{}, nil
+	}
+	rows, err := m.db.Query(
+		`SELECT ` + installedAppCols + ` FROM installed_apps ORDER BY id ASC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]InstalledApp, 0)
+	for rows.Next() {
+		item, err := scanInstalledApp(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *item)
+	}
+	return out, rows.Err()
+}
+
 func (m *Manager) ListInstalledApps(userID int64) ([]InstalledApp, error) {
 	if m == nil || !m.IsConnected() {
 		return []InstalledApp{}, nil
