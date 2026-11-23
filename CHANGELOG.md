@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.61] - 2026-11-23
+
+Replace all built-in panel icons with bespoke Reneo SVG set.
+
+### Fitur baru
+- **icons:** Replace all built-in panel icons with bespoke Reneo SVG set ([`0692053`](https://github.com/friskipradana/y-panel/commit/0692053))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.60...v1.88.61
+
 ## [1.88.60] - 2026-11-23
 
 Add official Reneo Icons service to app catalog.
