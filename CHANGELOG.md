@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.62] - 2026-11-23
+
+Add official Reneo Resto multi-tenant SaaS to app catalog.
+
+### Fitur baru
+- **catalog:** Add official Reneo Resto multi-tenant SaaS to app catalog ([`5f4068a`](https://github.com/friskipradana/y-panel/commit/5f4068a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.61...v1.88.62
+
 ## [1.88.61] - 2026-11-23
 
 Replace all built-in panel icons with bespoke Reneo SVG set.
