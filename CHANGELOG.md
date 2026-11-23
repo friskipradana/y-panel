@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.65] - 2026-11-23
+
+Escape ampersand in Docker panel SVG aria-label.
+
+### Perbaikan
+- **icons:** Escape ampersand in Docker panel SVG aria-label ([`6ea1e2a`](https://github.com/friskipradana/y-panel/commit/6ea1e2a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.64...v1.88.65
+
 ## [1.88.64] - 2026-11-23
 
 Auto-provision managed PostgreSQL database for Reneo Resto on install.
