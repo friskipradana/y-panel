@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.54] - 2026-11-23
+
+Map reneo-skills brand icon in BRAND_ICON_MAP.
+
+### Perbaikan
+- **app-icon:** Map reneo-skills brand icon in BRAND_ICON_MAP ([`2ecb49b`](https://github.com/friskipradana/y-panel/commit/2ecb49b))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.53...v1.88.54
+
 ## [1.88.53] - 2026-11-23
 
 2 perubahan, utamanya add Reneo Skills app and icon (v1.88.53).
