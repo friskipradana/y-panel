@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.59] - 2026-11-23
+
+Hide dock scrollbar and move icon/dock styles to Desktop & Taskbar settings.
+
+### Perbaikan
+- **desktop,dock:** Hide dock scrollbar and move icon/dock styles to Desktop & Taskbar settings ([`70a0948`](https://github.com/friskipradana/y-panel/commit/70a0948))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.58...v1.88.59
+
 ## [1.88.58] - 2026-11-23
 
 Add desktop icon and dock style presets in settings.
