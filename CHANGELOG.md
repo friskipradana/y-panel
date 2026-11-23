@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.60] - 2026-11-23
+
+Add official Reneo Icons service to app catalog.
+
+### Fitur baru
+- **catalog:** Add official Reneo Icons service to app catalog ([`4784940`](https://github.com/friskipradana/y-panel/commit/4784940))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.59...v1.88.60
+
 ## [1.88.59] - 2026-11-23
 
 Hide dock scrollbar and move icon/dock styles to Desktop & Taskbar settings.
