@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.55] - 2026-11-23
+
+Auto-start ready managed DBs and repair reneo-internal network for all apps on startup.
+
+### Perbaikan
+- **databases:** Auto-start ready managed DBs and repair reneo-internal network for all apps on startup ([`f27244b`](https://github.com/friskipradana/y-panel/commit/f27244b))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.54...v1.88.55
+
 ## [1.88.54] - 2026-11-23
 
 Map reneo-skills brand icon in BRAND_ICON_MAP.
