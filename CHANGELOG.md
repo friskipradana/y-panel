@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.63] - 2026-11-23
+
+Use authentic Reneo R monogram logos for Reneo Icons and Reneo Resto.
+
+### Perbaikan
+- **icons:** Use authentic Reneo R monogram logos for Reneo Icons and Reneo Resto ([`4b02749`](https://github.com/friskipradana/y-panel/commit/4b02749))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.62...v1.88.63
+
 ## [1.88.62] - 2026-11-23
 
 Add official Reneo Resto multi-tenant SaaS to app catalog.
