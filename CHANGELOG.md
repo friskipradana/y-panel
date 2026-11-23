@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.64] - 2026-11-23
+
+Auto-provision managed PostgreSQL database for Reneo Resto on install.
+
+### Fitur baru
+- **catalog:** Auto-provision managed PostgreSQL database for Reneo Resto on install ([`e30cbec`](https://github.com/friskipradana/y-panel/commit/e30cbec))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.63...v1.88.64
+
 ## [1.88.63] - 2026-11-23
 
 Use authentic Reneo R monogram logos for Reneo Icons and Reneo Resto.
