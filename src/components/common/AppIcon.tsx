@@ -228,7 +228,7 @@ export function InstalledAppGlyph({
 }
 
 const PANEL_ICON_MAP: Record<string, string> = {
-  apps: '/icons/panel/apps.svg?v=1',
+  apps: '/icons/panel/apps.svg?v=2',
   'host-terminal': '/icons/panel/host-terminal.svg?v=1',
   terminal: '/icons/panel/host-terminal.svg?v=1',
   database: '/icons/panel/database.svg?v=1',
