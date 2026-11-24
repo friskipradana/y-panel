@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'reneo-pwa-v4'
+const CACHE_VERSION = 'reneo-pwa-v5'
 const APP_SHELL = [
   '/manifest.webmanifest',
   '/favicon.svg',
@@ -7,7 +7,7 @@ const APP_SHELL = [
   '/brand/icon-512.png',
 ]
 
-const API_PREFIXES = ['/api', '/agent', '/portainer', '/app']
+const API_PREFIXES = ['/api', '/agent', '/portainer', '/app', '/dbx', '/adminer', '/whodb']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

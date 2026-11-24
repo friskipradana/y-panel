@@ -1,12 +1,12 @@
 import { Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
-import { LandingPage } from '@/pages/landing/LandingPage'
 import { lazyNamed } from '@/lib/lazy'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
 import { useAuthStore } from '@/store/authStore'
 import { usePublicSite } from '@/hooks/usePublicSite'
 
+const LandingPage = lazyNamed(() => import('@/pages/landing/LandingPage'), 'LandingPage')
 const LoginPage = lazyNamed(() => import('@/pages/login/LoginPage'), 'LoginPage')
 const DesktopPage = lazyNamed(() => import('@/pages/desktop/DesktopPage'), 'DesktopPage')
 const McpGuidePage = lazyNamed(() => import('@/pages/mcp-guide/McpGuidePage'), 'McpGuidePage')
@@ -21,6 +21,7 @@ const KvmPage = lazyNamed(() => import('@/pages/kvm/KvmPage'), 'KvmPage')
 
 // The page of an address, fetched before the first frame of the app, so a reload does not flash an empty page while its code loads
 export function preloadRoute(pathname: string): Promise<unknown> {
+  if (pathname === LANDING_PATH) return LandingPage.preload()
   if (pathname === LOGIN_PATH) return LoginPage.preload()
   if (pathname === HOME_PATH || pathname.startsWith(HOME_PATH + '/')) return DesktopPage.preload()
   if (pathname === '/kvm') return KvmPage.preload()
@@ -28,7 +29,7 @@ export function preloadRoute(pathname: string): Promise<unknown> {
   if (pathname === '/docs/mcp') return McpGuidePage.preload()
   if (pathname === '/install') return InstallPage.preload()
   if (pathname === '/terms' || pathname === '/privacy') return LegalPage.preload()
-  if (/^\/order\/[^/]+\/invoice$/.test(pathname)) return OrderInvoicePage.preload()
+  if (/^\/order\/(?:license\/)?[^/]+\/invoice$/.test(pathname)) return OrderInvoicePage.preload()
   if (pathname === '/order' || pathname.startsWith('/order/')) return OrderPage.preload()
   if (pathname === '/articles') return ArticlesPage.preload()
   if (pathname.startsWith('/articles/')) return ArticlePage.preload()

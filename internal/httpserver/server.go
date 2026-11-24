@@ -598,6 +598,16 @@ func newFrontendHandler(frontendDir string) http.Handler {
 	indexPath := filepath.Join(frontendDir, "index.html")
 	fileServer := http.FileServer(http.Dir(frontendDir))
 
+	serveIndex := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		if info, err := os.Stat(indexPath); err == nil && !info.IsDir() {
+			if serveGzipped(w, r, indexPath, info) {
+				return
+			}
+		}
+		http.ServeFile(w, r, indexPath)
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
 			http.NotFound(w, r)
@@ -606,8 +616,7 @@ func newFrontendHandler(frontendDir string) http.Handler {
 
 		cleanPath := filepath.Clean(strings.TrimPrefix(r.URL.Path, "/"))
 		if cleanPath == "." || cleanPath == "" {
-			w.Header().Set("Cache-Control", "no-cache")
-			http.ServeFile(w, r, indexPath)
+			serveIndex(w, r)
 			return
 		}
 
@@ -641,8 +650,7 @@ func newFrontendHandler(frontendDir string) http.Handler {
 			return
 		}
 
-		w.Header().Set("Cache-Control", "no-cache")
-		http.ServeFile(w, r, indexPath)
+		serveIndex(w, r)
 	})
 }
 

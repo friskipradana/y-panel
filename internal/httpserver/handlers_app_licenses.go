@@ -179,23 +179,43 @@ func (s *Server) licenseOrderBaseURL(r *http.Request) string {
 			return scheme + "://" + host
 		}
 	}
-	// Background callers (r == nil): prefer a configured panel HTTPS origin (e.g. https://panel.reneo.my.id)
-	var firstOrigin string
+	// Background callers (r == nil): prefer panel.<mainDomain> (e.g. https://panel.reneo.my.id)
+	// matching the configured main hosting domain so unrelated origins in CORS_ALLOWED_ORIGINS
+	// are never chosen for buyer payment links.
+	var mainDomain string
+	if s.database != nil && s.database.IsConnected() {
+		if main := s.mainHostingDomain(); main != nil {
+			mainDomain = strings.ToLower(strings.TrimSpace(main.Name))
+		}
+	}
+	var matchingPanelOrigin, matchingSubOrigin, anyPanelOrigin string
 	for _, raw := range s.allowedOrigins() {
 		u, err := url.Parse(strings.TrimSpace(raw))
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || isLoopbackHost(u.Host) {
 			continue
 		}
+		host := strings.ToLower(u.Hostname())
 		origin := u.Scheme + "://" + u.Host
-		if strings.HasPrefix(strings.ToLower(u.Hostname()), "panel.") {
-			return origin
-		}
-		if firstOrigin == "" {
-			firstOrigin = origin
+		if mainDomain != "" {
+			if host == "panel."+mainDomain {
+				matchingPanelOrigin = origin
+				break
+			}
+			if matchingSubOrigin == "" && (host == mainDomain || strings.HasSuffix(host, "."+mainDomain)) {
+				matchingSubOrigin = origin
+			}
+		} else if anyPanelOrigin == "" && strings.HasPrefix(host, "panel.") {
+			anyPanelOrigin = origin
 		}
 	}
-	if firstOrigin != "" {
-		return firstOrigin
+	if matchingPanelOrigin != "" {
+		return matchingPanelOrigin
+	}
+	if matchingSubOrigin != "" {
+		return matchingSubOrigin
+	}
+	if mainDomain == "" && anyPanelOrigin != "" {
+		return anyPanelOrigin
 	}
 	return s.orderBaseURL(r)
 }

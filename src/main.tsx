@@ -74,7 +74,7 @@ function settleLinkStylesheet(link: HTMLLinkElement): Promise<void> {
       resolve()
     }
     // Safety timeout prevents #boot-splash from hanging forever if onload/onerror fired before main.tsx ran or CSS stalled
-    const timer = window.setTimeout(finish, 2500)
+    const timer = window.setTimeout(finish, 1500)
     link.addEventListener('load', finish, { once: true })
     link.addEventListener('error', finish, { once: true })
   })
@@ -122,11 +122,11 @@ async function boot() {
         loadLanguage(getInitialLanguage()).catch(() => {
           tryRecoverStaleChunks()
         }),
-        5000,
+        2500,
         undefined,
       ),
       stylesReady(),
-      withTimeout(preloadRoute(window.location.pathname).catch(() => undefined), 5000, undefined),
+      withTimeout(preloadRoute(window.location.pathname).catch(() => undefined), 700, undefined),
     ])
   } finally {
     seedFromBoot()

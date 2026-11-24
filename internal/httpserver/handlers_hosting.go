@@ -529,7 +529,7 @@ func (s *Server) remindPlans(now time.Time) {
 	}
 }
 
-const appLicenseReminderLinkFixKey = "app_license_reminder_link_fix_20261124"
+const appLicenseReminderLinkFixKey = "app_license_reminder_link_fix_20261124_v2"
 
 // remindAppLicenses notifies buyers whose app licenses (e.g. Reneo CRM) are expiring within 3 days or just expired,
 // including direct renewal checkout and invoice links.
@@ -582,8 +582,8 @@ func (s *Server) resendFixedAppLicenseRemindersOnce(now time.Time) bool {
 		log.Printf("[licenses] could not persist one-time reminder resend flag: %v", err)
 		return false
 	}
-	log.Printf("[licenses] running one-time resend of expiring app license reminders with fixed payment links")
-	s.remindAppLicensesWithKeySuffix(now, "-linkfix1")
+	log.Printf("[licenses] running one-time resend of expiring app license reminders with fixed panel domain links")
+	s.remindAppLicensesWithKeySuffix(now, "-linkfix2")
 	return true
 }
 
