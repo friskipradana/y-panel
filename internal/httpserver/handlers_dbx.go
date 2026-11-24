@@ -371,19 +371,23 @@ func (s *Server) newDbxProxy(baseURL func() string, connections func(*database.U
 				return
 			}
 		}
-		// the page itself and its scripts are not judged like the API, but still only read
-		conns := connections(u)
-		if scopeCookie, err := r.Cookie(dbxScopeCookie); err == nil {
-			scopeID := strings.TrimSpace(scopeCookie.Value)
-			if scopeID != "" {
-				filtered := make([]dbxConn, 0, 1)
-				for _, c := range conns {
-					if c.ID == scopeID {
-						filtered = append(filtered, c)
-						break
+		// Only load managed database connections (which invoke docker inspect) for /api/ requests,
+		// never for static assets (/dbx/, /dbx/assets/*.js, fonts, icons).
+		var conns []dbxConn
+		if strings.HasPrefix(inner, "/api/") {
+			conns = connections(u)
+			if scopeCookie, err := r.Cookie(dbxScopeCookie); err == nil {
+				scopeID := strings.TrimSpace(scopeCookie.Value)
+				if scopeID != "" {
+					filtered := make([]dbxConn, 0, 1)
+					for _, c := range conns {
+						if c.ID == scopeID {
+							filtered = append(filtered, c)
+							break
+						}
 					}
+					conns = filtered
 				}
-				conns = filtered
 			}
 		}
 		verdict := dbxDecide(r.Method, inner, r.URL.Query(), body, conns)
