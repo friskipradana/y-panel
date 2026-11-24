@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.74] - 2026-11-24
+
+Patch only existing GraphQL Login variable keys to prevent unknown field error.
+
+### Perbaikan
+- **whodb:** Patch only existing GraphQL Login variable keys to prevent unknown field error ([`400d815`](https://github.com/friskipradana/y-panel/commit/400d815))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.73...v1.88.74
+
 ## [1.88.73] - 2026-11-24
 
 Fix app license reminder checkout/invoice URLs and add one-time idempotent resend on deploy.
