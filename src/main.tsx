@@ -139,6 +139,7 @@ async function boot() {
     )
     try {
       window.sessionStorage.removeItem(CHUNK_RELOAD_KEY)
+      window.sessionStorage.removeItem('reneo-lazy-chunk-reload')
       window.sessionStorage.removeItem('reneo-boot-recover')
     } catch {
       // ignore storage access issues

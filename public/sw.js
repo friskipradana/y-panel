@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'reneo-pwa-v5'
+const CACHE_VERSION = 'reneo-pwa-v6'
 const APP_SHELL = [
   '/manifest.webmanifest',
   '/favicon.svg',
@@ -8,6 +8,19 @@ const APP_SHELL = [
 ]
 
 const API_PREFIXES = ['/api', '/agent', '/portainer', '/app', '/dbx', '/adminer', '/whodb']
+
+function isCacheableStaticPath(pathname) {
+  return (
+    pathname.startsWith('/assets/') ||
+    pathname.startsWith('/brand/') ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/favicon.svg' ||
+    pathname === '/favicon.ico' ||
+    pathname === '/pwa-maskable.svg' ||
+    pathname.startsWith('/favicon-') ||
+    pathname === '/apple-touch-icon.png'
+  )
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -54,30 +67,36 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  if (!isCacheableStaticPath(requestUrl.pathname)) {
+    return
+  }
+
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse
 
-      return fetch(request).then((networkResponse) => {
-        if (!networkResponse) return networkResponse
+      return fetch(request)
+        .then((networkResponse) => {
+          if (!networkResponse) return networkResponse
 
-        if (networkResponse.status === 404 && requestUrl.pathname.startsWith('/assets/')) {
-          void caches.open(CACHE_VERSION).then((cache) => cache.delete('/index.html'))
-        }
+          if (networkResponse.status === 404 && requestUrl.pathname.startsWith('/assets/')) {
+            void caches.open(CACHE_VERSION).then((cache) => cache.delete('/index.html'))
+          }
 
-        if (networkResponse.status !== 200 || networkResponse.type === 'opaque') {
+          if (networkResponse.status !== 200 || networkResponse.type === 'opaque') {
+            return networkResponse
+          }
+
+          const contentType = networkResponse.headers.get('content-type') || ''
+          if (requestUrl.pathname.startsWith('/assets/') && contentType.includes('text/html')) {
+            return networkResponse
+          }
+
+          const copy = networkResponse.clone()
+          void caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy))
           return networkResponse
-        }
-
-        const contentType = networkResponse.headers.get('content-type') || ''
-        if (requestUrl.pathname.startsWith('/assets/') && contentType.includes('text/html')) {
-          return networkResponse
-        }
-
-        const copy = networkResponse.clone()
-        void caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy))
-        return networkResponse
-      })
+        })
+        .catch(() => cachedResponse || Response.error())
     }),
   )
 })
