@@ -116,6 +116,19 @@ export const dropDatabaseTable = (id: number, table: string) =>
 export const runDatabaseQuery = (id: number, statement: string) =>
   agentApi.post<QueryResult>(`/api/v1/databases/${id}/query`, { statement }).then((r) => r.data)
 
+export const databaseExportUrl = (id: number) => `/api/v1/databases/${id}/export`
+
+export const importDatabaseSQL = (id: number, file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  return agentApi
+    .post<{ ok: boolean; message?: string }>(`/api/v1/databases/${id}/import`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 300_000,
+    })
+    .then((r) => r.data)
+}
+
 export const listDatabaseAccounts = (id: number) =>
   agentApi.get<{ users: DatabaseAccount[]; owner: string }>(`/api/v1/databases/${id}/users`).then((r) => r.data)
 

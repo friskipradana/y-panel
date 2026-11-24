@@ -136,6 +136,42 @@ func (s *Server) handleDatabaseAdminer(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+// Modern Reneo CSS injected into Adminer HTML responses so it stays lightweight (<20 MB RAM)
+// while feeling clean and contemporary like a modern phpMyAdmin workstation.
+const adminerModernThemeCSS = `<style id="reneo-adminer-theme">
+:root{--rn-bg:#f8fafc;--rn-surface:#ffffff;--rn-border:#e2e8f0;--rn-text:#0f172a;--rn-muted:#475569;--rn-primary:#2563eb;--rn-primary-hover:#1d4ed8;--rn-row:#f8fafc}
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,-apple-system,sans-serif !important;font-size:13px !important;line-height:1.5;background:var(--rn-bg) !important;color:var(--rn-text) !important;margin:0}
+a{color:var(--rn-primary) !important;text-decoration:none}
+a:hover{text-decoration:underline}
+#menu{background:var(--rn-surface) !important;border-right:1px solid var(--rn-border) !important;padding:14px 12px !important;width:250px !important}
+#menu h1{background:none !important;border:0 !important;padding:0 0 10px 0 !important;margin:0 0 10px 0 !important;border-bottom:1px solid var(--rn-border) !important;font-size:15px !important;font-weight:700 !important}
+#menu h1 a{color:var(--rn-text) !important}
+#menu p,#menu .links{margin:8px 0 !important}
+#menu .links a,#tables a{display:inline-block;padding:3px 6px;border-radius:6px;transition:background .12s}
+#menu .links a:hover,#tables a:hover{background:#eff6ff;text-decoration:none}
+#tables{list-style:none !important;padding:0 !important;margin:8px 0 0 0 !important}
+#tables li{padding:2px 0 !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#content{margin-left:266px !important;padding:20px 24px !important;background:var(--rn-bg) !important}
+#breadcrumb{background:var(--rn-surface) !important;border:1px solid var(--rn-border) !important;border-radius:8px;padding:8px 14px !important;margin:0 0 16px 0 !important;position:static !important;font-size:12px}
+h2{font-size:18px !important;font-weight:700 !important;background:none !important;border:0 !important;color:var(--rn-text) !important;padding:0 !important;margin:0 0 14px 0 !important}
+h3{font-size:14px !important;font-weight:600 !important;color:var(--rn-text) !important;margin:16px 0 8px 0 !important}
+table{border-collapse:collapse !important;background:var(--rn-surface) !important;border:1px solid var(--rn-border) !important;border-radius:8px;overflow:hidden;margin:10px 0 !important}
+th,thead td{background:#f1f5f9 !important;color:var(--rn-muted) !important;font-weight:600 !important;font-size:12px !important;text-align:left;padding:8px 10px !important;border:1px solid var(--rn-border) !important}
+td{padding:7px 10px !important;border:1px solid var(--rn-border) !important;vertical-align:top}
+tbody tr:nth-child(even) td{background:var(--rn-row) !important}
+tbody tr:hover td{background:#eff6ff !important}
+input[type=text],input[type=password],input[type=search],input[type=number],select,textarea{font-family:inherit;font-size:13px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:var(--rn-text)}
+textarea.sqlarea,pre,code{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace !important;font-size:12.5px !important}
+input[type=submit],button{background:var(--rn-primary) !important;color:#fff !important;border:1px solid var(--rn-primary) !important;border-radius:6px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
+input[type=submit]:hover,button:hover{background:var(--rn-primary-hover) !important}
+.message{background:#ecfdf5 !important;color:#065f46 !important;border:1px solid #a7f3d0 !important;border-radius:8px;padding:10px 14px !important;margin:10px 0 !important}
+.error{background:#fef2f2 !important;color:#991b1b !important;border:1px solid #fecaca !important;border-radius:8px;padding:10px 14px !important;margin:10px 0 !important}
+fieldset{border:1px solid var(--rn-border) !important;border-radius:8px;background:var(--rn-surface) !important;padding:12px 14px !important;margin:10px 0 !important}
+legend{font-weight:600;color:var(--rn-muted);padding:0 6px}
+@media(max-width:768px){#menu{position:static !important;width:100% !important;border-right:0 !important;border-bottom:1px solid var(--rn-border) !important}#content{margin-left:0 !important;padding:14px !important}}
+</style>`
+
 // adminerProxy forwards /adminer/<key>/ to the sidecar. The key selects one of the caller's own
 // databases and a sign-in may only name exactly that database's server, so Adminer cannot be
 // pointed at anything else on the host.
@@ -149,6 +185,23 @@ func (s *Server) adminerProxy() http.Handler {
 			pr.Out.URL.Path = "/" + adminerRestPath(pr.In.URL.Path)
 			pr.Out.URL.RawPath = ""
 			pr.Out.Header.Del("Authorization")
+			pr.Out.Header.Del("Accept-Encoding")
+		},
+		ModifyResponse: func(resp *http.Response) error {
+			if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") && resp.Header.Get("Content-Encoding") == "" {
+				page, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+				_ = resp.Body.Close()
+				if err != nil {
+					return err
+				}
+				if bytes.Contains(page, []byte("</head>")) {
+					page = bytes.Replace(page, []byte("</head>"), []byte(adminerModernThemeCSS+"</head>"), 1)
+				}
+				resp.Body = io.NopCloser(bytes.NewReader(page))
+				resp.ContentLength = int64(len(page))
+				resp.Header.Set("Content-Length", strconv.Itoa(len(page)))
+			}
+			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, _ error) {
 			http.Error(w, "Adminer is not running. Open it again from the Database window.", http.StatusBadGateway)
@@ -170,8 +223,9 @@ func (s *Server) adminerProxy() http.Handler {
 			http.Redirect(w, r, "/adminer/"+key+"/", http.StatusPermanentRedirect)
 			return
 		}
-		if r.Method == http.MethodPost {
-			raw, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+		// Only inspect URL-encoded form posts (sign-in) so multipart .sql file imports are streamed without a 1 MB cap.
+		if r.Method == http.MethodPost && strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+			raw, err := io.ReadAll(io.LimitReader(r.Body, 2<<20))
 			if err != nil {
 				http.Error(w, "bad request", http.StatusBadRequest)
 				return

@@ -23,6 +23,12 @@ export function OpenClientModal({ dbw }: { dbw: DatabasesWindowState }) {
 
   const isSql = target ? SQL_ENGINES.includes(target.engine) : false
 
+  const handleOpenWhodb = () => {
+    if (!target) return
+    window.open(`/api/v1/db-open-whodb/${target.accessKey}`, '_blank', 'noopener')
+    setOpenClientTarget(null)
+  }
+
   const handleOpenAdminer = () => {
     if (!target || !isSql) return
     window.open(`/api/v1/db-open/${target.accessKey}`, '_blank', 'noopener')
@@ -48,8 +54,8 @@ export function OpenClientModal({ dbw }: { dbw: DatabasesWindowState }) {
       title={t('databases.chooseClientTitle')}
       subtitle={target ? `${target.engineLabel} · ${target.name}` : undefined}
       icon={<Database />}
-      size="md"
-      width={560}
+      size="lg"
+      width={720}
       footer={
         <div className="flex w-full items-center justify-between gap-3">
           <Button variant="ghost" size="sm" onClick={handleOpenManager}>
@@ -66,7 +72,27 @@ export function OpenClientModal({ dbw }: { dbw: DatabasesWindowState }) {
           {t('databases.chooseClientDesc')}
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
+          {/* WhoDB Option (lightweight & modern) */}
+          <div className="flex flex-col justify-between rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4 transition-colors hover:border-[var(--panel-primary-solid)]/40 hover:bg-[var(--panel-surface-hover)]">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[0.875rem] font-semibold">WhoDB</span>
+                <span className="rounded px-1.5 py-0.5 text-[0.6875rem] font-medium bg-[var(--panel-surface-strong)] text-[var(--text-secondary)]">
+                  {t('databases.clientWhodbTag')}
+                </span>
+              </div>
+              <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
+                {t('databases.clientWhodbDesc')}
+              </p>
+            </div>
+            <div className="mt-4 pt-2">
+              <Button variant="primary" size="sm" className="w-full" onClick={handleOpenWhodb}>
+                {t('databases.openWhodb')}
+              </Button>
+            </div>
+          </div>
+
           {/* Adminer Option */}
           <div
             className={`flex flex-col justify-between rounded-xl border p-4 transition-colors ${
@@ -87,13 +113,7 @@ export function OpenClientModal({ dbw }: { dbw: DatabasesWindowState }) {
               </p>
             </div>
             <div className="mt-4 pt-2">
-              <Button
-                variant={isSql ? 'primary' : 'outline'}
-                size="sm"
-                className="w-full"
-                disabled={!isSql}
-                onClick={handleOpenAdminer}
-              >
+              <Button variant="outline" size="sm" className="w-full" disabled={!isSql} onClick={handleOpenAdminer}>
                 {t('databases.openAdminer')}
               </Button>
             </div>
@@ -113,12 +133,7 @@ export function OpenClientModal({ dbw }: { dbw: DatabasesWindowState }) {
               </p>
             </div>
             <div className="mt-4 pt-2">
-              <Button
-                variant="primary"
-                size="sm"
-                className="w-full"
-                onClick={handleOpenDbx}
-              >
+              <Button variant="outline" size="sm" className="w-full" onClick={handleOpenDbx}>
                 {t('databases.openDbx')}
               </Button>
             </div>

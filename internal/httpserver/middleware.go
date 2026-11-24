@@ -458,13 +458,15 @@ func (s *Server) rateLimitRuleForRequest(r *http.Request) (rateLimitRule, string
 	}
 
 	switch {
-	case path == "/healthz" || strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/dbx/assets/") || path == "/favicon.ico":
+	case path == "/healthz" || strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/dbx/assets/") ||
+		(strings.HasPrefix(path, "/whodb/") && strings.Contains(path, "/assets/")) || path == "/favicon.ico":
 		return rateLimitRule{}, "", false
 	case isSpeedtestPath(path):
 		// a test opens a few dozen short requests in seconds
 		return rateLimitRule{Window: time.Minute, Limit: 600}, "speedtest:" + remote, true
 	case strings.HasPrefix(path, appCatalogProxyPrefix) || strings.HasPrefix(path, "/app/") ||
 		path == "/dbx" || strings.HasPrefix(path, "/dbx/") ||
+		path == "/whodb" || strings.HasPrefix(path, "/whodb/") ||
 		path == "/adminer" || strings.HasPrefix(path, "/adminer/"):
 		// embedded web apps and database clients load many assets and API calls through the proxy
 		return rateLimitRule{Window: time.Minute, Limit: 1200}, "appproxy:" + remote, true
@@ -589,6 +591,7 @@ func isProtectedPagePath(path string) bool {
 		path == "/database" || strings.HasPrefix(path, "/database/") ||
 		path == "/kvm" || strings.HasPrefix(path, "/kvm/") ||
 		path == "/adminer" || strings.HasPrefix(path, "/adminer/") ||
+		path == "/whodb" || strings.HasPrefix(path, "/whodb/") ||
 		path == "/dbx" || strings.HasPrefix(path, "/dbx/")
 }
 

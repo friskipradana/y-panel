@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -308,4 +309,61 @@ func (s *Server) handleDatabaseSetPassword(w http.ResponseWriter, r *http.Reques
 	}
 	s.auditSensitiveAction(r, u, "database.password", "ok", map[string]any{"database": item.Name})
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "password": password})
+}
+
+const maxSQLImportBytes = 100 << 20 // 100 MB
+
+func (s *Server) handleDatabaseExport(w http.ResponseWriter, r *http.Request) {
+	conn, item, u, ok := s.databaseConn(w, r)
+	if !ok || !requireSQL(s, w, conn) {
+		return
+	}
+	filename := fmt.Sprintf("%s-%s.sql", item.Name, time.Now().Format("20060102-1504"))
+	w.Header().Set("Content-Type", "application/sql; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.Header().Set("Cache-Control", "no-store")
+	if err := userdb.ExportSQL(r.Context(), conn, w); err != nil {
+		s.auditSensitiveAction(r, u, "database.export", "error", map[string]any{"database": item.Name, "error": err.Error()})
+		return
+	}
+	s.auditSensitiveAction(r, u, "database.export", "ok", map[string]any{"database": item.Name})
+}
+
+func (s *Server) handleDatabaseImport(w http.ResponseWriter, r *http.Request) {
+	conn, item, u, ok := s.databaseConn(w, r)
+	if !ok || !requireSQL(s, w, conn) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxSQLImportBytes)
+	if err := r.ParseMultipartForm(16 << 20); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "file too large or invalid multipart upload (max 100 MB)"})
+		return
+	}
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "select a .sql or .sql.gz file first"})
+		return
+	}
+	defer file.Close()
+
+	lowerName := strings.ToLower(strings.TrimSpace(header.Filename))
+	isGzip := strings.HasSuffix(lowerName, ".gz")
+	if !strings.HasSuffix(lowerName, ".sql") && !strings.HasSuffix(lowerName, ".sql.gz") {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "only .sql and .sql.gz files are supported"})
+		return
+	}
+
+	summary, impErr := userdb.ImportSQL(r.Context(), conn, file, isGzip)
+	if impErr != nil {
+		s.auditSensitiveAction(r, u, "database.import", "error", map[string]any{"database": item.Name, "file": header.Filename})
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": impErr.Error()})
+		return
+	}
+	s.auditSensitiveAction(r, u, "database.import", "ok", map[string]any{"database": item.Name, "file": header.Filename})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": summary})
 }
