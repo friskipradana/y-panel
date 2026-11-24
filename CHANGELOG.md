@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.71] - 2026-11-24
+
+2 perubahan, utamanya redesign Adminer with native Reneo workstation theme (light/dark) and strip legacy default.css.
+
+### Fitur baru
+- **adminer:** Redesign Adminer with native Reneo workstation theme (light/dark) and strip legacy default.css ([`45a9d3e`](https://github.com/friskipradana/y-panel/commit/45a9d3e))
+
+### Pemeliharaan
+- **httpserver:** Remove unused adminerRestPath and convert catalog ID if-else chains to switch ([`3862b40`](https://github.com/friskipradana/y-panel/commit/3862b40))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.70...v1.88.71
+
 ## [1.88.70] - 2026-11-24
 
 Support .zip, chunked uploads up to 5GB, and async background SQL import without timeout.
