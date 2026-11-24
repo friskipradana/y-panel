@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.67] - 2026-11-24
+
+Skip docker inspect on static DBX assets and exempt /dbx/assets from page rate limit.
+
+### Perbaikan
+- **dbx:** Skip docker inspect on static DBX assets and exempt /dbx/assets from page rate limit ([`e263012`](https://github.com/friskipradana/y-panel/commit/e263012))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.66...v1.88.67
+
 ## [1.88.66] - 2026-11-23
 
 Scope DBX connection list strictly to the opened database.
