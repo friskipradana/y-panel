@@ -232,6 +232,7 @@ func (s *Server) adminerProxy() http.Handler {
 				pr.Out.Header.Del("Accept-Encoding")
 			},
 			ModifyResponse: func(resp *http.Response) error {
+				scopeSetCookiesToPrefix(resp.Header, "/adminer/"+key+"/")
 				if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") && resp.Header.Get("Content-Encoding") == "" {
 					// Relax CSP only to allow Google Fonts + same-origin theme assets cleanly
 					resp.Header.Del("Content-Security-Policy")
@@ -253,6 +254,34 @@ func (s *Server) adminerProxy() http.Handler {
 		}
 		proxy.ServeHTTP(w, r)
 	})
+}
+
+// scopeSetCookiesToPrefix rewrites every Set-Cookie Path attribute to scopePath (e.g. /adminer/<key>/)
+// so opening multiple databases concurrently in different tabs never overwrites each other's session cookies.
+func scopeSetCookiesToPrefix(header http.Header, scopePath string) {
+	setCookies := header.Values("Set-Cookie")
+	if len(setCookies) == 0 {
+		return
+	}
+	if !strings.HasSuffix(scopePath, "/") {
+		scopePath += "/"
+	}
+	header.Del("Set-Cookie")
+	for _, sc := range setCookies {
+		parts := strings.Split(sc, ";")
+		replaced := false
+		for i := 1; i < len(parts); i++ {
+			trimmed := strings.TrimSpace(parts[i])
+			if strings.HasPrefix(strings.ToLower(trimmed), "path=") {
+				parts[i] = " Path=" + scopePath
+				replaced = true
+			}
+		}
+		if !replaced {
+			parts = append(parts, " Path="+scopePath)
+		}
+		header.Add("Set-Cookie", strings.Join(parts, ";"))
+	}
 }
 
 // adminerSplitPath turns /adminer/<key>/rest into (key, rest).

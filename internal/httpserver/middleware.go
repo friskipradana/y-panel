@@ -458,7 +458,8 @@ func (s *Server) rateLimitRuleForRequest(r *http.Request) (rateLimitRule, string
 	}
 
 	switch {
-	case path == "/healthz" || strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/dbx/assets/") ||
+	case path == "/healthz" || strings.HasPrefix(path, "/assets/") ||
+		(strings.HasPrefix(path, "/dbx/") && strings.Contains(path, "/assets/")) ||
 		(strings.HasPrefix(path, "/whodb/") && strings.Contains(path, "/assets/")) || path == "/favicon.ico":
 		return rateLimitRule{}, "", false
 	case isSpeedtestPath(path):

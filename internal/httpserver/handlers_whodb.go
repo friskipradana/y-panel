@@ -171,6 +171,16 @@ XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"&&u.startsWith
 function fixUrl(u){if(typeof u==="string"&&u.startsWith("/")&&!u.startsWith(P))return P+u;return u}
 var ps=history.pushState;history.pushState=function(s,t,u){return ps.call(this,s,t,fixUrl(u))};
 var rs=history.replaceState;history.replaceState=function(s,t,u){return rs.call(this,s,t,fixUrl(u))};
+try{
+  var ls=window.localStorage;
+  var ns="reneo_whodb_"+C.key+"::";
+  var _get=Storage.prototype.getItem;
+  var _set=Storage.prototype.setItem;
+  var _rem=Storage.prototype.removeItem;
+  Storage.prototype.getItem=function(k){return _get.call(this,this===ls?ns+String(k):k)};
+  Storage.prototype.setItem=function(k,v){return _set.call(this,this===ls?ns+String(k):k,v)};
+  Storage.prototype.removeItem=function(k){return _rem.call(this,this===ls?ns+String(k):k)};
+}catch(e){}
 
 function setNativeValue(el,val){
   if(!el)return;
@@ -409,15 +419,8 @@ func (s *Server) whodbProxy() http.Handler {
 				}
 			},
 			ModifyResponse: func(resp *http.Response) error {
-				// Scope WhoDB cookies to /whodb/<key>
-				if setCookies := resp.Header.Values("Set-Cookie"); len(setCookies) > 0 {
-					resp.Header.Del("Set-Cookie")
-					for _, sc := range setCookies {
-						sc = strings.ReplaceAll(sc, "Path=/;", "Path="+prefix+";")
-						sc = strings.ReplaceAll(sc, "path=/;", "Path="+prefix+";")
-						resp.Header.Add("Set-Cookie", sc)
-					}
-				}
+				// Scope WhoDB cookies to /whodb/<key>/ so multi-DB tabs never overwrite each other
+				scopeSetCookiesToPrefix(resp.Header, prefix+"/")
 				if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") && resp.Header.Get("Content-Encoding") == "" {
 					page, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 					_ = resp.Body.Close()

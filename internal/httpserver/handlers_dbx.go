@@ -246,7 +246,7 @@ func dbxOpenSteps(engine, databaseName string) []string {
 	return nil
 }
 
-// handleDatabaseDbx prepares DBX and sends the browser to /dbx/ with the database to open.
+// handleDatabaseDbx prepares DBX and sends the browser to /dbx/<key>/ with the database to open.
 func (s *Server) handleDatabaseDbx(w http.ResponseWriter, r *http.Request) {
 	owner := userFromCtx(r)
 	found := s.databaseByAccessKey(owner, r.PathValue("key"))
@@ -269,44 +269,117 @@ func (s *Server) handleDatabaseDbx(w http.ResponseWriter, r *http.Request) {
 	}
 	s.auditSensitiveAction(r, u, "database.dbx", "ok", map[string]any{"id": item.ID})
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     dbxScopeCookie,
-		Value:    dbxConnectionID(item.ID),
-		Path:     "/dbx",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https"),
-	})
+	key := s.databaseAccessKey(item.ID)
 	open, _ := json.Marshal(map[string]any{"name": item.Name, "steps": dbxOpenSteps(item.Engine, item.DatabaseName)})
 	w.Header().Set("Cache-Control", "no-store")
-	http.Redirect(w, r, "/dbx/?reneo_open="+url.QueryEscape(string(open)), http.StatusFound)
+	http.Redirect(w, r, "/dbx/"+key+"/?reneo_open="+url.QueryEscape(string(open)), http.StatusFound)
+}
+
+// dbxSplitScopedPath extracts an opaque database access key from /dbx/<key>/... while keeping
+// legacy /dbx/assets/..., /dbx/api/..., and /dbx/ paths intact.
+func dbxSplitScopedPath(clean string) (key, inner string, scoped bool) {
+	trimmed := strings.TrimPrefix(clean, "/dbx/")
+	if trimmed == "" || trimmed == clean {
+		return "", "/", false
+	}
+	seg, rest, hasSlash := strings.Cut(trimmed, "/")
+	switch seg {
+	case "", "api", "assets", "index.html", "favicon.ico", "manifest.webmanifest", "robots.txt":
+		return "", "/" + trimmed, false
+	}
+	if !hasSlash {
+		return seg, "/", true
+	}
+	if rest == "" {
+		return seg, "/", true
+	}
+	return seg, "/" + rest, true
+}
+
+// dbxShimJS rewrites /dbx/api/* requests to /dbx/<key>/api/* and namespaces localStorage per key
+// so multiple DBX tabs for different databases never collide.
+func dbxShimJS(prefix, key string) string {
+	cfg, _ := json.Marshal(map[string]string{
+		"prefix": prefix,
+		"lsKey":  "reneo_dbx_" + key + "::",
+	})
+	return fmt.Sprintf(`(function(){
+var C=%s;
+var P=C.prefix;
+function rewriteDbxUrl(u){
+  if(typeof u!=="string")return u;
+  if(u.startsWith(P+"/")||u===P)return u;
+  if(u.startsWith("/dbx/api/")||u==="/dbx/api")return P+u.slice(4);
+  if(u.startsWith("/api/"))return P+u;
+  return u;
+}
+var f=window.fetch;
+if(f){window.fetch=function(u,o){
+  if(typeof u==="string"){u=rewriteDbxUrl(u)}
+  else if(u&&typeof Request!=="undefined"&&u instanceof Request){
+    var nu=rewriteDbxUrl(u.url.replace(location.origin,""));
+    if(nu!==u.url.replace(location.origin,"")){u=new Request(nu,u)}
+  }
+  return f.call(this,u,o);
+}}
+var xo=XMLHttpRequest.prototype.open;
+XMLHttpRequest.prototype.open=function(m,u){
+  if(typeof u==="string"){arguments[1]=rewriteDbxUrl(u)}
+  return xo.apply(this,arguments);
+};
+if(typeof window.EventSource==="function"){
+  var ES=window.EventSource;
+  window.EventSource=function(u,cfg){return new ES(rewriteDbxUrl(u),cfg)};
+  window.EventSource.prototype=ES.prototype;
+}
+function fixHistoryUrl(u){
+  if(typeof u!=="string")return u;
+  if(u.startsWith(P+"/")||u===P)return u;
+  if(u.startsWith("/dbx/"))return P+u.slice(4);
+  if(u==="/dbx")return P+"/";
+  return u;
+}
+var ps=history.pushState;history.pushState=function(s,t,u){return ps.call(this,s,t,fixHistoryUrl(u))};
+var rs=history.replaceState;history.replaceState=function(s,t,u){return rs.call(this,s,t,fixHistoryUrl(u))};
+try{
+  var ls=window.localStorage;
+  var ns=C.lsKey;
+  var _get=Storage.prototype.getItem;
+  var _set=Storage.prototype.setItem;
+  var _rem=Storage.prototype.removeItem;
+  Storage.prototype.getItem=function(k){return _get.call(this,this===ls?ns+String(k):k)};
+  Storage.prototype.setItem=function(k,v){return _set.call(this,this===ls?ns+String(k):k,v)};
+  Storage.prototype.removeItem=function(k){return _rem.call(this,this===ls?ns+String(k):k)};
+}catch(e){}
+})();`, string(cfg))
 }
 
 // the page opens what the query asks for: it connects to the database and opens the tree down to its tables, once
 const dbxOpenScript = `<script>(function(){try{var q=new URLSearchParams(location.search);var raw=q.get("reneo_open");if(!raw)return;var cfg=JSON.parse(raw);history.replaceState(null,"",location.pathname);var steps=[cfg.name].concat(cfg.steps||[]);var i=0,start=Date.now();function leaf(text){var all=document.querySelectorAll("span,div,a,button,p");for(var n=0;n<all.length;n++){var e=all[n];if(!e.children.length&&e.textContent.trim()===text)return e}return null}var timer=setInterval(function(){if(i>=steps.length||Date.now()-start>30000){clearInterval(timer);return}var el=leaf(steps[i]);if(el){el.click();i++;start=Date.now()}},600)}catch(e){}})()</script>`
 
-// dbxProxy forwards /dbx/ to the DBX container on loopback, request by request, as dbxDecide allows.
+// dbxProxy forwards /dbx/ and /dbx/<key>/ to the DBX container on loopback, request by request, as dbxDecide allows.
 func (s *Server) dbxProxy() http.Handler {
 	base := "http://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(dbxPort()))
 	return s.newDbxProxy(func() string { return base }, s.dbxConnections, true)
 }
 
 func (s *Server) newDbxProxy(baseURL func() string, connections func(*database.User) []dbxConn, ensure bool) http.Handler {
-	proxyFor := func(cookie string) *httputil.ReverseProxy {
+	proxyFor := func(cookie, upstreamPath, scopedPrefix string) *httputil.ReverseProxy {
 		target, _ := url.Parse(baseURL())
+		isEntryPage := upstreamPath == "/dbx/" || upstreamPath == "/dbx/index.html"
 		return &httputil.ReverseProxy{
 			Rewrite: func(pr *httputil.ProxyRequest) {
 				pr.Out.URL.Scheme = target.Scheme
 				pr.Out.URL.Host = target.Host
 				pr.Out.Host = target.Host
-				pr.Out.URL.Path = pr.In.URL.Path
+				pr.Out.URL.Path = upstreamPath
 				pr.Out.URL.RawPath = ""
 				pr.SetXForwarded()
 				// what the browser holds (the cookies of the panel) is not for DBX; DBX gets the session of the panel
 				pr.Out.Header.Del("Authorization")
 				pr.Out.Header.Del("Cookie")
 				pr.Out.Header.Set("Cookie", "dbx_session="+cookie)
-				if pr.In.Method == http.MethodGet && (pr.In.URL.Path == "/dbx/" || pr.In.URL.Path == "/dbx/index.html") {
+				if pr.In.Method == http.MethodGet && isEntryPage {
 					pr.Out.Header.Del("Accept-Encoding")
 				}
 			},
@@ -316,12 +389,20 @@ func (s *Server) newDbxProxy(baseURL func() string, connections func(*database.U
 				if resp.StatusCode == http.StatusUnauthorized {
 					s.dbxForgetSession()
 				}
-				if resp.Request.Method == http.MethodGet && (resp.Request.URL.Path == "/dbx/" || resp.Request.URL.Path == "/dbx/index.html") &&
+				if resp.Request.Method == http.MethodGet && isEntryPage &&
 					strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") && resp.Header.Get("Content-Encoding") == "" {
 					page, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 					_ = resp.Body.Close()
 					if err != nil {
 						return err
+					}
+					if scopedPrefix != "" {
+						shimTag := []byte(`<script src="` + scopedPrefix + `/reneo-dbx-shim.js?v=1"></script>`)
+						if bytes.Contains(page, []byte("<head>")) {
+							page = bytes.Replace(page, []byte("<head>"), append([]byte("<head>"), shimTag...), 1)
+						} else {
+							page = append(shimTag, page...)
+						}
 					}
 					page = bytes.Replace(page, []byte("</body>"), []byte(dbxOpenScript+"</body>"), 1)
 					resp.Body = io.NopCloser(bytes.NewReader(page))
@@ -349,18 +430,42 @@ func (s *Server) newDbxProxy(baseURL func() string, connections func(*database.U
 		}
 		// one clean path is what is judged and what is forwarded: no dots, no doubled slashes
 		clean := path.Clean(r.URL.Path)
-		if r.URL.Path == "/dbx/" {
-			clean = "/dbx/"
+		if strings.HasSuffix(r.URL.Path, "/") && !strings.HasSuffix(clean, "/") {
+			clean += "/"
 		}
 		if !strings.HasPrefix(clean, "/dbx/") {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
-		r.URL.Path = clean
-		inner := strings.TrimPrefix(clean, "/dbx")
-		if inner == "/" {
-			inner = "/"
+
+		key, inner, scoped := dbxSplitScopedPath(clean)
+		var scopedPrefix string
+		var boundID int64
+		if scoped {
+			bound := s.databaseByAccessKey(u, key)
+			if bound == nil {
+				http.NotFound(w, r)
+				return
+			}
+			boundID = bound.ID
+			scopedPrefix = "/dbx/" + key
+			if clean == scopedPrefix {
+				http.Redirect(w, r, scopedPrefix+"/", http.StatusPermanentRedirect)
+				return
+			}
+			if inner == "/reneo-dbx-shim.js" {
+				w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+				w.Header().Set("Cache-Control", "no-store")
+				_, _ = w.Write([]byte(dbxShimJS(scopedPrefix, key)))
+				return
+			}
 		}
+
+		upstreamPath := "/dbx" + inner
+		if inner == "/" {
+			upstreamPath = "/dbx/"
+		}
+		r.URL.Path = upstreamPath
 
 		var body []byte
 		if r.Body != nil && r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -376,18 +481,21 @@ func (s *Server) newDbxProxy(baseURL func() string, connections func(*database.U
 		var conns []dbxConn
 		if strings.HasPrefix(inner, "/api/") {
 			conns = connections(u)
-			if scopeCookie, err := r.Cookie(dbxScopeCookie); err == nil {
-				scopeID := strings.TrimSpace(scopeCookie.Value)
-				if scopeID != "" {
-					filtered := make([]dbxConn, 0, 1)
-					for _, c := range conns {
-						if c.ID == scopeID {
-							filtered = append(filtered, c)
-							break
-						}
+			scopeID := ""
+			if boundID > 0 {
+				scopeID = dbxConnectionID(boundID)
+			} else if scopeCookie, err := r.Cookie(dbxScopeCookie); err == nil {
+				scopeID = strings.TrimSpace(scopeCookie.Value)
+			}
+			if scopeID != "" {
+				filtered := make([]dbxConn, 0, 1)
+				for _, c := range conns {
+					if c.ID == scopeID {
+						filtered = append(filtered, c)
+						break
 					}
-					conns = filtered
 				}
+				conns = filtered
 			}
 		}
 		verdict := dbxDecide(r.Method, inner, r.URL.Query(), body, conns)
@@ -437,6 +545,6 @@ func (s *Server) newDbxProxy(baseURL func() string, connections func(*database.U
 			http.Error(w, "DBX could not be reached: "+err.Error(), http.StatusBadGateway)
 			return
 		}
-		proxyFor(cookie).ServeHTTP(w, r)
+		proxyFor(cookie, upstreamPath, scopedPrefix).ServeHTTP(w, r)
 	})
 }
