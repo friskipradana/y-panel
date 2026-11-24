@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.75] - 2026-11-24
+
+Prefer panel.<mainDomain> in license reminder links and speed up initial page boot.
+
+### Perbaikan
+- Prefer panel.<mainDomain> in license reminder links and speed up initial page boot ([`9e11c62`](https://github.com/friskipradana/y-panel/commit/9e11c62))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.74...v1.88.75
+
 ## [1.88.74] - 2026-11-24
 
 Patch only existing GraphQL Login variable keys to prevent unknown field error.
