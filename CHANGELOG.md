@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.69] - 2026-11-24
+
+Serve modern Reneo theme as same-origin stylesheet to satisfy Adminer CSP.
+
+### Perbaikan
+- **adminer:** Serve modern Reneo theme as same-origin stylesheet to satisfy Adminer CSP ([`3be7e35`](https://github.com/friskipradana/y-panel/commit/3be7e35))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.68...v1.88.69
+
 ## [1.88.68] - 2026-11-24
 
 Add lightweight WhoDB client, modern Reneo Adminer theme, and direct SQL import/export.
