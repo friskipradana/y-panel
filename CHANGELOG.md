@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.73] - 2026-11-24
+
+Fix app license reminder checkout/invoice URLs and add one-time idempotent resend on deploy.
+
+### Perbaikan
+- **billing:** Fix app license reminder checkout/invoice URLs and add one-time idempotent resend on deploy ([`16e571b`](https://github.com/friskipradana/y-panel/commit/16e571b))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.72...v1.88.73
+
 ## [1.88.72] - 2026-11-24
 
 Auto-connect WhoDB via CSP-safe same-origin shim with server-side credential injection.
