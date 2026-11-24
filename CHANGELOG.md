@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.70] - 2026-11-24
+
+Support .zip, chunked uploads up to 5GB, and async background SQL import without timeout.
+
+### Fitur baru
+- **database:** Support .zip, chunked uploads up to 5GB, and async background SQL import without timeout ([`20b5fc5`](https://github.com/friskipradana/y-panel/commit/20b5fc5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.69...v1.88.70
+
 ## [1.88.69] - 2026-11-24
 
 Serve modern Reneo theme as same-origin stylesheet to satisfy Adminer CSP.
