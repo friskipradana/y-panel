@@ -1,6 +1,7 @@
 package userdb
 
 import (
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -13,7 +14,10 @@ import (
 	"time"
 )
 
-const transferTimeout = 5 * time.Minute
+const (
+	exportTimeout = 15 * time.Minute
+	importTimeout = 45 * time.Minute
+)
 
 // ExportSQL streams a full SQL dump of a PostgreSQL, MySQL, or MariaDB user database
 // directly from the database container to w using pg_dump / mysqldump / mariadb-dump.
@@ -21,7 +25,7 @@ func ExportSQL(ctx context.Context, c Conn, w io.Writer) error {
 	if !isSQL(c.Engine) {
 		return errors.New("SQL export is available for PostgreSQL, MySQL, and MariaDB only")
 	}
-	ctx, cancel := context.WithTimeout(ctx, transferTimeout)
+	ctx, cancel := context.WithTimeout(ctx, exportTimeout)
 	defer cancel()
 
 	var (
@@ -69,7 +73,7 @@ func ImportSQL(ctx context.Context, c Conn, src io.Reader, isGzip bool) (string,
 	if !isSQL(c.Engine) {
 		return "", errors.New("SQL import is available for PostgreSQL, MySQL, and MariaDB only")
 	}
-	ctx, cancel := context.WithTimeout(ctx, transferTimeout)
+	ctx, cancel := context.WithTimeout(ctx, importTimeout)
 	defer cancel()
 
 	reader := src
@@ -128,4 +132,42 @@ func ImportSQL(ctx context.Context, c Conn, src io.Reader, isGzip bool) (string,
 		summary = summary[:400]
 	}
 	return summary, nil
+}
+
+// ImportSQLFile imports a .sql, .sql.gz, or .zip (extracting the first .sql entry on the fly) from disk.
+func ImportSQLFile(ctx context.Context, c Conn, filePath, originalName string) (string, error) {
+	lower := strings.ToLower(strings.TrimSpace(originalName))
+	if strings.HasSuffix(lower, ".zip") {
+		zr, err := zip.OpenReader(filePath)
+		if err != nil {
+			return "", fmt.Errorf("invalid zip archive: %w", err)
+		}
+		defer zr.Close()
+		var target *zip.File
+		for _, f := range zr.File {
+			if f.FileInfo().IsDir() || strings.HasPrefix(f.Name, "__MACOSX/") {
+				continue
+			}
+			if strings.HasSuffix(strings.ToLower(f.Name), ".sql") {
+				target = f
+				break
+			}
+		}
+		if target == nil {
+			return "", errors.New("no .sql file found inside the .zip archive")
+		}
+		rc, err := target.Open()
+		if err != nil {
+			return "", fmt.Errorf("could not read %s from zip: %w", target.Name, err)
+		}
+		defer rc.Close()
+		return ImportSQL(ctx, c, rc, false)
+	}
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	return ImportSQL(ctx, c, f, strings.HasSuffix(lower, ".gz"))
 }
