@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.72] - 2026-11-24
+
+Auto-connect WhoDB via CSP-safe same-origin shim with server-side credential injection.
+
+### Perbaikan
+- **whodb:** Auto-connect WhoDB via CSP-safe same-origin shim with server-side credential injection ([`62c144d`](https://github.com/friskipradana/y-panel/commit/62c144d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.71...v1.88.72
+
 ## [1.88.71] - 2026-11-24
 
 2 perubahan, utamanya redesign Adminer with native Reneo workstation theme (light/dark) and strip legacy default.css.
