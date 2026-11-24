@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.76] - 2026-11-24
+
+Catch sw.js fetch rejections, limit SW caching to static assets, and auto-recover stale lazy window chunks.
+
+### Perbaikan
+- Catch sw.js fetch rejections, limit SW caching to static assets, and auto-recover stale lazy window chunks ([`b6f84bf`](https://github.com/friskipradana/y-panel/commit/b6f84bf))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.75...v1.88.76
+
 ## [1.88.75] - 2026-11-24
 
 Prefer panel.<mainDomain> in license reminder links and speed up initial page boot.
