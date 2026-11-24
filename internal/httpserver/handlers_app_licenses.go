@@ -179,6 +179,24 @@ func (s *Server) licenseOrderBaseURL(r *http.Request) string {
 			return scheme + "://" + host
 		}
 	}
+	// Background callers (r == nil): prefer a configured panel HTTPS origin (e.g. https://panel.reneo.my.id)
+	var firstOrigin string
+	for _, raw := range s.allowedOrigins() {
+		u, err := url.Parse(strings.TrimSpace(raw))
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || isLoopbackHost(u.Host) {
+			continue
+		}
+		origin := u.Scheme + "://" + u.Host
+		if strings.HasPrefix(strings.ToLower(u.Hostname()), "panel.") {
+			return origin
+		}
+		if firstOrigin == "" {
+			firstOrigin = origin
+		}
+	}
+	if firstOrigin != "" {
+		return firstOrigin
+	}
 	return s.orderBaseURL(r)
 }
 
@@ -645,7 +663,7 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 		"message":        "Invoice pesanan lisensi berhasil diterbitkan",
 		"order":          created,
 		"paymentMethods": methods,
-		"invoiceUrl":     fmt.Sprintf("/order/license/%s/invoice", created.PublicID),
+		"invoiceUrl":     fmt.Sprintf("/order/%s/invoice", created.PublicID),
 	})
 }
 

@@ -585,6 +585,32 @@ func orderKindLabel(o *database.HostingOrder) string {
 	return "baru"
 }
 
+func (s *Server) appLicenseOrderViewFor(o database.AppLicenseOrder) orderView {
+	planLabel := strings.TrimSpace(o.AppName)
+	if strings.TrimSpace(o.PlanName) != "" {
+		planLabel = fmt.Sprintf("%s - %s", o.AppName, o.PlanName)
+	}
+	view := orderView{
+		PublicID:    o.PublicID,
+		Kind:        database.OrderRenew,
+		Status:      o.Status,
+		PlanName:    planLabel,
+		Periods:     1,
+		Months:      o.Months,
+		AmountBase:  o.AmountList,
+		AmountList:  o.AmountList,
+		AmountTotal: o.AmountTotal,
+		CreatedAt:   o.CreatedAt,
+		ExpiresAt:   o.ExpiresAt,
+		PaidAt:      o.PaidAt,
+	}
+	if o.Status == database.OrderPending && o.AmountTotal > 0 {
+		settings := s.loadSiteSettings()
+		view.Payment = &paymentInstructions{Methods: activeOrderMethods(settings)}
+	}
+	return view
+}
+
 // handlePublicGetOrder is the page of an order: the address holds an unguessable id, and only the
 // state of the order comes back
 func (s *Server) handlePublicGetOrder(w http.ResponseWriter, r *http.Request) {
@@ -599,11 +625,16 @@ func (s *Server) handlePublicGetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	order, _ := s.database.GetHostingOrderByPublicID(publicID)
-	if order == nil {
-		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
+	if order != nil {
+		s.writeJSON(w, http.StatusOK, s.orderViewFor(*order))
 		return
 	}
-	s.writeJSON(w, http.StatusOK, s.orderViewFor(*order))
+	licOrder, _ := s.database.GetAppLicenseOrderByPublicID(publicID)
+	if licOrder != nil {
+		s.writeJSON(w, http.StatusOK, s.appLicenseOrderViewFor(*licOrder))
+		return
+	}
+	s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
 }
 
 // orderClaims remembers the orders whose buyer already said they transferred, so pressing the button again does not alert the seller again
@@ -626,16 +657,27 @@ func (s *Server) handlePublicOrderTransferred(w http.ResponseWriter, r *http.Req
 		return
 	}
 	order, _ := s.database.GetHostingOrderByPublicID(publicID)
-	if order == nil {
+	if order != nil {
+		if order.Status == database.OrderPending {
+			if _, already := orderClaims.LoadOrStore(order.ID, time.Now()); !already {
+				s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d (%s): pembeli menyatakan sudah transfer %s. Periksa apakah transfernya sudah masuk.", order.ID, order.Username, rupiah(order.AmountTotal)), "en": fmt.Sprintf("Order #%d (%s): the buyer says they have transferred %s. Check that the transfer has arrived.", order.ID, order.Username, rupiah(order.AmountTotal))}, "info")
+			}
+		}
+		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": order.Status})
+		return
+	}
+	licOrder, _ := s.database.GetAppLicenseOrderByPublicID(publicID)
+	if licOrder == nil {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
 		return
 	}
-	if order.Status == database.OrderPending {
-		if _, already := orderClaims.LoadOrStore(order.ID, time.Now()); !already {
-			s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d (%s): pembeli menyatakan sudah transfer %s. Periksa apakah transfernya sudah masuk.", order.ID, order.Username, rupiah(order.AmountTotal)), "en": fmt.Sprintf("Order #%d (%s): the buyer says they have transferred %s. Check that the transfer has arrived.", order.ID, order.Username, rupiah(order.AmountTotal))}, "info")
+	if licOrder.Status == database.OrderPending {
+		claimKey := fmt.Sprintf("lic-%d", licOrder.ID)
+		if _, already := orderClaims.LoadOrStore(claimKey, time.Now()); !already {
+			s.alertSellerOrder(licOrder.ID, notify.Localized{"id": fmt.Sprintf("Pesanan lisensi %s (%s): pembeli menyatakan sudah transfer %s. Periksa apakah transfernya sudah masuk.", licOrder.InvoiceNumber, licOrder.BuyerName, rupiah(licOrder.AmountTotal)), "en": fmt.Sprintf("License order %s (%s): the buyer says they have transferred %s. Check that the transfer has arrived.", licOrder.InvoiceNumber, licOrder.BuyerName, rupiah(licOrder.AmountTotal))}, "info")
 		}
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": order.Status})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": licOrder.Status})
 }
 
 // handleRenewMyPlan makes the order that extends the plan of the signed-in account by some periods

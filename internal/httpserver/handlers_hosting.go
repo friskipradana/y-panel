@@ -529,9 +529,15 @@ func (s *Server) remindPlans(now time.Time) {
 	}
 }
 
+const appLicenseReminderLinkFixKey = "app_license_reminder_link_fix_20261124"
+
 // remindAppLicenses notifies buyers whose app licenses (e.g. Reneo CRM) are expiring within 3 days or just expired,
 // including direct renewal checkout and invoice links.
 func (s *Server) remindAppLicenses(now time.Time) {
+	s.remindAppLicensesWithKeySuffix(now, "")
+}
+
+func (s *Server) remindAppLicensesWithKeySuffix(now time.Time, keySuffix string) {
 	if s.database == nil || !s.database.IsConnected() {
 		return
 	}
@@ -555,11 +561,30 @@ func (s *Server) remindAppLicenses(now time.Time) {
 		left := ends.Sub(now)
 		if left > 0 {
 			days := int((left + 24*time.Hour - 1) / (24 * time.Hour))
-			s.buyerAppLicenseReminder(user, lic, ends, days)
+			s.buyerAppLicenseReminder(user, lic, ends, days, keySuffix)
 		} else {
 			s.buyerAppLicenseEnded(user, lic, ends)
 		}
 	}
+}
+
+// resendFixedAppLicenseRemindersOnce re-sends active app license reminders with the corrected checkout/invoice URLs
+// exactly once when this fix is deployed, and records a DB flag so future updates never re-send.
+func (s *Server) resendFixedAppLicenseRemindersOnce(now time.Time) bool {
+	if s.database == nil || !s.database.IsConnected() {
+		return false
+	}
+	done, err := s.database.GetNotifySetting(appLicenseReminderLinkFixKey)
+	if err != nil || done == "done" {
+		return false
+	}
+	if err := s.database.SetNotifySetting(appLicenseReminderLinkFixKey, "done"); err != nil {
+		log.Printf("[licenses] could not persist one-time reminder resend flag: %v", err)
+		return false
+	}
+	log.Printf("[licenses] running one-time resend of expiring app license reminders with fixed payment links")
+	s.remindAppLicensesWithKeySuffix(now, "-linkfix1")
+	return true
 }
 
 // syncHostingRoutesIfOn repairs the subdomain routes (a restart, a failed call, a project that got its port)
@@ -594,7 +619,9 @@ func (s *Server) runPlanExpiryLoop(interval time.Duration, stop <-chan struct{})
 	s.expireOrders(time.Now())
 	s.endPlanTrials(time.Now())
 	s.remindPlans(time.Now())
-	s.remindAppLicenses(time.Now())
+	if !s.resendFixedAppLicenseRemindersOnce(time.Now()) {
+		s.remindAppLicenses(time.Now())
+	}
 	s.refreshPendingCustomDomains()
 	if s.hostingEnabled() {
 		// an install that had hosting mode on before the example plans existed gets them too

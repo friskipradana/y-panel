@@ -298,7 +298,9 @@ func (s *Server) buyerAppLicenseOrderCreated(o *database.AppLicenseOrder, public
 	if methods := activeOrderMethods(s.loadSiteSettings()); len(methods) > 0 {
 		first = methods[0]
 	}
-	url := strings.TrimRight(publicBase, "/") + "/order/license/" + o.PublicID + "/invoice"
+	base := strings.TrimRight(publicBase, "/")
+	checkoutURL := base + "/order/" + o.PublicID
+	invURL := base + "/order/" + o.PublicID + "/invoice"
 	s.notify.Emit(notify.Event{
 		Name:    notify.EventBuyerOrderCreated,
 		UserIDs: []int64{o.UserID},
@@ -307,7 +309,7 @@ func (s *Server) buyerAppLicenseOrderCreated(o *database.AppLicenseOrder, public
 			"order":    o.ID,
 			"username": username,
 			"password": notify.Localized{"id": "Sesuai kata sandi akun Anda", "en": "Your existing account password"},
-			"invoice":  url,
+			"invoice":  invURL,
 			"plan":     fmt.Sprintf("%s - %s", o.AppName, o.PlanName),
 			"period":   appLicensePeriodText(o.Months),
 			"amount":   rupiah(o.AmountTotal),
@@ -315,7 +317,7 @@ func (s *Server) buyerAppLicenseOrderCreated(o *database.AppLicenseOrder, public
 			"account":  first.Account,
 			"holder":   first.Holder,
 			"deadline": o.ExpiresAt.Local().Format(notify.TimeLayout),
-			"url":      url,
+			"url":      checkoutURL,
 		},
 	})
 }
@@ -344,7 +346,7 @@ func (s *Server) buyerAppLicenseOrderPaid(o *database.AppLicenseOrder, username,
 	}
 	base := strings.TrimRight(publicBase, "/")
 	url := base + "/login"
-	invURL := base + "/order/license/" + o.PublicID + "/invoice"
+	invURL := base + "/order/" + o.PublicID + "/invoice"
 	until := time.Now().AddDate(0, o.Months, 0).Local().Format(notify.TimeLayout)
 	if s.database != nil && s.database.IsConnected() {
 		if lic, err := s.database.GetAppLicense(o.UserID, o.CatalogID); err == nil && lic != nil && lic.ExpiresAt != "" {
@@ -371,7 +373,7 @@ func (s *Server) buyerAppLicenseOrderPaid(o *database.AppLicenseOrder, username,
 }
 
 func (s *Server) resolveAppLicenseRenewalLinks(user *database.User, lic database.AppLicense, now time.Time) (checkoutURL, invURL string) {
-	base := strings.TrimRight(s.orderBaseURL(nil), "/")
+	base := strings.TrimRight(s.licenseOrderBaseURL(nil), "/")
 	fallback := base + "/login"
 	if s.database == nil || !s.database.IsConnected() || user == nil {
 		return fallback, fallback
@@ -380,8 +382,7 @@ func (s *Server) resolveAppLicenseRenewalLinks(user *database.User, lic database
 	if orders, err := s.database.ListAppLicenseOrders(user.ID, lic.CatalogID); err == nil {
 		for _, o := range orders {
 			if o.Status == "pending" && o.ExpiresAt.After(now) && o.PublicID != "" {
-				u := base + "/order/license/" + o.PublicID + "/invoice"
-				return u, u
+				return base + "/order/" + o.PublicID, base + "/order/" + o.PublicID + "/invoice"
 			}
 		}
 	}
@@ -430,13 +431,12 @@ func (s *Server) resolveAppLicenseRenewalLinks(user *database.User, lic database
 		CreatedIP:     "127.0.0.1",
 	}
 	if created, err := s.database.CreateAppLicenseOrder(order); err == nil && created != nil && created.PublicID != "" {
-		u := base + "/order/license/" + created.PublicID + "/invoice"
-		return u, u
+		return base + "/order/" + created.PublicID, base + "/order/" + created.PublicID + "/invoice"
 	}
 	return fallback, fallback
 }
 
-func (s *Server) buyerAppLicenseReminder(user *database.User, lic database.AppLicense, ends time.Time, days int) {
+func (s *Server) buyerAppLicenseReminder(user *database.User, lic database.AppLicense, ends time.Time, days int, keySuffix string) {
 	if s.notify == nil || user == nil {
 		return
 	}
@@ -448,7 +448,7 @@ func (s *Server) buyerAppLicenseReminder(user *database.User, lic database.AppLi
 	s.notify.Emit(notify.Event{
 		Name:    notify.EventBuyerPlanReminder,
 		UserIDs: []int64{user.ID},
-		Key:     fmt.Sprintf("app-license-reminder-%d-%d", lic.ID, ends.Unix()),
+		Key:     fmt.Sprintf("app-license-reminder-%d-%d%s", lic.ID, ends.Unix(), keySuffix),
 		Data: map[string]any{
 			"plan":     planLabel,
 			"username": user.Username,

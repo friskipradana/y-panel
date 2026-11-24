@@ -123,6 +123,56 @@ func (s *Server) invoiceFor(o *database.HostingOrder) invoiceView {
 	return view
 }
 
+func (s *Server) appLicenseInvoiceFor(o *database.AppLicenseOrder) invoiceView {
+	settings := s.loadSiteSettings()
+	seller := invoiceParty{Name: settings.InvoiceName, Address: settings.InvoiceAddress, Contact: settings.InvoiceContact}
+	if seller.Name == "" {
+		seller.Name = "Reneo"
+		if main := s.mainHostingDomain(); main != nil && main.Name != "" {
+			seller.Name = main.Name
+		}
+	}
+	buyer := invoiceParty{Name: o.BuyerName, Email: o.BuyerEmail}
+	if o.UserID > 0 {
+		if user, _ := s.database.GetUserByID(o.UserID); user != nil {
+			if buyer.Email == "" {
+				buyer.Email = user.Email
+			}
+			if user.DisplayName != "" {
+				buyer.Name = user.DisplayName + " (" + user.Username + ")"
+			} else if buyer.Name == "" {
+				buyer.Name = user.Username
+			}
+		}
+	}
+	planLabel := strings.TrimSpace(o.AppName)
+	if strings.TrimSpace(o.PlanName) != "" {
+		planLabel = fmt.Sprintf("%s - %s", o.AppName, o.PlanName)
+	}
+	view := invoiceView{
+		Number:      o.InvoiceNumber,
+		Status:      o.Status,
+		IssuedAt:    o.CreatedAt,
+		DueAt:       o.ExpiresAt,
+		PaidAt:      o.PaidAt,
+		Seller:      seller,
+		Buyer:       buyer,
+		Note:        settings.InvoiceNote,
+		Kind:        database.OrderRenew,
+		PlanName:    planLabel,
+		Periods:     1,
+		Months:      o.Months,
+		AmountList:  o.AmountList,
+		AmountBase:  o.AmountList,
+		UniqueCode:  o.UniqueCode,
+		AmountTotal: o.AmountTotal,
+	}
+	if o.Status == database.OrderPending && o.AmountTotal > 0 {
+		view.Payment = &paymentInstructions{Methods: activeOrderMethods(settings)}
+	}
+	return view
+}
+
 func (s *Server) handlePublicOrderInvoice(w http.ResponseWriter, r *http.Request) {
 	if s.database == nil || !s.database.IsConnected() || !s.loadSiteSettings().HostingEnabled {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "not found"})
@@ -135,9 +185,14 @@ func (s *Server) handlePublicOrderInvoice(w http.ResponseWriter, r *http.Request
 		return
 	}
 	order, _ := s.database.GetHostingOrderByPublicID(publicID)
-	if order == nil {
-		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
+	if order != nil {
+		s.writeJSON(w, http.StatusOK, s.invoiceFor(order))
 		return
 	}
-	s.writeJSON(w, http.StatusOK, s.invoiceFor(order))
+	licOrder, _ := s.database.GetAppLicenseOrderByPublicID(publicID)
+	if licOrder != nil {
+		s.writeJSON(w, http.StatusOK, s.appLicenseInvoiceFor(licOrder))
+		return
+	}
+	s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
 }

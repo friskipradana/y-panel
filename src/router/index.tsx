@@ -101,6 +101,7 @@ export function AppRouter() {
         <Route path="/order" element={landing ? (<div className="h-full w-full overflow-y-auto"><OrderPage /></div>) : publicFallback} />
         <Route path="/order/:publicId" element={landing ? (<div className="h-full w-full overflow-y-auto"><OrderPage /></div>) : publicFallback} />
         <Route path="/order/:publicId/invoice" element={landing ? <OrderInvoicePage /> : publicFallback} />
+        <Route path="/order/license/:publicId/invoice" element={landing ? <OrderInvoicePage /> : publicFallback} />
         <Route path="/articles" element={landing ? (<div className="h-full w-full overflow-y-auto"><ArticlesPage /></div>) : publicFallback} />
         <Route path="/articles/:slug" element={landing ? (<div className="h-full w-full overflow-y-auto"><ArticlePage /></div>) : publicFallback} />
         <Route
