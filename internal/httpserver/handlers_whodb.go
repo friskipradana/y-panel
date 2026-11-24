@@ -18,12 +18,16 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
+	"github.com/friskipradana/panel-desktop-ui/internal/database"
 )
 
 // WhoDB (clidey/whodb) lightweight web client for user databases (~35 MB Go + React).
 // One sidecar container bound to loopback serves every account behind /whodb/<key>/;
-// the panel signs into WhoDB with the exact database credentials and enforces that
-// requests under /whodb/<key>/ can only target that single database.
+// the proxy rewrites root-relative paths, auto-connects the UI on first open, and injects
+// the real decrypted credentials server-side on GraphQL Login mutations so credentials
+// never leak into browser JS and the session stays locked to that single database.
 
 const (
 	whodbContainer = "reneo-whodb"
@@ -119,47 +123,7 @@ func whodbType(engine string) string {
 	return ""
 }
 
-// whodbLogin performs a server-side GraphQL Login against WhoDB and returns any session cookies.
-func whodbLogin(ctx context.Context, base, dbType, host string, port int, user, password, dbName string) []*http.Cookie {
-	advanced := []map[string]string{
-		{"Key": "Port", "Value": strconv.Itoa(port)},
-	}
-	if dbType == "Postgres" {
-		advanced = append(advanced, map[string]string{"Key": "SSL Mode", "Value": "disable"})
-	}
-	gql := map[string]any{
-		"operationName": "Login",
-		"variables": map[string]any{
-			"credentials": map[string]any{
-				"Type":     dbType,
-				"Hostname": host,
-				"Username": user,
-				"Password": password,
-				"Database": dbName,
-				"Advanced": advanced,
-			},
-		},
-		"query": `mutation Login($credentials: LoginCredentials!) { Login(credentials: $credentials) { Status } }`,
-	}
-	payload, _ := json.Marshal(gql)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/query", bytes.NewReader(payload))
-	if err != nil {
-		return nil
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := (&http.Client{Timeout: 8 * time.Second}).Do(req)
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
-	if resp.StatusCode != http.StatusOK {
-		return nil
-	}
-	return resp.Cookies()
-}
-
-// handleDatabaseWhodb ensures WhoDB is running, signs into the selected database, and redirects to /whodb/<key>/.
+// handleDatabaseWhodb ensures WhoDB is running and redirects the browser to /whodb/<key>/.
 func (s *Server) handleDatabaseWhodb(w http.ResponseWriter, r *http.Request) {
 	owner := userFromCtx(r)
 	found := s.databaseByAccessKey(owner, r.PathValue("key"))
@@ -168,12 +132,11 @@ func (s *Server) handleDatabaseWhodb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.SetPathValue("id", strconv.FormatInt(found.ID, 10))
-	conn, item, u, ok := s.databaseConn(w, r)
+	_, item, u, ok := s.databaseConn(w, r)
 	if !ok {
 		return
 	}
-	dbType := whodbType(item.Engine)
-	if dbType == "" {
+	if whodbType(item.Engine) == "" {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "WhoDB does not support this engine"})
 		return
 	}
@@ -184,35 +147,163 @@ func (s *Server) handleDatabaseWhodb(w http.ResponseWriter, r *http.Request) {
 	s.auditSensitiveAction(r, u, "database.whodb", "ok", map[string]any{"id": item.ID})
 
 	key := s.databaseAccessKey(item.ID)
-	base := "http://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(whodbPort()))
-	cookies := whodbLogin(r.Context(), base, dbType, userDatabaseHost, item.HostPort, conn.User, conn.Password, conn.Database)
-	secure := r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
-	for _, c := range cookies {
-		http.SetCookie(w, &http.Cookie{
-			Name:     c.Name,
-			Value:    c.Value,
-			Path:     "/whodb/" + key,
-			HttpOnly: c.HttpOnly,
-			SameSite: http.SameSiteLaxMode,
-			Secure:   secure,
-		})
-	}
 	w.Header().Set("Cache-Control", "no-store")
-	if len(cookies) > 0 {
-		http.Redirect(w, r, "/whodb/"+key+"/storage-unit", http.StatusFound)
-		return
-	}
-	http.Redirect(w, r, "/whodb/"+key+"/", http.StatusFound)
+	http.Redirect(w, r, "/whodb/"+key+"/?reneo_auto=1", http.StatusFound)
 }
 
-func whodbShimScript(prefix string) string {
-	return fmt.Sprintf(`<script>(function(){var P=%q;var f=window.fetch;if(f){window.fetch=function(u,o){if(typeof u==="string"&&u.startsWith("/")&&!u.startsWith(P)){u=P+u}return f.call(this,u,o)}}var xo=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"&&u.startsWith("/")&&!u.startsWith(P)){arguments[1]=P+u}return xo.apply(this,arguments)}})()</script>`, prefix)
+func whodbShimJS(prefix, key string, bound *database.ManagedDatabase) string {
+	cfg, _ := json.Marshal(map[string]any{
+		"prefix":   prefix,
+		"key":      key,
+		"type":     whodbType(bound.Engine),
+		"host":     userDatabaseHost,
+		"port":     strconv.Itoa(bound.HostPort),
+		"user":     bound.Username,
+		"database": bound.DatabaseName,
+	})
+	return fmt.Sprintf(`(function(){
+var C=%s;
+var P=C.prefix;
+var f=window.fetch;
+if(f){window.fetch=function(u,o){if(typeof u==="string"&&u.startsWith("/")&&!u.startsWith(P)){u=P+u}return f.call(this,u,o)}}
+var xo=XMLHttpRequest.prototype.open;
+XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"&&u.startsWith("/")&&!u.startsWith(P)){arguments[1]=P+u}return xo.apply(this,arguments)};
+function fixUrl(u){if(typeof u==="string"&&u.startsWith("/")&&!u.startsWith(P))return P+u;return u}
+var ps=history.pushState;history.pushState=function(s,t,u){return ps.call(this,s,t,fixUrl(u))};
+var rs=history.replaceState;history.replaceState=function(s,t,u){return rs.call(this,s,t,fixUrl(u))};
+
+function setNativeValue(el,val){
+  if(!el)return;
+  var desc=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,"value");
+  if(desc&&desc.set){desc.set.call(el,val)}else{el.value=val}
+  el.dispatchEvent(new Event("input",{bubbles:true}));
+  el.dispatchEvent(new Event("change",{bubbles:true}));
+}
+
+function findInputByLabelOrPlaceholder(hints){
+  var inputs=document.querySelectorAll("input");
+  for(var i=0;i<inputs.length;i++){
+    var inp=inputs[i];
+    if(inp.type==="hidden"||inp.type==="checkbox"||inp.type==="radio")continue;
+    var ph=(inp.placeholder||"").toLowerCase();
+    var nm=(inp.name||"").toLowerCase();
+    var aria=(inp.getAttribute("aria-label")||"").toLowerCase();
+    var lbl="";
+    if(inp.id){var l=document.querySelector('label[for="'+inp.id+'"]');if(l)lbl=(l.textContent||"").toLowerCase()}
+    if(!lbl&&inp.parentElement){lbl=(inp.parentElement.textContent||"").toLowerCase()}
+    var hay=ph+" "+nm+" "+aria+" "+lbl;
+    for(var h=0;h<hints.length;h++){if(hay.indexOf(hints[h])!==-1)return inp}
+  }
+  return null;
+}
+
+function runAutoConnect(){
+  var q=new URLSearchParams(location.search);
+  var flagKey="reneo_whodb_auto_"+C.key;
+  if(q.get("reneo_auto")==="1"){try{sessionStorage.removeItem(flagKey)}catch(e){}}
+  try{if(sessionStorage.getItem(flagKey)==="1")return}catch(e){}
+
+  var tries=0;
+  var engineChosen=false;
+  var timer=setInterval(function(){
+    tries++;
+    if(tries>40){clearInterval(timer);return}
+    var connectBtn=null;
+    var buttons=document.querySelectorAll("button");
+    for(var i=0;i<buttons.length;i++){
+      var txt=(buttons[i].textContent||"").trim().toLowerCase();
+      if(txt==="connect"||txt.indexOf("connect")===0){connectBtn=buttons[i];break}
+    }
+    if(!connectBtn)return;
+
+    // 1. Select engine if not already matching
+    if(!engineChosen){
+      var combo=document.querySelector('[role="combobox"], button[aria-haspopup="listbox"]');
+      if(combo&&(combo.textContent||"").toLowerCase().indexOf(C.type.toLowerCase())===-1){
+        combo.click();
+        setTimeout(function(){
+          var opts=document.querySelectorAll('[role="option"], [data-radix-collection-item]');
+          for(var j=0;j<opts.length;j++){
+            if((opts[j].textContent||"").trim().toLowerCase()===C.type.toLowerCase()){opts[j].click();break}
+          }
+          engineChosen=true;
+        },150);
+        return;
+      }
+      engineChosen=true;
+    }
+
+    // 2. Fill visible fields (server-side proxy injects real password on POST /api/query)
+    setNativeValue(findInputByLabelOrPlaceholder(["host name","hostname","host or connection"]),C.host);
+    setNativeValue(findInputByLabelOrPlaceholder(["port"]),C.port);
+    if(C.user)setNativeValue(findInputByLabelOrPlaceholder(["username","user"]),C.user);
+    var pwdInput=document.querySelector('input[type="password"]');
+    if(pwdInput)setNativeValue(pwdInput,"reneo-managed-secret");
+    if(C.database)setNativeValue(findInputByLabelOrPlaceholder(["enter database","database"]),C.database);
+
+    try{sessionStorage.setItem(flagKey,"1")}catch(e){}
+    clearInterval(timer);
+    setTimeout(function(){connectBtn.click()},180);
+  },250);
+}
+
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",runAutoConnect)}else{runAutoConnect()}
+})();`, string(cfg))
 }
 
 func whodbSplitPath(p string) (key, rest string) {
 	trimmed := strings.TrimPrefix(p, "/whodb/")
 	key, rest, _ = strings.Cut(trimmed, "/")
 	return key, rest
+}
+
+// rewriteWhodbLoginBody replaces credentials in a WhoDB GraphQL Login mutation with the exact
+// decrypted credentials of bound, so credentials never leave the server and pivoting is impossible.
+func (s *Server) rewriteWhodbLoginBody(raw []byte, bound *database.ManagedDatabase) ([]byte, bool) {
+	var gql map[string]any
+	if err := json.Unmarshal(raw, &gql); err != nil {
+		return raw, false
+	}
+	opName, _ := gql["operationName"].(string)
+	queryStr, _ := gql["query"].(string)
+	isLogin := strings.Contains(strings.ToLower(opName), "login") ||
+		strings.Contains(queryStr, "Login(") ||
+		strings.Contains(queryStr, "LoginSource(")
+	if !isLogin {
+		return raw, false
+	}
+	vars, ok := gql["variables"].(map[string]any)
+	if !ok {
+		return raw, false
+	}
+	creds, ok := vars["credentials"].(map[string]any)
+	if !ok {
+		return raw, false
+	}
+	password, err := crypto.Decrypt(s.cfg.EncryptionKey, bound.PasswordEncrypted)
+	if err != nil {
+		return raw, false
+	}
+	dbType := whodbType(bound.Engine)
+	creds["Type"] = dbType
+	creds["Hostname"] = userDatabaseHost
+	creds["Username"] = bound.Username
+	creds["Password"] = password
+	creds["Database"] = bound.DatabaseName
+	adv := []map[string]string{
+		{"Key": "Port", "Value": strconv.Itoa(bound.HostPort)},
+	}
+	if dbType == "Postgres" {
+		adv = append(adv, map[string]string{"Key": "SSL Mode", "Value": "disable"})
+	}
+	creds["Advanced"] = adv
+	vars["credentials"] = creds
+	gql["variables"] = vars
+	updated, err := json.Marshal(gql)
+	if err != nil {
+		return raw, false
+	}
+	return updated, true
 }
 
 // whodbProxy forwards /whodb/<key>/ to the local WhoDB sidecar with strict per-database isolation.
@@ -234,44 +325,29 @@ func (s *Server) whodbProxy() http.Handler {
 			http.Redirect(w, r, "/whodb/"+key+"/", http.StatusPermanentRedirect)
 			return
 		}
+		prefix := "/whodb/" + key
+		if rest == "reneo-whodb-shim.js" {
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-store")
+			_, _ = w.Write([]byte(whodbShimJS(prefix, key, bound)))
+			return
+		}
 
-		// Guard GraphQL Login mutations so a user cannot pivot to another host/port
+		// Inject real decrypted credentials server-side on GraphQL Login mutations
 		if r.Method == http.MethodPost && rest == "api/query" && r.Body != nil {
 			raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 4<<20))
 			if err != nil {
 				http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
 				return
 			}
-			var gql struct {
-				OperationName string         `json:"operationName"`
-				Query         string         `json:"query"`
-				Variables     map[string]any `json:"variables"`
-			}
-			if json.Unmarshal(raw, &gql) == nil && (strings.Contains(strings.ToLower(gql.OperationName), "login") || strings.Contains(gql.Query, "Login(")) {
-				if creds, ok := gql.Variables["credentials"].(map[string]any); ok {
-					host, _ := creds["Hostname"].(string)
-					if host != "" && host != userDatabaseHost {
-						http.Error(w, "this address belongs to another database", http.StatusForbidden)
-						return
-					}
-					if adv, ok := creds["Advanced"].([]any); ok {
-						for _, item := range adv {
-							if m, ok := item.(map[string]any); ok && strings.EqualFold(fmt.Sprint(m["Key"]), "port") {
-								if strings.TrimSpace(fmt.Sprint(m["Value"])) != strconv.Itoa(bound.HostPort) {
-									http.Error(w, "this port belongs to another database", http.StatusForbidden)
-									return
-								}
-							}
-						}
-					}
-				}
+			if replaced, ok := s.rewriteWhodbLoginBody(raw, bound); ok {
+				raw = replaced
 			}
 			r.Body = io.NopCloser(bytes.NewReader(raw))
 			r.ContentLength = int64(len(raw))
 			r.Header.Set("Content-Length", strconv.Itoa(len(raw)))
 		}
 
-		prefix := "/whodb/" + key
 		proxy := &httputil.ReverseProxy{
 			Rewrite: func(pr *httputil.ProxyRequest) {
 				pr.Out.URL.Scheme = target.Scheme
@@ -302,7 +378,9 @@ func (s *Server) whodbProxy() http.Handler {
 					}
 					page = bytes.ReplaceAll(page, []byte(`src="/`), []byte(`src="`+prefix+`/`))
 					page = bytes.ReplaceAll(page, []byte(`href="/`), []byte(`href="`+prefix+`/`))
-					page = bytes.Replace(page, []byte("<head>"), []byte("<head>"+whodbShimScript(prefix)), 1)
+					page = bytes.ReplaceAll(page, []byte(`rel="manifest"`), []byte(`rel="manifest" crossorigin="use-credentials"`))
+					shimTag := []byte(`<script src="` + prefix + `/reneo-whodb-shim.js?v=2"></script>`)
+					page = bytes.Replace(page, []byte("<head>"), append([]byte("<head>"), shimTag...), 1)
 					resp.Body = io.NopCloser(bytes.NewReader(page))
 					resp.ContentLength = int64(len(page))
 					resp.Header.Set("Content-Length", strconv.Itoa(len(page)))
