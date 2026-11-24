@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.68] - 2026-11-24
+
+Add lightweight WhoDB client, modern Reneo Adminer theme, and direct SQL import/export.
+
+### Fitur baru
+- **database:** Add lightweight WhoDB client, modern Reneo Adminer theme, and direct SQL import/export ([`9c2974d`](https://github.com/friskipradana/y-panel/commit/9c2974d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.67...v1.88.68
+
 ## [1.88.67] - 2026-11-24
 
 Skip docker inspect on static DBX assets and exempt /dbx/assets from page rate limit.
