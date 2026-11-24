@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.77] - 2026-11-24
+
+Isolate multi-database sessions with /dbx/<key>/ prefix and per-key cookies/storage across DBX, Adminer, and WhoDB.
+
+### Fitur baru
+- Isolate multi-database sessions with /dbx/<key>/ prefix and per-key cookies/storage across DBX, Adminer, and WhoDB ([`d384d84`](https://github.com/friskipradana/y-panel/commit/d384d84))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.76...v1.88.77
+
 ## [1.88.76] - 2026-11-24
 
 Catch sw.js fetch rejections, limit SW caching to static assets, and auto-recover stale lazy window chunks.
