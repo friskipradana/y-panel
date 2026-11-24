@@ -257,8 +257,74 @@ func whodbSplitPath(p string) (key, rest string) {
 	return key, rest
 }
 
-// rewriteWhodbLoginBody replaces credentials in a WhoDB GraphQL Login mutation with the exact
-// decrypted credentials of bound, so credentials never leave the server and pivoting is impossible.
+// patchWhodbLoginValue recursively updates only existing credential fields inside GraphQL variables
+// (preserving the exact field casing/schema that WhoDB's frontend sent so GraphQL never sees unknown fields).
+func patchWhodbLoginValue(v any, bound *database.ManagedDatabase, password string) {
+	switch node := v.(type) {
+	case map[string]any:
+		// Check if this map is a Key/Value pair (e.g. {"Key":"Port","Value":"5432"} or {"key":"Port","value":"5432"})
+		var kName, vKey string
+		for k := range node {
+			switch strings.ToLower(k) {
+			case "key":
+				kName = k
+			case "value":
+				vKey = k
+			}
+		}
+		if kName != "" && vKey != "" {
+			keyLabel := strings.ToLower(strings.TrimSpace(fmt.Sprint(node[kName])))
+			switch keyLabel {
+			case "port":
+				node[vKey] = strconv.Itoa(bound.HostPort)
+			case "hostname", "host":
+				node[vKey] = userDatabaseHost
+			case "username", "user":
+				node[vKey] = bound.Username
+			case "password":
+				node[vKey] = password
+			case "database":
+				node[vKey] = bound.DatabaseName
+			}
+		}
+		for k, val := range node {
+			switch strings.ToLower(k) {
+			case "hostname", "host":
+				if _, ok := val.(string); ok {
+					node[k] = userDatabaseHost
+				}
+			case "port":
+				switch val.(type) {
+				case string:
+					node[k] = strconv.Itoa(bound.HostPort)
+				case float64:
+					node[k] = bound.HostPort
+				}
+			case "username", "user":
+				if _, ok := val.(string); ok && bound.Username != "" {
+					node[k] = bound.Username
+				}
+			case "password":
+				if _, ok := val.(string); ok {
+					node[k] = password
+				}
+			case "database":
+				if _, ok := val.(string); ok && bound.DatabaseName != "" {
+					node[k] = bound.DatabaseName
+				}
+			default:
+				patchWhodbLoginValue(val, bound, password)
+			}
+		}
+	case []any:
+		for _, item := range node {
+			patchWhodbLoginValue(item, bound, password)
+		}
+	}
+}
+
+// rewriteWhodbLoginBody replaces existing credential values in a WhoDB GraphQL Login mutation
+// with the exact decrypted credentials of bound, without ever adding unknown GraphQL fields.
 func (s *Server) rewriteWhodbLoginBody(raw []byte, bound *database.ManagedDatabase) ([]byte, bool) {
 	var gql map[string]any
 	if err := json.Unmarshal(raw, &gql); err != nil {
@@ -272,33 +338,15 @@ func (s *Server) rewriteWhodbLoginBody(raw []byte, bound *database.ManagedDataba
 	if !isLogin {
 		return raw, false
 	}
-	vars, ok := gql["variables"].(map[string]any)
-	if !ok {
-		return raw, false
-	}
-	creds, ok := vars["credentials"].(map[string]any)
-	if !ok {
+	vars, ok := gql["variables"]
+	if !ok || vars == nil {
 		return raw, false
 	}
 	password, err := crypto.Decrypt(s.cfg.EncryptionKey, bound.PasswordEncrypted)
 	if err != nil {
 		return raw, false
 	}
-	dbType := whodbType(bound.Engine)
-	creds["Type"] = dbType
-	creds["Hostname"] = userDatabaseHost
-	creds["Username"] = bound.Username
-	creds["Password"] = password
-	creds["Database"] = bound.DatabaseName
-	adv := []map[string]string{
-		{"Key": "Port", "Value": strconv.Itoa(bound.HostPort)},
-	}
-	if dbType == "Postgres" {
-		adv = append(adv, map[string]string{"Key": "SSL Mode", "Value": "disable"})
-	}
-	creds["Advanced"] = adv
-	vars["credentials"] = creds
-	gql["variables"] = vars
+	patchWhodbLoginValue(vars, bound, password)
 	updated, err := json.Marshal(gql)
 	if err != nil {
 		return raw, false
