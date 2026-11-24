@@ -1644,9 +1644,10 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 
 	if spec.ID == "reneo-crm" || spec.ID == "reneo-sidesa" || spec.ID == "reneo-resto" {
 		dbName := "reneo-crm-db"
-		if spec.ID == "reneo-sidesa" {
+		switch spec.ID {
+		case "reneo-sidesa":
 			dbName = "reneo-sidesa-db"
-		} else if spec.ID == "reneo-resto" {
+		case "reneo-resto":
 			dbName = "reneo-resto-db"
 		}
 		if v, ok := envMap["DATABASE_URL"]; !ok || strings.TrimSpace(v) == "" {
@@ -2099,11 +2100,12 @@ func (s *Server) handleAppCatalogAction(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if (actionName == "start" || actionName == "restart") && (app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" || app.CatalogID == "reneo-resto") {
-		if app.CatalogID == "reneo-sidesa" {
+		switch app.CatalogID {
+		case "reneo-sidesa":
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
-		} else if app.CatalogID == "reneo-resto" {
+		case "reneo-resto":
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-resto-db")
-		} else {
+		default:
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
 		}
@@ -2334,11 +2336,12 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 			return http.StatusUnprocessableEntity, errors.New("gagal memperbarui baris image di compose.yml aplikasi")
 		}
 		if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" || app.CatalogID == "reneo-resto" {
-			if app.CatalogID == "reneo-sidesa" {
+			switch app.CatalogID {
+			case "reneo-sidesa":
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
-			} else if app.CatalogID == "reneo-resto" {
+			case "reneo-resto":
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-resto-db")
-			} else {
+			default:
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
 			}
@@ -2406,11 +2409,12 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 		deployNet := cfg.Network
 		if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" || app.CatalogID == "reneo-resto" {
 			deployNet = "reneo-internal"
-			if app.CatalogID == "reneo-sidesa" {
+			switch app.CatalogID {
+			case "reneo-sidesa":
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
-			} else if app.CatalogID == "reneo-resto" {
+			case "reneo-resto":
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-resto-db")
-			} else {
+			default:
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
 				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
 			}
@@ -2432,11 +2436,12 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 	ensureAppVolumePermissions(owner, app.ContainerName)
 	docker.InvalidateAll()
 	if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" || app.CatalogID == "reneo-resto" {
-		if app.CatalogID == "reneo-sidesa" {
+		switch app.CatalogID {
+		case "reneo-sidesa":
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
-		} else if app.CatalogID == "reneo-resto" {
+		case "reneo-resto":
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-resto-db")
-		} else {
+		default:
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
 		}

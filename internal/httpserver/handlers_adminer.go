@@ -287,8 +287,3 @@ func adminerSplitPath(p string) (key, rest string) {
 	key, rest, _ = strings.Cut(trimmed, "/")
 	return key, rest
 }
-
-func adminerRestPath(p string) string {
-	_, rest := adminerSplitPath(p)
-	return rest
-}
