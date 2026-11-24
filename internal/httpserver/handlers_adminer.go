@@ -3,6 +3,7 @@ package httpserver
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"fmt"
 	"html"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -136,71 +138,34 @@ func (s *Server) handleDatabaseAdminer(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-// Modern Reneo CSS served as /adminer/<key>/reneo-theme.css (same-origin, so Adminer's CSP allows it).
-const adminerModernThemeCSS = `
-:root{--rn-bg:#f8fafc;--rn-surface:#ffffff;--rn-border:#e2e8f0;--rn-text:#0f172a;--rn-muted:#475569;--rn-primary:#2563eb;--rn-primary-hover:#1d4ed8;--rn-row:#f8fafc;--rn-soft:#eff6ff}
-*{box-sizing:border-box}
-html,body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif !important;font-size:13px !important;line-height:1.5 !important;background:var(--rn-bg) !important;color:var(--rn-text) !important;margin:0 !important;padding:0 !important}
-a{color:var(--rn-primary) !important;text-decoration:none !important}
-a:hover{text-decoration:underline !important}
-#lang{position:fixed !important;top:0 !important;left:0 !important;width:256px !important;height:44px !important;padding:8px 14px !important;background:var(--rn-surface) !important;border-right:1px solid var(--rn-border) !important;border-bottom:1px solid var(--rn-border) !important;z-index:20 !important;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--rn-muted)}
-#lang select{padding:3px 6px !important;font-size:12px !important;border-radius:6px !important}
-#menu{position:fixed !important;top:44px !important;left:0 !important;bottom:0 !important;width:256px !important;margin:0 !important;padding:14px !important;background:var(--rn-surface) !important;border-right:1px solid var(--rn-border) !important;overflow-y:auto !important}
-#menu h1{background:none !important;border:0 !important;border-bottom:1px solid var(--rn-border) !important;padding:0 0 10px 0 !important;margin:0 0 12px 0 !important;font-size:16px !important;font-weight:700 !important;color:var(--rn-text) !important;font-style:normal !important}
-#menu h1 a{color:var(--rn-text) !important}
-#menu .version{font-size:11px !important;font-weight:500 !important;color:var(--rn-muted) !important;margin-left:4px}
-#menu p,#menu .links{margin:10px 0 !important;padding:0 !important;border:0 !important}
-#menu .links a{display:inline-flex !important;align-items:center;padding:5px 9px !important;margin:0 4px 6px 0 !important;border-radius:6px !important;background:var(--rn-bg) !important;border:1px solid var(--rn-border) !important;color:var(--rn-text) !important;font-size:12px !important;font-weight:500 !important}
-#menu .links a:hover{background:var(--rn-soft) !important;border-color:#bfdbfe !important;color:var(--rn-primary) !important;text-decoration:none !important}
-#tables{list-style:none !important;padding:0 !important;margin:10px 0 0 0 !important}
-#tables li{padding:2px 0 !important;margin:0 !important}
-#tables a{display:inline-block;padding:3px 6px;border-radius:6px;color:var(--rn-text) !important;font-size:12.5px}
-#tables a:hover{background:var(--rn-soft) !important;color:var(--rn-primary) !important;text-decoration:none !important}
-#content{margin:0 0 0 256px !important;padding:64px 28px 32px 28px !important;background:var(--rn-bg) !important;min-height:100vh}
-#breadcrumb{position:fixed !important;top:0 !important;left:256px !important;right:0 !important;height:44px !important;line-height:44px !important;padding:0 24px !important;margin:0 !important;background:var(--rn-surface) !important;border-bottom:1px solid var(--rn-border) !important;font-size:12.5px !important;color:var(--rn-muted) !important;z-index:15 !important}
-.logout{position:fixed !important;top:6px !important;right:20px !important;margin:0 !important;z-index:25 !important}
-.logout input[type=submit]{background:var(--rn-surface) !important;color:var(--rn-text) !important;border:1px solid var(--rn-border) !important;padding:5px 12px !important;border-radius:6px !important;font-size:12px !important;font-weight:500 !important}
-.logout input[type=submit]:hover{background:#fee2e2 !important;color:#b91c1c !important;border-color:#fecaca !important}
-h2{font-size:20px !important;font-weight:700 !important;background:none !important;border:0 !important;border-bottom:1px solid var(--rn-border) !important;color:var(--rn-text) !important;padding:0 0 12px 0 !important;margin:0 0 16px 0 !important}
-h3{font-size:14px !important;font-weight:600 !important;color:var(--rn-text) !important;margin:20px 0 8px 0 !important}
-p.links{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px 0 !important}
-p.links a{display:inline-flex;align-items:center;padding:6px 12px;border-radius:7px;background:var(--rn-surface);border:1px solid var(--rn-border);color:var(--rn-text) !important;font-size:12.5px;font-weight:500}
-p.links a:hover{background:var(--rn-soft);border-color:#bfdbfe;color:var(--rn-primary) !important;text-decoration:none !important}
-table{border-collapse:collapse !important;background:var(--rn-surface) !important;border:1px solid var(--rn-border) !important;border-radius:8px;overflow:hidden;margin:12px 0 !important;box-shadow:0 1px 2px rgba(15,23,42,.04)}
-th,thead td{background:#f1f5f9 !important;color:var(--rn-muted) !important;font-weight:600 !important;font-size:12px !important;text-align:left;padding:9px 12px !important;border:1px solid var(--rn-border) !important}
-td{padding:8px 12px !important;border:1px solid var(--rn-border) !important;vertical-align:top}
-tbody tr:nth-child(even) td{background:var(--rn-row) !important}
-tbody tr:hover td{background:var(--rn-soft) !important}
-input[type=text],input[type=password],input[type=search],input[type=number],select,textarea{font-family:inherit !important;font-size:13px !important;padding:6px 10px !important;border:1px solid #cbd5e1 !important;border-radius:6px !important;background:#fff !important;color:var(--rn-text) !important}
-input:focus,select:focus,textarea:focus{outline:2px solid #93c5fd !important;outline-offset:1px;border-color:var(--rn-primary) !important}
-textarea.sqlarea,pre,code{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace !important;font-size:12.5px !important}
-input[type=submit],button{background:var(--rn-primary) !important;color:#fff !important;border:1px solid var(--rn-primary) !important;border-radius:6px !important;padding:6px 14px !important;font-size:12.5px !important;font-weight:600 !important;cursor:pointer}
-input[type=submit]:hover,button:hover{background:var(--rn-primary-hover) !important}
-.message{background:#ecfdf5 !important;color:#065f46 !important;border:1px solid #a7f3d0 !important;border-radius:8px !important;padding:10px 14px !important;margin:12px 0 !important;font-size:12.5px}
-.error{background:#fef2f2 !important;color:#991b1b !important;border:1px solid #fecaca !important;border-radius:8px !important;padding:10px 14px !important;margin:12px 0 !important;font-size:12.5px}
-fieldset{border:1px solid var(--rn-border) !important;border-radius:8px !important;background:var(--rn-surface) !important;padding:14px 16px !important;margin:12px 0 !important}
-legend{font-weight:600;color:var(--rn-muted);padding:0 6px}
-@media(max-width:768px){#lang,#menu,#breadcrumb,.logout{position:static !important;width:100% !important;height:auto !important;border-right:0 !important}#content{margin-left:0 !important;padding:14px !important}}
-`
+//go:embed adminer_theme.css
+var adminerModernThemeCSS []byte
 
-func injectAdminerTheme(page []byte, cssHref string) []byte {
-	linkTag := []byte(`<link rel="stylesheet" href="` + cssHref + `">`)
+//go:embed adminer_theme.js
+var adminerModernThemeJS []byte
+
+var adminerDefaultCSSRe = regexp.MustCompile(`(?i)<link[^>]+href=["'][^"']*default\.css[^"']*["'][^>]*>`)
+
+func injectAdminerTheme(page []byte, cssHref, jsHref string) []byte {
+	// Strip Adminer's legacy 2008 default.css so the Reneo workstation theme owns the entire layout cleanly.
+	page = adminerDefaultCSSRe.ReplaceAll(page, nil)
+	tags := []byte(`<link rel="stylesheet" href="` + cssHref + `"><script src="` + jsHref + `"></script>`)
 	lower := bytes.ToLower(page)
 	if idx := bytes.Index(lower, []byte("</head>")); idx >= 0 {
-		out := make([]byte, 0, len(page)+len(linkTag))
+		out := make([]byte, 0, len(page)+len(tags))
 		out = append(out, page[:idx]...)
-		out = append(out, linkTag...)
+		out = append(out, tags...)
 		out = append(out, page[idx:]...)
 		return out
 	}
 	if idx := bytes.Index(lower, []byte("<body")); idx >= 0 {
-		out := make([]byte, 0, len(page)+len(linkTag))
+		out := make([]byte, 0, len(page)+len(tags))
 		out = append(out, page[:idx]...)
-		out = append(out, linkTag...)
+		out = append(out, tags...)
 		out = append(out, page[idx:]...)
 		return out
 	}
-	return append(page, linkTag...)
+	return append(page, tags...)
 }
 
 // adminerProxy forwards /adminer/<key>/ to the sidecar. The key selects one of the caller's own
@@ -226,8 +191,14 @@ func (s *Server) adminerProxy() http.Handler {
 		}
 		if rest == "reneo-theme.css" {
 			w.Header().Set("Content-Type", "text/css; charset=utf-8")
-			w.Header().Set("Cache-Control", "public, max-age=3600")
-			_, _ = w.Write([]byte(adminerModernThemeCSS))
+			w.Header().Set("Cache-Control", "no-cache")
+			_, _ = w.Write(adminerModernThemeCSS)
+			return
+		}
+		if rest == "reneo-theme.js" {
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-cache")
+			_, _ = w.Write(adminerModernThemeJS)
 			return
 		}
 		// Only inspect URL-encoded form posts (sign-in) so multipart .sql file imports are streamed without a 1 MB cap.
@@ -248,7 +219,8 @@ func (s *Server) adminerProxy() http.Handler {
 			r.ContentLength = int64(len(raw))
 		}
 
-		cssHref := "/adminer/" + key + "/reneo-theme.css"
+		cssHref := "/adminer/" + key + "/reneo-theme.css?v=2"
+		jsHref := "/adminer/" + key + "/reneo-theme.js?v=2"
 		proxy := &httputil.ReverseProxy{
 			Rewrite: func(pr *httputil.ProxyRequest) {
 				pr.Out.URL.Scheme = target.Scheme
@@ -261,12 +233,14 @@ func (s *Server) adminerProxy() http.Handler {
 			},
 			ModifyResponse: func(resp *http.Response) error {
 				if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") && resp.Header.Get("Content-Encoding") == "" {
+					// Relax CSP only to allow Google Fonts + same-origin theme assets cleanly
+					resp.Header.Del("Content-Security-Policy")
 					page, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 					_ = resp.Body.Close()
 					if err != nil {
 						return err
 					}
-					page = injectAdminerTheme(page, cssHref)
+					page = injectAdminerTheme(page, cssHref, jsHref)
 					resp.Body = io.NopCloser(bytes.NewReader(page))
 					resp.ContentLength = int64(len(page))
 					resp.Header.Set("Content-Length", strconv.Itoa(len(page)))
