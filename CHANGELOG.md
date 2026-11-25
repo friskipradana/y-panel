@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.90] - 2026-11-25
+
+Add live AI model listing & field order, update Ctrl+K palette, share Panel PostgreSQL for official apps, and add DBX/Adminer access to Settings > Database Reneo.
+
+### Fitur baru
+- **ai,db:** Add live AI model listing & field order, update Ctrl+K palette, share Panel PostgreSQL for official apps, and add DBX/Adminer access to Settings > Database Reneo ([`abf48ce`](https://github.com/friskipradana/y-panel/commit/abf48ce))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.89...v1.88.90
+
 ## [1.88.89] - 2026-11-25
 
 Fix proxy audio/AudioWorklet/WebSocket, add Desktop PiP, auto-hide app toolbar, Fit-to-Content, and ActionMenu iframe close.
