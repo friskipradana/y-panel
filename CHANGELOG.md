@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.93] - 2026-11-25
+
+Allow superadmin host volume mounts and validate before removing container on redeploy.
+
+### Perbaikan
+- **docker:** Allow superadmin host volume mounts and validate before removing container on redeploy ([`a1d1f64`](https://github.com/friskipradana/y-panel/commit/a1d1f64))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.92...v1.88.93
+
 ## [1.88.92] - 2026-11-25
 
 Return clear 422 provider error messages and humanize HTTP/HTTPS mismatch.
