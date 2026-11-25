@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.78] - 2026-11-25
+
+Add Kubernetes and K3s cluster manager window with Projects deploy and Cloudflare Tunnel integration.
+
+### Fitur baru
+- Add Kubernetes and K3s cluster manager window with Projects deploy and Cloudflare Tunnel integration ([`e808491`](https://github.com/friskipradana/y-panel/commit/e808491))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.77...v1.88.78
+
 ## [1.88.77] - 2026-11-24
 
 Isolate multi-database sessions with /dbx/<key>/ prefix and per-key cookies/storage across DBX, Adminer, and WhoDB.
