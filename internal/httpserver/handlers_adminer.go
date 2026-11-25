@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 )
 
 // Adminer for the user databases. One sidecar container (host network, loopback only) serves
@@ -138,6 +140,47 @@ func (s *Server) handleDatabaseAdminer(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+// handlePanelDatabaseAdminer signs superadmin into Adminer for Reneo's own PostgreSQL database.
+func (s *Server) handlePanelDatabaseAdminer(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	if u == nil || !auth.HasRole(u.Role, auth.SuperadminRole) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "superadmin only"})
+		return
+	}
+	if s.database == nil || !s.database.IsConnected() {
+		s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": "panel database is not connected"})
+		return
+	}
+	host, port, dbname, user, password, ok := s.database.ConnectionDetails()
+	if !ok {
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "panel database credentials unavailable"})
+		return
+	}
+	if err := ensureAdminer(r.Context()); err != nil {
+		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": err.Error()})
+		return
+	}
+	s.auditSensitiveAction(r, u, "database.panel_adminer", "ok", map[string]any{"database": dbname})
+
+	field := func(name, value string) string {
+		return fmt.Sprintf(`<input type="hidden" name="%s" value="%s">`, html.EscapeString(name), html.EscapeString(value))
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "same-origin")
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Adminer — Reneo Panel</title></head>
+<body style="font-family:system-ui,sans-serif;padding:2rem">
+<form id="f" method="post" action="/adminer/panel/">%s%s%s%s%s<noscript><button type="submit">Open Adminer</button></noscript></form>
+<script>document.getElementById('f').submit()</script>
+</body></html>`,
+		field("auth[driver]", "pgsql"),
+		field("auth[server]", net.JoinHostPort(host, port)),
+		field("auth[username]", user),
+		field("auth[password]", password),
+		field("auth[db]", dbname),
+	)
+}
+
 //go:embed adminer_theme.css
 var adminerModernThemeCSS []byte
 
@@ -180,10 +223,25 @@ func (s *Server) adminerProxy() http.Handler {
 			return
 		}
 		key, rest := adminerSplitPath(r.URL.Path)
-		bound := s.databaseByAccessKey(u, key)
-		if bound == nil {
-			http.NotFound(w, r)
-			return
+		var allowedServer string
+		if key == "panel" {
+			if !auth.HasRole(u.Role, auth.SuperadminRole) || s.database == nil || !s.database.IsConnected() {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			pHost, pPort, _, _, _, ok := s.database.ConnectionDetails()
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
+			allowedServer = net.JoinHostPort(pHost, pPort)
+		} else {
+			bound := s.databaseByAccessKey(u, key)
+			if bound == nil {
+				http.NotFound(w, r)
+				return
+			}
+			allowedServer = net.JoinHostPort(userDatabaseHost, strconv.Itoa(bound.HostPort))
 		}
 		if r.URL.Path == "/adminer/"+key {
 			http.Redirect(w, r, "/adminer/"+key+"/", http.StatusPermanentRedirect)
@@ -210,7 +268,7 @@ func (s *Server) adminerProxy() http.Handler {
 			}
 			form, _ := url.ParseQuery(string(raw))
 			if server := form.Get("auth[server]"); server != "" {
-				if server != net.JoinHostPort(userDatabaseHost, strconv.Itoa(bound.HostPort)) {
+				if server != allowedServer {
 					http.Error(w, "this address belongs to another database", http.StatusForbidden)
 					return
 				}

@@ -468,8 +468,8 @@ var builtinCatalogApps = []CatalogApp{
 		ContainerPort:   5057,
 		DefaultHostPort: 18025,
 		OpenPath:        "/",
-		NotesID:         "Database PostgreSQL (reneo-resto-db) disiapkan otomatis saat pemasangan. Beranda platform tampil di (/), website demo di /r/kedai-heritage, panel admin restoran di /admin, dan portal superadmin di /superadmin/restaurants.",
-		NotesEN:         "PostgreSQL database (reneo-resto-db) is provisioned automatically on install. Platform home loads at (/), demo storefront at /r/kedai-heritage, tenant admin at /admin, and superadmin portal at /superadmin/restaurants.",
+		NotesID:         "Menggunakan PostgreSQL server panel Reneo (database terpisah otomatis tanpa container Postgres tambahan). Beranda platform tampil di (/), website demo di /r/kedai-heritage, panel admin restoran di /admin, dan portal superadmin di /superadmin/restaurants.",
+		NotesEN:         "Reuses the Reneo Panel PostgreSQL server (auto-provisioned logical database with zero extra Postgres containers). Platform home loads at (/), demo storefront at /r/kedai-heritage, tenant admin at /admin, and superadmin portal at /superadmin/restaurants.",
 		Volumes: []catalogVolumeSpec{
 			{HostSubdir: "data", ContainerPath: "/app/data", Label: "Data & Media Reneo Resto"},
 		},
@@ -1066,6 +1066,129 @@ func matchContainerForApp(app database.InstalledApp, containers []docker.Contain
 		}
 	}
 	return nil
+}
+
+// ensureOfficialAppPostgres provisions a dedicated logical database for official Reneo apps
+// (reneo-crm, reneo-sidesa, reneo-resto) inside Reneo Panel's own PostgreSQL server whenever
+// containers can reach it — avoiding bloated separate Postgres containers and images per app.
+// Existing legacy dedicated DB containers (e.g. reneo-crm-db) are reused transparently so upgrades
+// never lose data; if Panel PG is strictly loopback-only on the host, all official apps share a
+// single managed Postgres container (reneo-official-db) with separate logical databases.
+func (s *Server) ensureOfficialAppPostgres(actor *database.User, specID, legacyDBName string) (string, error) {
+	if actor == nil || s.database == nil || !s.database.IsConnected() {
+		return "", errors.New("database panel tidak aktif")
+	}
+	// 1. Preserve existing legacy dedicated container if already provisioned for this app
+	if existing, err := s.database.ListManagedDatabases(actor.ID, false); err == nil {
+		for i := range existing {
+			item := &existing[i]
+			if item.Engine == "postgres" && item.Status != "error" && item.Name == legacyDBName {
+				return s.ensureManagedDependencyDB(actor, "postgres", legacyDBName)
+			}
+		}
+	}
+
+	logicalDB := userdb.SQLIdent(strings.ReplaceAll(specID, "-", "_"))
+	if logicalDB == "" {
+		logicalDB = userdb.SQLIdent(legacyDBName)
+	}
+
+	// 2. Primary: reuse Reneo Panel's own PostgreSQL server (zero extra containers / images)
+	if pgHost, pgPort, _, pgUser, pgPass, ok := s.database.ConnectionDetails(); ok {
+		containerHost := ""
+		containerPort := pgPort
+
+		// Check if Panel PG itself is a Docker container publishing pgPort
+		if containers, cErr := docker.ListContainers(); cErr == nil {
+			wantPort, _ := strconv.Atoi(pgPort)
+			for _, c := range containers {
+				if strings.ToLower(c.State) != "running" {
+					continue
+				}
+				if !strings.Contains(strings.ToLower(c.Image), "postgres") {
+					continue
+				}
+				rawName := ""
+				if len(c.Names) > 0 {
+					rawName = strings.TrimPrefix(strings.TrimSpace(c.Names[0]), "/")
+				}
+				for _, p := range c.Ports {
+					if int(p.PublicPort) == wantPort || (rawName != "" && strings.EqualFold(pgHost, rawName) && p.PrivatePort == 5432) {
+						if rawName != "" && docker.EnsureContainerOnNetwork("reneo-internal", rawName) == nil {
+							containerHost = rawName
+							containerPort = "5432"
+							break
+						}
+					}
+				}
+				if containerHost != "" {
+					break
+				}
+			}
+		}
+
+		// If not a Docker container, check if host/remote PostgreSQL is reachable from container network
+		if containerHost == "" {
+			lowerHost := strings.ToLower(strings.TrimSpace(pgHost))
+			if lowerHost != "127.0.0.1" && lowerHost != "localhost" && lowerHost != "::1" {
+				containerHost = pgHost
+			} else {
+				// Probe docker bridge gateway (172.17.0.1) to see if host PostgreSQL listens beyond loopback
+				if conn, dErr := net.DialTimeout("tcp", net.JoinHostPort("172.17.0.1", pgPort), 350*time.Millisecond); dErr == nil {
+					_ = conn.Close()
+					containerHost = "host.docker.internal"
+				}
+			}
+		}
+
+		if containerHost != "" {
+			if err := s.database.EnsureLogicalDatabase(logicalDB); err == nil {
+				u := &url.URL{
+					Scheme:   "postgres",
+					User:     url.UserPassword(pgUser, pgPass),
+					Host:     net.JoinHostPort(containerHost, containerPort),
+					Path:     "/" + logicalDB,
+					RawQuery: "sslmode=disable",
+				}
+				return u.String(), nil
+			}
+		}
+	}
+
+	// 3. Fallback when host Postgres only listens on 127.0.0.1: share ONE single Postgres container across all official apps
+	sharedURL, err := s.ensureManagedDependencyDB(actor, "postgres", "reneo-official-db")
+	if err != nil {
+		return "", err
+	}
+	parsed, pErr := url.Parse(sharedURL)
+	if pErr != nil {
+		return sharedURL, nil
+	}
+	// Create logical DB inside the shared reneo-official-db container so apps never collide on tables
+	if existing, lErr := s.database.ListManagedDatabases(actor.ID, false); lErr == nil {
+		for i := range existing {
+			item := &existing[i]
+			if item.Engine == "postgres" && item.Name == "reneo-official-db" && item.Status != "error" {
+				cName := strings.TrimSpace(item.ContainerName)
+				if cName == "" {
+					cName = fmt.Sprintf("reneo-db-%d", item.ID)
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+				_, _ = dockerOutput(ctx, "exec", cName, "psql", "-U", item.Username, "-d", item.DatabaseName, "-tc",
+					fmt.Sprintf("SELECT 1 FROM pg_database WHERE datname = '%s'", logicalDB))
+				out, _ := dockerOutput(ctx, "exec", cName, "psql", "-U", item.Username, "-d", item.DatabaseName, "-tAc",
+					fmt.Sprintf("SELECT 1 FROM pg_database WHERE datname = '%s'", logicalDB))
+				if strings.TrimSpace(out) != "1" {
+					_, _ = dockerOutput(ctx, "exec", cName, "psql", "-U", item.Username, "-d", item.DatabaseName, "-c",
+						fmt.Sprintf(`CREATE DATABASE "%s"`, logicalDB))
+				}
+				cancel()
+				parsed.Path = "/" + logicalDB
+				return parsed.String(), nil
+			}
+		}
+	}
+	return sharedURL, nil
 }
 
 func (s *Server) ensureManagedDependencyDB(actor *database.User, engineID, defaultName string) (string, error) {
@@ -1666,7 +1789,7 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 			dbName = "reneo-resto-db"
 		}
 		if v, ok := envMap["DATABASE_URL"]; !ok || strings.TrimSpace(v) == "" {
-			pgURL, pgErr := s.ensureManagedDependencyDB(actor, "postgres", dbName)
+			pgURL, pgErr := s.ensureOfficialAppPostgres(actor, spec.ID, dbName)
 			if pgErr != nil {
 				_ = s.database.DeleteInstalledApp(created.ID)
 				s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "gagal menyiapkan PostgreSQL bawaan Reneo: " + pgErr.Error()})

@@ -59,3 +59,34 @@ func TestCompleteAnthropic(t *testing.T) {
 		t.Fatalf("got %q err=%v", out, err)
 	}
 }
+
+func TestListModelsOpenAICompatible(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer sk-list" {
+			t.Fatalf("missing bearer token")
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]string{
+				{"id": "gpt-4o-mini"},
+				{"id": "claude-3-7-sonnet"},
+				{"id": "gpt-4o-mini"},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	models, err := ListModels(context.Background(), Config{
+		Provider: "custom",
+		BaseURL:  srv.URL + "/v1",
+		APIKey:   "sk-list",
+	})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(models) != 2 || models[0] != "claude-3-7-sonnet" || models[1] != "gpt-4o-mini" {
+		t.Fatalf("unexpected models: %#v", models)
+	}
+}

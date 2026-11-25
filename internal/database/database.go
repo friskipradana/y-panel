@@ -158,6 +158,63 @@ func parseDSNFields(dsn string) (host, port, dbname, user string) {
 	return
 }
 
+// ConnectionDetails returns the parsed PostgreSQL connection details of Reneo's own panel database.
+// Only for internal server features (superadmin DB client launcher & shared official-app DB provisioning).
+func (m *Manager) ConnectionDetails() (host, port, dbname, user, password string, ok bool) {
+	if m == nil || !m.cfg.Enabled || strings.TrimSpace(m.cfg.DSN) == "" {
+		return "", "", "", "", "", false
+	}
+	dsn := strings.TrimSpace(m.cfg.DSN)
+	host, port, dbname, user = parseDSNFields(dsn)
+	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
+		if u, err := url.Parse(dsn); err == nil && u.User != nil {
+			password, _ = u.User.Password()
+		}
+	} else {
+		for _, part := range strings.Fields(dsn) {
+			if kv := strings.SplitN(part, "=", 2); len(kv) == 2 && kv[0] == "password" {
+				password = strings.Trim(kv[1], "'\"")
+				break
+			}
+		}
+	}
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	if port == "" {
+		port = "5432"
+	}
+	return host, port, dbname, user, password, dbname != "" && user != ""
+}
+
+// EnsureLogicalDatabase creates a dedicated logical database inside the same PostgreSQL server
+// used by Reneo Panel (idempotent; skips if the database already exists).
+func (m *Manager) EnsureLogicalDatabase(dbName string) error {
+	if m == nil || m.db == nil {
+		return errors.New("panel database is not connected")
+	}
+	clean := strings.ToLower(strings.TrimSpace(dbName))
+	if clean == "" {
+		return errors.New("database name is required")
+	}
+	for _, r := range clean {
+		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_') {
+			return fmt.Errorf("invalid database name %q", dbName)
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	var exists bool
+	if err := m.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)`, clean).Scan(&exists); err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	_, err := m.db.ExecContext(ctx, `CREATE DATABASE "`+clean+`"`)
+	return err
+}
+
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
 func (m *Manager) ensureSchema() error {

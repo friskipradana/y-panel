@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/userdb"
@@ -230,7 +231,54 @@ func (s *Server) dbxConnections(u *database.User) []dbxConn {
 		}
 		out = append(out, conn)
 	}
+	if auth.HasRole(u.Role, auth.SuperadminRole) && s.database.IsConnected() {
+		if host, portStr, dbname, user, pass, ok := s.database.ConnectionDetails(); ok {
+			portNum, _ := strconv.Atoi(portStr)
+			if portNum <= 0 {
+				portNum = 5432
+			}
+			out = append(out, dbxConn{
+				ID:       dbxPanelConnID,
+				Name:     "Reneo Panel (" + dbname + ")",
+				Type:     "postgres",
+				Host:     host,
+				Port:     portNum,
+				User:     user,
+				Password: pass,
+				Database: dbname,
+			})
+		}
+	}
 	return out
+}
+
+// handlePanelDatabaseDbx opens Reneo's own PostgreSQL database directly in DBX (superadmin only).
+func (s *Server) handlePanelDatabaseDbx(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	if u == nil || !auth.HasRole(u.Role, auth.SuperadminRole) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "superadmin only"})
+		return
+	}
+	if s.database == nil || !s.database.IsConnected() {
+		s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": "panel database is not connected"})
+		return
+	}
+	_, _, dbname, _, _, ok := s.database.ConnectionDetails()
+	if !ok {
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "panel database credentials unavailable"})
+		return
+	}
+	if err := s.ensureDbx(r.Context()); err != nil {
+		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": err.Error()})
+		return
+	}
+	s.auditSensitiveAction(r, u, "database.panel_dbx", "ok", map[string]any{"database": dbname})
+	open, _ := json.Marshal(map[string]any{
+		"name":  "Reneo Panel (" + dbname + ")",
+		"steps": dbxOpenSteps("postgres", dbname),
+	})
+	w.Header().Set("Cache-Control", "no-store")
+	http.Redirect(w, r, "/dbx/panel/?reneo_open="+url.QueryEscape(string(open)), http.StatusFound)
 }
 
 // the nodes of the tree the page opens by itself after it connects, down to the tables
@@ -440,14 +488,22 @@ func (s *Server) newDbxProxy(baseURL func() string, connections func(*database.U
 
 		key, inner, scoped := dbxSplitScopedPath(clean)
 		var scopedPrefix string
-		var boundID int64
+		var boundScopeID string
 		if scoped {
-			bound := s.databaseByAccessKey(u, key)
-			if bound == nil {
-				http.NotFound(w, r)
-				return
+			if key == "panel" {
+				if !auth.HasRole(u.Role, auth.SuperadminRole) {
+					http.Error(w, "forbidden", http.StatusForbidden)
+					return
+				}
+				boundScopeID = dbxPanelConnID
+			} else {
+				bound := s.databaseByAccessKey(u, key)
+				if bound == nil {
+					http.NotFound(w, r)
+					return
+				}
+				boundScopeID = dbxConnectionID(bound.ID)
 			}
-			boundID = bound.ID
 			scopedPrefix = "/dbx/" + key
 			if clean == scopedPrefix {
 				http.Redirect(w, r, scopedPrefix+"/", http.StatusPermanentRedirect)
@@ -482,8 +538,8 @@ func (s *Server) newDbxProxy(baseURL func() string, connections func(*database.U
 		if strings.HasPrefix(inner, "/api/") {
 			conns = connections(u)
 			scopeID := ""
-			if boundID > 0 {
-				scopeID = dbxConnectionID(boundID)
+			if boundScopeID != "" {
+				scopeID = boundScopeID
 			} else if scopeCookie, err := r.Cookie(dbxScopeCookie); err == nil {
 				scopeID = strings.TrimSpace(scopeCookie.Value)
 			}

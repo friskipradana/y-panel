@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bot, CheckCircle2, KeyRound, Save, Trash2 } from 'lucide-react'
+import { Bot, CheckCircle2, KeyRound, Pencil, RefreshCw, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { getAISettings, saveAISettings, testAISettings } from '@/api/ai'
+import { getAISettings, listAIModels, saveAISettings, testAISettings } from '@/api/ai'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
@@ -26,6 +26,8 @@ export function AiSettingsTab() {
   const [apiKey, setApiKey] = useState('')
   const [clearApiKey, setClearApiKey] = useState(false)
   const [temperature, setTemperature] = useState('0.3')
+  const [models, setModels] = useState<string[]>([])
+  const [manualModel, setManualModel] = useState(false)
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
@@ -37,6 +39,29 @@ export function AiSettingsTab() {
     setTemperature(String(q.data.temperature ?? 0.3))
     setHydrated(true)
   }, [q.data, hydrated])
+
+  const modelsMut = useMutation({
+    mutationFn: () =>
+      listAIModels({
+        provider,
+        baseUrl: baseUrl.trim(),
+        apiKey: apiKey.trim() || undefined,
+      }),
+    onSuccess: (res) => {
+      const list = res.models ?? []
+      setModels(list)
+      if (list.length > 0) {
+        setManualModel(false)
+        if (!model.trim() || !list.includes(model.trim())) {
+          setModel(list[0])
+        }
+        toast.success(t('settings.ai.modelsLoaded', { count: list.length }))
+      } else {
+        toast.info(t('settings.ai.modelsEmpty'))
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
 
   const saveMut = useMutation({
     mutationFn: () =>
@@ -89,15 +114,23 @@ export function AiSettingsTab() {
   const presets = q.data?.presets ?? []
   const currentPreset = presets.find((p) => p.id === provider)
   const hasSavedKey = Boolean(q.data?.hasApiKey) && !clearApiKey
+  const canFetchModels = Boolean(baseUrl.trim() || currentPreset?.defaultBaseUrl) && (!currentPreset?.keyRequired || hasSavedKey || Boolean(apiKey.trim()))
 
   const handleProviderChange = (nextId: string) => {
     setProvider(nextId)
+    setModels([])
     const p = presets.find((x) => x.id === nextId)
     if (p) {
       setBaseUrl(p.defaultBaseUrl)
       setModel(p.defaultModel)
     }
   }
+
+  const modelOptions = (() => {
+    const unique = new Set(models)
+    if (model.trim()) unique.add(model.trim())
+    return Array.from(unique).map((m) => ({ value: m, label: m }))
+  })()
 
   return (
     <div className="flex flex-col gap-4">
@@ -129,24 +162,15 @@ export function AiSettingsTab() {
               options={presets.map((p) => ({ value: p.id, label: p.label }))}
             />
           </Field>
-          <Field label={t('settings.ai.modelLabel')}>
+          <Field label={t('settings.ai.baseUrlLabel')} hint={t('settings.ai.baseUrlHint')}>
             <TextInput
               mono
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder={currentPreset?.defaultModel || 'gpt-4o-mini'}
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder={currentPreset?.defaultBaseUrl || 'https://api.openai.com/v1'}
             />
           </Field>
         </div>
-
-        <Field label={t('settings.ai.baseUrlLabel')} hint={t('settings.ai.baseUrlHint')}>
-          <TextInput
-            mono
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder={currentPreset?.defaultBaseUrl || 'https://api.openai.com/v1'}
-          />
-        </Field>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_130px]">
           <Field
@@ -192,6 +216,53 @@ export function AiSettingsTab() {
             />
           </Field>
         </div>
+
+        <Field
+          label={t('settings.ai.modelLabel')}
+          hint={models.length > 0 ? t('settings.ai.modelsCountHint', { count: models.length }) : t('settings.ai.modelHint')}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="min-w-[200px] flex-1">
+              {models.length > 0 && !manualModel ? (
+                <Select
+                  value={model}
+                  onChange={setModel}
+                  options={modelOptions}
+                  searchable
+                  placeholder={t('settings.ai.selectModelPlaceholder')}
+                  searchPlaceholder={t('settings.ai.searchModelPlaceholder')}
+                />
+              ) : (
+                <TextInput
+                  mono
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder={currentPreset?.defaultModel || 'gpt-4o-mini'}
+                />
+              )}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              icon={<RefreshCw className={`h-3.5 w-3.5 ${modelsMut.isPending ? 'animate-spin' : ''}`} strokeWidth={1.75} />}
+              disabled={!canFetchModels}
+              loading={modelsMut.isPending}
+              onClick={() => modelsMut.mutate()}
+            >
+              {t('settings.ai.fetchModelsBtn')}
+            </Button>
+            {models.length > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                icon={<Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                onClick={() => setManualModel((v) => !v)}
+              >
+                {manualModel ? t('settings.ai.useModelList') : t('settings.ai.manualModel')}
+              </Button>
+            ) : null}
+          </div>
+        </Field>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--win-border)] pt-3">
           <div className="flex items-center gap-1.5 text-[0.75rem] text-[var(--text-secondary)]">

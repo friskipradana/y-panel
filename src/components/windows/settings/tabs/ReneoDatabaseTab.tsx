@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ActivitySquare, Database, RefreshCcw, ScrollText, Search, ShieldCheck } from 'lucide-react'
+import { ActivitySquare, Database, ExternalLink, RefreshCcw, ScrollText, Search, ShieldCheck } from 'lucide-react'
 import { getDatabaseStatus, truncateDatabaseData } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
 import { alertLib } from '@/lib/alert'
@@ -136,7 +136,29 @@ export function ReneoDatabaseTab({ authenticated, active = true }: { authenticat
         title={status.database || 'Database'}
         description={`${status.user}@${status.host}:${status.port}`}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {status.connected ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary-soft"
+                  icon={<ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                  onClick={() => window.open('/api/v1/database/open-dbx', '_blank', 'noopener')}
+                >
+                  {t('settings.db.openDbx')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  icon={<ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                  onClick={() => window.open('/api/v1/database/open-adminer', '_blank', 'noopener')}
+                >
+                  {t('settings.db.openAdminer')}
+                </Button>
+              </>
+            ) : null}
             <Badge tone={status.connected ? 'success' : status.enabled ? 'danger' : 'neutral'} dot>
               {status.connected ? t('database.connected') : status.enabled ? t('database.unavailable') : t('database.disabled')}
             </Badge>

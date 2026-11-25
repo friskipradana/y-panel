@@ -146,6 +146,8 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/system/changelog", s.requireAuthV2(http.HandlerFunc(s.handleSystemChangelog)))
 	// The panel's own database: superadmin only
 	s.mux.Handle("GET /api/v1/database/status", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDatabaseStatus)))
+	s.mux.Handle("GET /api/v1/database/open-dbx", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePanelDatabaseDbx)))
+	s.mux.Handle("GET /api/v1/database/open-adminer", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePanelDatabaseAdminer)))
 	s.mux.Handle("POST /api/v1/database/truncate", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilityDatabaseTruncate, http.HandlerFunc(s.handleDatabaseTruncate))))
 
 	// Databases users create themselves (containers bound to 127.0.0.1)
@@ -389,6 +391,7 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/settings/ai", s.requireAuthV2(http.HandlerFunc(s.handleGetAISettings)))
 	s.mux.Handle("PUT /api/v1/settings/ai", s.requireAuthV2(http.HandlerFunc(s.handleUpdateAISettings)))
 	s.mux.Handle("POST /api/v1/settings/ai/test", s.requireAuthV2(http.HandlerFunc(s.handleTestAISettings)))
+	s.mux.Handle("POST /api/v1/settings/ai/models", s.requireAuthV2(http.HandlerFunc(s.handleListAIModels)))
 
 	// Dev Desk (Quotations, Invoices, Checklists & Public Token Links)
 	s.mux.Handle("GET /api/v1/devdesk/overview", s.requireAuthV2(http.HandlerFunc(s.handleDevDeskOverview)))

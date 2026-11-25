@@ -182,6 +182,49 @@ func (s *Server) handleTestAISettings(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "reply": reply})
 }
 
+func (s *Server) handleListAIModels(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUserRecord(r)
+	if u == nil {
+		s.writeError(w, http.StatusUnauthorized, errors.New("unauthorized"))
+		return
+	}
+	if u.Role == "demo" {
+		s.writeError(w, http.StatusForbidden, errors.New("demo account cannot configure AI"))
+		return
+	}
+	var req struct {
+		Provider string `json:"provider"`
+		BaseURL  string `json:"baseUrl"`
+		APIKey   string `json:"apiKey"`
+	}
+	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&req)
+
+	cfg, err := s.loadAIConfigForUser(u.ID, false)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if cfg == nil {
+		cfg = &ai.Config{Provider: "openai"}
+	}
+	if strings.TrimSpace(req.Provider) != "" {
+		cfg.Provider = req.Provider
+	}
+	if strings.TrimSpace(req.BaseURL) != "" {
+		cfg.BaseURL = req.BaseURL
+	}
+	if strings.TrimSpace(req.APIKey) != "" {
+		cfg.APIKey = strings.TrimSpace(req.APIKey)
+	}
+
+	models, err := ai.ListModels(r.Context(), *cfg)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "models": models})
+}
+
 // loadAIConfigForUser returns decrypted AI settings for userID, optionally falling back to superadmin (id=1).
 func (s *Server) loadAIConfigForUser(userID int64, allowSuperFallback bool) (*ai.Config, error) {
 	if s.database == nil || !s.database.IsConnected() {

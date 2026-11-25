@@ -45,9 +45,12 @@ type dbxVerdict struct {
 	NewBody []byte
 }
 
-const dbxIDPrefix = "rdb-"
+const (
+	dbxIDPrefix    = "rdb-"
+	dbxPanelConnID = "rdb-panel"
+)
 
-var dbxIDRe = regexp.MustCompile(`rdb-[0-9]+`)
+var dbxIDRe = regexp.MustCompile(`rdb-(?:[0-9]+|panel)`)
 
 func dbxConnectionID(databaseID int64) string { return dbxIDPrefix + strconv.FormatInt(databaseID, 10) }
 

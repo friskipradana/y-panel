@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -105,6 +106,110 @@ func TestConnection(ctx context.Context, cfg Config) (string, error) {
 		reply = reply[:120]
 	}
 	return reply, nil
+}
+
+// ListModels fetches available model IDs from the configured AI provider endpoint.
+func ListModels(ctx context.Context, cfg Config) ([]string, error) {
+	preset := PresetOf(cfg.Provider)
+	baseURL := strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
+	if baseURL == "" {
+		baseURL = preset.DefaultBaseURL
+	}
+	if baseURL == "" {
+		return nil, errors.New("AI base URL is required")
+	}
+	apiKey := strings.TrimSpace(cfg.APIKey)
+	if preset.KeyRequired && apiKey == "" {
+		return nil, fmt.Errorf("API key is required for %s", preset.Label)
+	}
+
+	lctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	client := &http.Client{Timeout: 15 * time.Second}
+
+	endpoint := baseURL
+	endpoint = strings.TrimSuffix(endpoint, "/chat/completions")
+	endpoint = strings.TrimSuffix(endpoint, "/messages")
+	if !strings.HasSuffix(endpoint, "/models") {
+		endpoint += "/models"
+	}
+
+	models, err := fetchModelsEndpoint(lctx, client, preset.ID, endpoint, apiKey)
+	if (err != nil || len(models) == 0) && preset.ID == "ollama" {
+		root := strings.TrimSuffix(strings.TrimSuffix(baseURL, "/v1"), "/")
+		if alt, altErr := fetchModelsEndpoint(lctx, client, preset.ID, root+"/api/tags", apiKey); altErr == nil && len(alt) > 0 {
+			return alt, nil
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return models, nil
+}
+
+func fetchModelsEndpoint(ctx context.Context, client *http.Client, provider, endpoint, apiKey string) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if provider == "anthropic" {
+		if apiKey != "" {
+			req.Header.Set("x-api-key", apiKey)
+		}
+		req.Header.Set("anthropic-version", "2023-06-01")
+	} else if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch models: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("model list HTTP %d: %s", resp.StatusCode, extractProviderError(body))
+	}
+	var out struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+		Models []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, fmt.Errorf("invalid models JSON: %w", err)
+	}
+	seen := map[string]struct{}{}
+	result := make([]string, 0, len(out.Data)+len(out.Models))
+	add := func(id string) {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return
+		}
+		if _, exists := seen[id]; exists {
+			return
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	for _, m := range out.Data {
+		add(m.ID)
+	}
+	for _, m := range out.Models {
+		if m.ID != "" {
+			add(m.ID)
+		} else {
+			add(m.Name)
+		}
+	}
+	sort.Strings(result)
+	if len(result) > 500 {
+		result = result[:500]
+	}
+	return result, nil
 }
 
 func completeOpenAI(ctx context.Context, client *http.Client, baseURL, model, apiKey string, temp float64, systemPrompt, userPrompt string) (string, error) {

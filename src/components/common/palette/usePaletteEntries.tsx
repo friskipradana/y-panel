@@ -76,7 +76,7 @@ const SETTINGS_TAB_WORDS: Record<SettingsTabKey, string[]> = {
   screensaver: ['kunci', 'lock', 'screensaver', 'layar'],
   sound: ['suara', 'audio', 'volume'],
   cloudflare: ['cloudflare', 'token', 'api'],
-  ai_integration: ['ai', 'openai', 'gemini', 'anthropic', 'openrouter', 'deepseek', 'ollama', 'llm', 'api key', 'dev desk'],
+  ai_integration: ['ai', 'openai', 'gemini', 'anthropic', 'openrouter', 'deepseek', 'groq', 'ollama', 'llm', 'api key', 'model', 'base url', 'router', 'dev desk', 'penawaran', 'invoice'],
   network: ['jaringan', 'port', 'origin', 'host'],
   public_ip: ['ip publik', 'public ip', 'domain', 'sertifikat', 'certificate', 'https', 'letsencrypt', 'proxy', 'port forward', 'tanpa tunnel'],
   email_server: ['email', 'mail', 'smtp', 'imap', 'mx', 'spf', 'dkim', 'dmarc', 'cloudflare'],
@@ -84,7 +84,7 @@ const SETTINGS_TAB_WORDS: Record<SettingsTabKey, string[]> = {
   notifications: ['notifikasi', 'telegram', 'kabar', 'peringatan', 'serangan', 'antrian', 'whatsapp'],
   audit: ['audit', 'riwayat', 'log'],
   api_tokens: ['token', 'api', 'mcp', 'integrasi'],
-  reneo_database: ['database', 'postgres', 'reneo'],
+  reneo_database: ['database', 'postgres', 'postgresql', 'reneo', 'panel db', 'dbx', 'adminer', 'sql', 'tabel', 'akses'],
   reneo_runtime: ['runtime', 'path', 'reneo'],
 }
 
