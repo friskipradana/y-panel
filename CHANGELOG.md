@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.86] - 2026-11-25
+
+Discard negative/overflowed Ookla bandwidth samples and clamp gauge display.
+
+### Perbaikan
+- **speedtest:** Discard negative/overflowed Ookla bandwidth samples and clamp gauge display ([`c8d03fd`](https://github.com/friskipradana/y-panel/commit/c8d03fd))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.85...v1.88.86
+
 ## [1.88.85] - 2026-11-25
 
 Use native single-line docker-topbar and ListTable across Services, Uptime, Backups, and Kubernetes.
