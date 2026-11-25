@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.84] - 2026-11-25
+
+Align Kubernetes, Backups, Uptime, Services, Hardening, and Webhook views with Reneo design system.
+
+### Peningkatan
+- **ui:** Align Kubernetes, Backups, Uptime, Services, Hardening, and Webhook views with Reneo design system ([`55b18be`](https://github.com/friskipradana/y-panel/commit/55b18be))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.83...v1.88.84
+
 ## [1.88.83] - 2026-11-25
 
 Add host security hardening (SSH keys, Fail2Ban ban/unban, failed SSH logins, OS updates) in Firewall window.
