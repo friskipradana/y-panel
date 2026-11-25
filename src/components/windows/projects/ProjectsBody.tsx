@@ -49,6 +49,8 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
     openHighlightedProjectLogs,
     copyHighlightedInspectCommand,
     openTunnelForProject,
+    openDeployK8sForProject,
+    canDeployK8s,
     openStaticUpload,
     openEditProject,
     setLogProject,
@@ -221,6 +223,15 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
                               disabled: !p.assignedPort,
                               onSelect: () => openTunnelForProject(p),
                             },
+                            ...(canDeployK8s
+                              ? [
+                                  {
+                                    key: 'deploy-k8s',
+                                    label: t('projects.deployK8s'),
+                                    onSelect: () => openDeployK8sForProject(p),
+                                  },
+                                ]
+                              : []),
                             ...(p.projectType === 'stack' || p.run?.startCommand
                               ? [
                                   {
@@ -306,6 +317,7 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
               onStart={() => startMut.mutate(p.id)}
               onStop={() => stopMut.mutate(p.id)}
               onTunnel={() => openTunnelForProject(p)}
+              onDeployK8s={canDeployK8s ? () => openDeployK8sForProject(p) : undefined}
               onUpload={() => openStaticUpload(p)}
               onLogs={() => setLogProject(p)}
               onRebuild={async () => {

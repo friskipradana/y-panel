@@ -14,7 +14,9 @@ import {
 } from '@/api/agent'
 import { type WindowState } from '@/types'
 import { alertLib } from '@/lib/alert'
+import { useAuthStore } from '@/store/authStore'
 import { useWindowStore } from '@/store/windowStore'
+import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useListQuery } from '@/hooks/useListQuery'
 import { listQueryKey } from '@/lib/listQuery'
@@ -43,6 +45,8 @@ const apiError = (e: unknown, fallback: string) => (e as { response?: { data?: {
 
 export function useProjectsWindow({ win }: ProjectsWindowProps) {
   const pollingActive = useWindowPollingActive(win)
+  const role = useAuthStore((s) => s.user?.role)
+  const canDeployK8s = canAccessWindow('kubernetes', role)
   const qc = useQueryClient()
   const openWindow = useWindowStore((state) => state.openWindow)
   const { t } = useI18n()
@@ -266,6 +270,16 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
 
   const openTunnelForProject = (project: Project) => setDomainProject(project)
 
+  const openDeployK8sForProject = (project: Project) => {
+    openWindow('kubernetes', {
+      deployPreset: {
+        name: project.name,
+        port: project.assignedPort > 0 ? project.assignedPort : 80,
+      },
+      deployRequest: Date.now(),
+    })
+  }
+
   const openStaticUpload = (project: Project) => {
     setUploadDraft({ project, file: null, rootDir: '', clean: false })
   }
@@ -350,6 +364,8 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     openHighlightedProjectLogs,
     copyHighlightedInspectCommand,
     openTunnelForProject,
+    openDeployK8sForProject,
+    canDeployK8s,
     domainProject,
     setDomainProject,
     logProject,

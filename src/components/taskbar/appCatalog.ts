@@ -20,6 +20,12 @@ export const MENU_ITEMS: AppMenuItem[] = [
     category: 'system',
   },
   {
+    kind: 'kubernetes',
+    descId: 'Kelola cluster Kubernetes & K3s, Pods, Deployments, Services, YAML, dan deploy proyek',
+    descEn: 'Manage Kubernetes & K3s clusters, Pods, Deployments, Services, YAML, and project deploys',
+    category: 'system',
+  },
+  {
     kind: 'app-catalog',
     descId: 'Pasang aplikasi self-hosted Docker atau Web App sebagai window desktop',
     descEn: 'Install self-hosted Docker apps or Web Apps as desktop windows',
@@ -141,6 +147,7 @@ export const CATEGORIES: { key: CategoryKey; labelId: string; labelEn: string }[
 // Words people type for an app besides its name (Indonesian and English), for the quick search
 export const APP_KEYWORDS: Partial<Record<WindowKind, string[]>> = {
   apps: ['docker', 'container', 'kontainer', 'image', 'compose', 'deploy', 'network'],
+  kubernetes: ['kubernetes', 'k8s', 'k3s', 'cluster', 'pod', 'pods', 'deployment', 'service', 'ingress', 'yaml', 'kubectl', 'scale', 'node'],
   'app-catalog': ['catalog', 'katalog', 'store', 'toko', 'install', 'pasang', 'app', 'aplikasi', 'self-hosted'],
   'host-terminal': ['terminal', 'shell', 'bash', 'ssh', 'console', 'konsol', 'command', 'perintah'],
   system: ['system', 'sistem', 'cpu', 'ram', 'memory', 'memori', 'disk', 'monitor', 'suhu', 'uptime', 'info'],

@@ -606,6 +606,18 @@ func (m *Manager) ensureSchema() error {
 		`ALTER TABLE app_license_plans ADD COLUMN IF NOT EXISTS original_price_amount BIGINT NOT NULL DEFAULT 0`,
 		`ALTER TABLE app_license_plans ADD COLUMN IF NOT EXISTS discount_percent INT NOT NULL DEFAULT 0`,
 		`ALTER TABLE app_license_plans ADD COLUMN IF NOT EXISTS promo_valid_until VARCHAR(64) NOT NULL DEFAULT ''`,
+		`CREATE TABLE IF NOT EXISTS k8s_clusters (
+			id                BIGSERIAL    PRIMARY KEY,
+			owner_user_id     BIGINT       NOT NULL DEFAULT 1,
+			name              VARCHAR(120) NOT NULL,
+			provider          VARCHAR(32)  NOT NULL DEFAULT 'external',
+			api_server        TEXT         NOT NULL DEFAULT '',
+			default_namespace VARCHAR(63)  NOT NULL DEFAULT 'default',
+			kubeconfig_enc    TEXT         NOT NULL DEFAULT '',
+			created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_k8s_clusters_owner ON k8s_clusters(owner_user_id)`,
 	}
 
 	for _, stmt := range stmts {

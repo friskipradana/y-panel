@@ -28,11 +28,12 @@ const KvmWindow = lazyNamed(() => import('@/components/windows/KvmWindow'), 'Kvm
 const AppCatalogWindow = lazyNamed(() => import('@/components/windows/AppCatalogWindow'), 'AppCatalogWindow')
 const InstalledAppWindow = lazyNamed(() => import('@/components/windows/InstalledAppWindow'), 'InstalledAppWindow')
 const AppLicensesWindow = lazyNamed(() => import('@/components/windows/AppLicensesWindow'), 'AppLicensesWindow')
+const KubernetesWindow = lazyNamed(() => import('@/components/windows/KubernetesWindow'), 'KubernetesWindow')
 
 
 // Every account works in its own area (terminal as its own OS account, own files, containers,
-// databases, projects, Cloudflare token, widgets, settings). Only user management is for admins.
-const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['users'])
+// databases, projects, Cloudflare token, widgets, settings). Only user management and Kubernetes are for admins.
+const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['users', 'kubernetes'])
 // service journals, host firewall, KVM display, Docs, Email, and App Licenses windows belong to the superadmin
 const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewall', 'kvm', 'docs', 'email', 'app-licenses'])
 
@@ -111,10 +112,12 @@ export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authe
   'app-catalog': () => <AppCatalogWindow />,
   'installed-app': (win) => <InstalledAppWindow win={win} />,
   'app-licenses': () => <AppLicensesWindow />,
+  kubernetes: (win, auth) => <KubernetesWindow win={win} authenticated={auth} />,
 }
 
 export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKind }[] = [
   { id: 'apps', label: 'Docker', windowId: 'apps' },
+  { id: 'kubernetes', label: 'Kubernetes', windowId: 'kubernetes' },
   { id: 'app-catalog', label: 'App Catalog', windowId: 'app-catalog' },
   { id: 'app-licenses', label: 'Lisensi Aplikasi', windowId: 'app-licenses' },
   { id: 'host-terminal', label: 'Terminal', windowId: 'host-terminal' },

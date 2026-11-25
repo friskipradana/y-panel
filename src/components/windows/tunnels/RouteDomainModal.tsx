@@ -29,7 +29,7 @@ export interface RouteSubject {
   id: string
   /** Its name; the route and the subdomain start from it */
   name: string
-  kind: 'container' | 'project' | 'waha'
+  kind: 'container' | 'project' | 'waha' | 'k8s-service'
   targets: RouteTarget[]
   /** A project's id, kept on the route made for it */
   projectId?: number

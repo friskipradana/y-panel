@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kubernetes">
+  <rect x="4" y="4" width="56" height="56" rx="15" fill="#2563EB" />
+  <polygon points="32,14 47,22.5 50,39 39.5,50 24.5,50 14,39 17,22.5" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" />
+  <circle cx="32" cy="33" r="5.5" fill="#FFFFFF" />
+  <line x1="32" y1="14" x2="32" y2="27.5" stroke="#BAE6FD" stroke-width="2.6" stroke-linecap="round" />
+  <line x1="47" y1="22.5" x2="36.8" y2="30.2" stroke="#BAE6FD" stroke-width="2.6" stroke-linecap="round" />
+  <line x1="50" y1="39" x2="37.3" y2="34.8" stroke="#BAE6FD" stroke-width="2.6" stroke-linecap="round" />
+  <line x1="39.5" y1="50" x2="34.8" y2="38" stroke="#BAE6FD" stroke-width="2.6" stroke-linecap="round" />
+  <line x1="24.5" y1="50" x2="29.2" y2="38" stroke="#BAE6FD" stroke-width="2.6" stroke-linecap="round" />
+  <line x1="14" y1="39" x2="26.7" y2="34.8" stroke="#BAE6FD" stroke-width="2.6" stroke-linecap="round" />
+  <line x1="17" y1="22.5" x2="27.2" y2="30.2" stroke="#BAE6FD" stroke-width="2.6" stroke-linecap="round" />
+</svg>

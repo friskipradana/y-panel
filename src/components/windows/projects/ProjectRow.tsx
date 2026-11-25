@@ -12,6 +12,7 @@ interface ProjectRowProps {
   onStart: () => void
   onStop: () => void
   onTunnel: () => void
+  onDeployK8s?: () => void
   onUpload: () => void
   onLogs: () => void
   onRebuild: () => void
@@ -24,7 +25,7 @@ interface ProjectRowProps {
 }
 
 // One project, in the same row as a container: icon and name, state, port, and its actions
-export function ProjectRow({ project: p, index, highlighted, onStart, onStop, onTunnel, onUpload, onLogs, onRebuild, onFiles, onEdit, onDelete, busy, deleting }: ProjectRowProps) {
+export function ProjectRow({ project: p, index, highlighted, onStart, onStop, onTunnel, onDeployK8s, onUpload, onLogs, onRebuild, onFiles, onEdit, onDelete, busy, deleting }: ProjectRowProps) {
   const { t } = useI18n()
   const state = projectState(p)
   const drift = p.runtime?.drift ? (p.runtime.driftReason ? p.runtime.driftReason.split('_').join(' ') : t('projects.runtimeMismatch')) : ''
@@ -51,6 +52,13 @@ export function ProjectRow({ project: p, index, highlighted, onStart, onStop, on
       disabled: !p.assignedPort,
       onSelect: onTunnel,
     },
+    ...(onDeployK8s
+      ? [{
+          key: 'deploy-k8s',
+          label: t('projects.deployK8s'),
+          onSelect: onDeployK8s,
+        }]
+      : []),
     ...(p.projectType === 'stack' || p.run?.startCommand
       ? [{
           key: 'rebuild',
