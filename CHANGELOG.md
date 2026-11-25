@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.88] - 2026-11-25
+
+Add AI integration settings, Dev Desk quotations/invoices/checklists, public token URLs, and App Catalog entry.
+
+### Fitur baru
+- **devdesk:** Add AI integration settings, Dev Desk quotations/invoices/checklists, public token URLs, and App Catalog entry ([`308316a`](https://github.com/friskipradana/y-panel/commit/308316a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.87...v1.88.88
+
 ## [1.88.87] - 2026-11-25
 
 Resolve all undefined CSS tokens, scss-hex, a11y, and hardcoded-text warnings.
