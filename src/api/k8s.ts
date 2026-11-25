@@ -230,7 +230,55 @@ export const deleteK8sResource = (clusterId: string, kind: string, namespace: st
     .delete(`/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/resource`, { params: { kind, namespace, name } })
     .then((r) => r.data)
 
+export interface K8sEvent {
+  type: string
+  reason: string
+  message: string
+  namespace: string
+  objectKind: string
+  objectName: string
+  count: number
+  lastSeen: string
+}
+
+export interface K8sDeployProjectSourceInput {
+  projectId: number
+  name?: string
+  namespace: string
+  port: number
+  replicas: number
+  serviceType: 'NodePort' | 'ClusterIP'
+  nodePort?: number
+  registryImage?: string
+  env?: Record<string, string>
+}
+
+export interface K8sSourceDeployEvent {
+  phase?: string
+  line?: string
+  error?: string
+  message?: string
+  result?: K8sDeployProjectResult
+}
+
+export const listK8sEvents = (clusterId: string, namespace: string) =>
+  agentApi.get<{ items: K8sEvent[] }>(`/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/events`, { params: { namespace } }).then((r) => r.data.items)
+
 export const deployProjectToK8s = (clusterId: string, payload: K8sDeployProjectInput) =>
   agentApi
     .post<{ ok: boolean; result: K8sDeployProjectResult; message: string }>(`/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/deploy-project`, payload)
     .then((r) => r.data)
+
+export const deployProjectSourceToK8sStream = async (
+  clusterId: string,
+  payload: K8sDeployProjectSourceInput,
+  onEvent: (ev: K8sSourceDeployEvent) => void,
+  signal: AbortSignal,
+) => {
+  await streamJsonLines<K8sSourceDeployEvent>(
+    `/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/deploy-project-source`,
+    { body: payload },
+    onEvent,
+    signal,
+  )
+}

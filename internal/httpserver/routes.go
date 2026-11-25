@@ -330,6 +330,22 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/k8s/clusters/{clusterId}/apply", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleK8sApplyYAML)))
 	s.mux.Handle("DELETE /api/v1/k8s/clusters/{clusterId}/resource", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleK8sDeleteResource)))
 	s.mux.Handle("POST /api/v1/k8s/clusters/{clusterId}/deploy-project", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleK8sDeployProject)))
+	s.mux.Handle("POST /api/v1/k8s/clusters/{clusterId}/deploy-project-source", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleK8sDeployProjectSource)))
+	s.mux.Handle("GET /api/v1/k8s/clusters/{clusterId}/events", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleK8sEvents)))
+	s.mux.Handle("GET /api/v1/k8s/clusters/{clusterId}/pods/{ns}/{name}/logs/ws", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleK8sPodLogsSocket)))
+
+	// Scheduled Backup & Restore (Local & S3/R2)
+	s.mux.Handle("GET /api/v1/backups/overview", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleBackupOverview)))
+	s.mux.Handle("POST /api/v1/backups/targets", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCreateBackupTarget)))
+	s.mux.Handle("POST /api/v1/backups/targets/{id}/test", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTestBackupTarget)))
+	s.mux.Handle("DELETE /api/v1/backups/targets/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDeleteBackupTarget)))
+	s.mux.Handle("POST /api/v1/backups/jobs", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCreateBackupJob)))
+	s.mux.Handle("PATCH /api/v1/backups/jobs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateBackupJob)))
+	s.mux.Handle("DELETE /api/v1/backups/jobs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDeleteBackupJob)))
+	s.mux.Handle("POST /api/v1/backups/jobs/{id}/run", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleRunBackupJob)))
+	s.mux.Handle("GET /api/v1/backups/runs/{id}/download", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDownloadBackupRun)))
+	s.mux.Handle("POST /api/v1/backups/runs/{id}/restore", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleRestoreBackupRun)))
+	s.mux.Handle("DELETE /api/v1/backups/runs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDeleteBackupRun)))
 
 	// ── Payment Gateway Settings ─────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/settings/payment", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetPaymentSettings)))

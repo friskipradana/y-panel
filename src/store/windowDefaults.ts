@@ -8,6 +8,7 @@ export const DEFAULTS: Record<
   // XL — Data & Grid Workstation (1040 x 528)
   apps: { title: 'Docker', width: 1040, height: 528, singleton: true },
   kubernetes: { title: 'Kubernetes', width: 1080, height: 580, singleton: true },
+  backups: { title: 'Backup & Restore', width: 1020, height: 560, singleton: true },
   database: { title: 'Database', width: 1040, height: 528, singleton: true },
   tunnels: { title: 'Cloudflare', width: 1040, height: 528, singleton: true },
   projects: { title: 'Projects', width: 1040, height: 528, singleton: true },

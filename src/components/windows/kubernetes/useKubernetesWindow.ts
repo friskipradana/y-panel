@@ -16,6 +16,7 @@ import {
   installK3sStream,
   listK8sConfigs,
   listK8sDeployments,
+  listK8sEvents,
   listK8sNamespaces,
   listK8sNodes,
   listK8sPods,
@@ -33,9 +34,10 @@ import { alertLib } from '@/lib/alert'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import type { RouteSubject } from '@/components/windows/tunnels/RouteDomainModal'
 
-export type K8sSection = 'overview' | 'nodes' | 'pods' | 'deployments' | 'services' | 'configs' | 'yaml'
+export type K8sSection = 'overview' | 'nodes' | 'pods' | 'deployments' | 'services' | 'configs' | 'events' | 'yaml'
 
 export interface K8sDeployPreset {
+  projectId?: number
   name?: string
   port?: number
   image?: string
@@ -153,6 +155,13 @@ export function useKubernetesWindow(win: WindowState, authenticated: boolean) {
     refetchInterval: pollingActive && section === 'configs' ? 20_000 : false,
   })
 
+  const eventsQ = useQuery({
+    queryKey: ['k8s-events', activeClusterId, namespace],
+    queryFn: () => listK8sEvents(activeClusterId, namespace),
+    enabled: authenticated && hasCluster && section === 'events',
+    refetchInterval: pollingActive && section === 'events' ? 10_000 : false,
+  })
+
   const joinCmdQ = useQuery({
     queryKey: ['k8s-join-cmd'],
     queryFn: getK3sJoinCommand,
@@ -170,6 +179,7 @@ export function useKubernetesWindow(win: WindowState, authenticated: boolean) {
     void qc.invalidateQueries({ queryKey: ['k8s-deployments', activeClusterId] })
     void qc.invalidateQueries({ queryKey: ['k8s-services', activeClusterId] })
     void qc.invalidateQueries({ queryKey: ['k8s-configs', activeClusterId] })
+    void qc.invalidateQueries({ queryKey: ['k8s-events', activeClusterId] })
   }
 
   const createClusterMut = useMutation({
@@ -375,6 +385,7 @@ export function useKubernetesWindow(win: WindowState, authenticated: boolean) {
     deploymentsQ,
     servicesQ,
     configsQ,
+    eventsQ,
     joinCmdQ,
     invalidateCluster,
     addClusterOpen,

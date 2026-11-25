@@ -62,3 +62,15 @@ func TestValidationHelpers(t *testing.T) {
 		t.Fatal("NormalizeKind failed")
 	}
 }
+
+func TestGenerateDockerfile(t *testing.T) {
+	dir := t.TempDir()
+	staticDF := GenerateDockerfile(dir, "static", true, "", 80)
+	if !strings.Contains(staticDF, "FROM nginx:alpine") || !strings.Contains(staticDF, "/index.html;") {
+		t.Fatalf("unexpected static SPA Dockerfile:\n%s", staticDF)
+	}
+	nodeDF := GenerateDockerfile(dir, "nodejs", false, "node server.js", 3000)
+	if !strings.Contains(nodeDF, "FROM node:20-alpine") || !strings.Contains(nodeDF, "node server.js") {
+		t.Fatalf("unexpected node Dockerfile:\n%s", nodeDF)
+	}
+}

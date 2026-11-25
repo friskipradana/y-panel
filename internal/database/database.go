@@ -618,6 +618,58 @@ func (m *Manager) ensureSchema() error {
 			updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_k8s_clusters_owner ON k8s_clusters(owner_user_id)`,
+		`CREATE TABLE IF NOT EXISTS backup_targets (
+			id                  BIGSERIAL    PRIMARY KEY,
+			owner_user_id       BIGINT       NOT NULL DEFAULT 1,
+			name                VARCHAR(120) NOT NULL,
+			kind                VARCHAR(24)  NOT NULL DEFAULT 'local',
+			local_dir           TEXT         NOT NULL DEFAULT '',
+			s3_endpoint         TEXT         NOT NULL DEFAULT '',
+			s3_region           VARCHAR(64)  NOT NULL DEFAULT 'auto',
+			s3_bucket           VARCHAR(128) NOT NULL DEFAULT '',
+			s3_prefix           VARCHAR(255) NOT NULL DEFAULT '',
+			s3_access_key_enc   TEXT         NOT NULL DEFAULT '',
+			s3_secret_key_enc   TEXT         NOT NULL DEFAULT '',
+			s3_force_path_style BOOLEAN      NOT NULL DEFAULT TRUE,
+			created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			updated_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS backup_jobs (
+			id              BIGSERIAL    PRIMARY KEY,
+			owner_user_id   BIGINT       NOT NULL DEFAULT 1,
+			target_id       BIGINT       NOT NULL REFERENCES backup_targets(id) ON DELETE CASCADE,
+			name            VARCHAR(120) NOT NULL,
+			scope           VARCHAR(32)  NOT NULL DEFAULT 'database',
+			resource_id     BIGINT       NOT NULL DEFAULT 0,
+			resource_name   VARCHAR(160) NOT NULL DEFAULT '',
+			interval_hours  INT          NOT NULL DEFAULT 24,
+			retention_count INT          NOT NULL DEFAULT 7,
+			enabled         BOOLEAN      NOT NULL DEFAULT TRUE,
+			last_status     VARCHAR(32)  NOT NULL DEFAULT 'idle',
+			last_run_at     TIMESTAMPTZ,
+			next_run_at     TIMESTAMPTZ,
+			created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS backup_runs (
+			id            BIGSERIAL    PRIMARY KEY,
+			job_id        BIGINT       NOT NULL DEFAULT 0,
+			owner_user_id BIGINT       NOT NULL DEFAULT 1,
+			target_id     BIGINT       NOT NULL DEFAULT 0,
+			scope         VARCHAR(32)  NOT NULL DEFAULT 'database',
+			resource_id   BIGINT       NOT NULL DEFAULT 0,
+			resource_name VARCHAR(160) NOT NULL DEFAULT '',
+			status        VARCHAR(32)  NOT NULL DEFAULT 'running',
+			storage_kind  VARCHAR(24)  NOT NULL DEFAULT 'local',
+			storage_key   TEXT         NOT NULL DEFAULT '',
+			size_bytes    BIGINT       NOT NULL DEFAULT 0,
+			sha256        VARCHAR(64)  NOT NULL DEFAULT '',
+			error_message TEXT         NOT NULL DEFAULT '',
+			started_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			finished_at   TIMESTAMPTZ
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_backup_jobs_due ON backup_jobs(enabled, next_run_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_backup_runs_job ON backup_runs(job_id, id DESC)`,
 	}
 
 	for _, stmt := range stmts {

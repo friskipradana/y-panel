@@ -15,9 +15,10 @@ type ProjectDeploySpec struct {
 	Image       string            `json:"image"`
 	Port        int               `json:"port"`
 	Replicas    int               `json:"replicas"`
-	ServiceType string            `json:"serviceType"` // "NodePort" | "ClusterIP"
-	NodePort    int               `json:"nodePort,omitempty"`
-	Env         map[string]string `json:"env,omitempty"`
+	ServiceType     string            `json:"serviceType"` // "NodePort" | "ClusterIP"
+	NodePort        int               `json:"nodePort,omitempty"`
+	ImagePullPolicy string            `json:"imagePullPolicy,omitempty"` // "IfNotPresent" | "Always" | "Never"
+	Env             map[string]string `json:"env,omitempty"`
 }
 
 // ProjectDeployResult returns the applied manifest output and service ports (including NodePort for Cloudflare Tunnel).
@@ -88,7 +89,11 @@ func BuildProjectManifest(spec ProjectDeploySpec) (string, string, string, error
 	var b strings.Builder
 	fmt.Fprintf(&b, "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: %s\n  namespace: %s\n  labels:\n    app.kubernetes.io/name: %s\n    app.kubernetes.io/managed-by: reneo\n", name, ns, name)
 	fmt.Fprintf(&b, "spec:\n  replicas: %d\n  selector:\n    matchLabels:\n      app: %s\n", replicas, name)
-	fmt.Fprintf(&b, "  template:\n    metadata:\n      labels:\n        app: %s\n    spec:\n      containers:\n        - name: %s\n          image: %s\n          ports:\n            - containerPort: %d\n", name, name, yamlQuote(image), port)
+	fmt.Fprintf(&b, "  template:\n    metadata:\n      labels:\n        app: %s\n    spec:\n      containers:\n        - name: %s\n          image: %s\n", name, name, yamlQuote(image))
+	if pp := strings.TrimSpace(spec.ImagePullPolicy); pp == "IfNotPresent" || pp == "Always" || pp == "Never" {
+		fmt.Fprintf(&b, "          imagePullPolicy: %s\n", pp)
+	}
+	fmt.Fprintf(&b, "          ports:\n            - containerPort: %d\n", port)
 	if len(spec.Env) > 0 {
 		b.WriteString("          env:\n")
 		for k, v := range spec.Env {

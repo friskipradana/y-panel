@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  Activity,
   Box,
   Code2,
   FileCode2,
@@ -42,6 +43,7 @@ export function K8sWorkloadsTab({ kw }: { kw: KubernetesWindowState }) {
     deploymentsQ,
     servicesQ,
     configsQ,
+    eventsQ,
     setLogsPod,
     setExecPod,
     setScaleDep,
@@ -394,6 +396,58 @@ export function K8sWorkloadsTab({ kw }: { kw: KubernetesWindowState }) {
             ))}
           </div>
         ) : null}
+      </div>
+    )
+  }
+
+  if (section === 'events') {
+    if (eventsQ.isLoading) return <div className="p-4"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
+    if (eventsQ.isError) {
+      return (
+        <div className="p-4">
+          <ErrorState
+            title={t('k8s.loadError')}
+            hint={(eventsQ.error as Error)?.message}
+            action={<Button size="sm" variant="ghost" onClick={() => void eventsQ.refetch()}>{t('common.refresh')}</Button>}
+          />
+        </div>
+      )
+    }
+    const evs = (eventsQ.data ?? []).filter(
+      (e) =>
+        !q ||
+        e.reason.toLowerCase().includes(q) ||
+        e.message.toLowerCase().includes(q) ||
+        e.objectName.toLowerCase().includes(q) ||
+        e.namespace.toLowerCase().includes(q),
+    )
+    if (evs.length === 0) return <div className="p-4"><EmptyState icon={<Activity />}>{t('k8s.emptyEvents')}</EmptyState></div>
+
+    return (
+      <div className="p-3 space-y-1.5 overflow-y-auto flex-1">
+        {evs.map((ev, idx) => (
+          <div key={`${ev.namespace}/${ev.objectName}/${ev.reason}/${idx}`} className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2">
+            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+              <ListRowIcon><Activity className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge tone={ev.type === 'Warning' ? 'warning' : 'success'}>{ev.reason || ev.type}</Badge>
+                  <span className="panel-mono text-[12.5px] font-semibold text-[var(--win-text)] truncate">
+                    {ev.objectKind}/{ev.objectName}
+                  </span>
+                  {ev.namespace ? <Badge tone="neutral">{ev.namespace}</Badge> : null}
+                  {ev.count > 1 ? <Badge tone="info">x{ev.count}</Badge> : null}
+                </div>
+                <p className="mt-0.5 text-[12px] text-[var(--text-secondary)] break-words">{ev.message}</p>
+              </div>
+            </div>
+            {ev.lastSeen ? (
+              <span className="panel-mono shrink-0 text-[11px] text-[var(--text-secondary)]">
+                {new Date(ev.lastSeen).toLocaleTimeString()}
+              </span>
+            ) : null}
+          </div>
+        ))}
       </div>
     )
   }

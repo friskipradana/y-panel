@@ -111,3 +111,12 @@ func (m *Manager) DeleteK8sCluster(id int64) error {
 	_, err := m.db.Exec(`DELETE FROM k8s_clusters WHERE id = $1`, id)
 	return err
 }
+
+// GetProjectAny fetches a project by ID without restricting user_id (used by superadmin K8s source deploy and backups).
+func (m *Manager) GetProjectAny(id int64) (*Project, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	row := m.db.QueryRow(`SELECT `+projectColumns+` FROM projects WHERE id = $1`, id)
+	return scanProject(row)
+}

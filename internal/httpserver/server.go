@@ -234,6 +234,11 @@ func New(cfg config.Config) *Server {
 		defer s.recoveryWG.Done()
 		s.runPlanExpiryLoop(15*time.Minute, reconcileStop)
 	}()
+	s.recoveryWG.Add(1)
+	go func() {
+		defer s.recoveryWG.Done()
+		s.runBackupSchedulerLoop(1*time.Minute, reconcileStop)
+	}()
 	return s
 }
 

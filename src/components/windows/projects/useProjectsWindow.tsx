@@ -273,6 +273,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
   const openDeployK8sForProject = (project: Project) => {
     openWindow('kubernetes', {
       deployPreset: {
+        projectId: project.id,
         name: project.name,
         port: project.assignedPort > 0 ? project.assignedPort : 80,
       },
