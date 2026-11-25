@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.92] - 2026-11-25
+
+Return clear 422 provider error messages and humanize HTTP/HTTPS mismatch.
+
+### Perbaikan
+- **ai:** Return clear 422 provider error messages and humanize HTTP/HTTPS mismatch ([`41697e7`](https://github.com/friskipradana/y-panel/commit/41697e7))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.91...v1.88.92
+
 ## [1.88.91] - 2026-11-25
 
 Proxy root /websockify and /websockify-audio WebSocket streams for jlesage GUI audio workers.
