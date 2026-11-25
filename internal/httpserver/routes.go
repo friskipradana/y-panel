@@ -347,6 +347,20 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/backups/runs/{id}/restore", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleRestoreBackupRun)))
 	s.mux.Handle("DELETE /api/v1/backups/runs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDeleteBackupRun)))
 
+	// Git Webhook Auto-Deploy (CI/CD per project)
+	s.mux.Handle("GET /api/v1/projects/{id}/webhook", s.requireAuthV2(http.HandlerFunc(s.handleGetProjectWebhook)))
+	s.mux.Handle("PUT /api/v1/projects/{id}/webhook", s.requireAuthV2(http.HandlerFunc(s.handleSaveProjectWebhook)))
+	s.mux.Handle("POST /api/v1/projects/{id}/webhook/trigger", s.requireAuthV2(http.HandlerFunc(s.handleTriggerProjectWebhook)))
+	s.mux.HandleFunc("POST /api/v1/webhooks/git/{token}", s.handleGitWebhookReceive)
+
+	// Uptime & SSL Monitor
+	s.mux.Handle("GET /api/v1/uptime/monitors", s.requireAuthV2(http.HandlerFunc(s.handleListUptimeMonitors)))
+	s.mux.Handle("POST /api/v1/uptime/monitors", s.requireAuthV2(http.HandlerFunc(s.handleCreateUptimeMonitor)))
+	s.mux.Handle("PATCH /api/v1/uptime/monitors/{id}", s.requireAuthV2(http.HandlerFunc(s.handleUpdateUptimeMonitor)))
+	s.mux.Handle("DELETE /api/v1/uptime/monitors/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteUptimeMonitor)))
+	s.mux.Handle("POST /api/v1/uptime/monitors/{id}/check", s.requireAuthV2(http.HandlerFunc(s.handleCheckUptimeMonitorNow)))
+	s.mux.Handle("GET /api/v1/uptime/monitors/{id}/history", s.requireAuthV2(http.HandlerFunc(s.handleUptimeMonitorHistory)))
+
 	// ── Payment Gateway Settings ─────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/settings/payment", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetPaymentSettings)))
 	s.mux.Handle("POST /api/v1/settings/payment", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePaymentSettings))))

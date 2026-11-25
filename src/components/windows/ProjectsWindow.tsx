@@ -6,6 +6,7 @@ import { ProjectsToolbar } from './projects/ProjectsToolbar'
 import { ProjectFormModal } from './projects/ProjectFormModal'
 import { ProjectsBody } from './projects/ProjectsBody'
 import { ProjectLogModal } from './projects/ProjectLogModal'
+import { ProjectWebhookModal } from './projects/ProjectWebhookModal'
 import { RouteDomainModal } from './tunnels/RouteDomainModal'
 import { projectSubject } from './projects/projectsConfig'
 
@@ -20,6 +21,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
       <ProjectFormModal pw={pw} />
       <ProjectsBody pw={pw} />
       <ProjectLogModal pw={pw} />
+      <ProjectWebhookModal project={pw.webhookProject} onClose={() => pw.setWebhookProject(null)} />
       <RouteDomainModal subject={pw.domainProject ? projectSubject(pw.domainProject) : null} onClose={() => pw.setDomainProject(null)} />
     </div>
   )

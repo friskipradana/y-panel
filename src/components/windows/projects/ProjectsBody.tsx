@@ -49,6 +49,7 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
     openHighlightedProjectLogs,
     copyHighlightedInspectCommand,
     openTunnelForProject,
+    setWebhookProject,
     openDeployK8sForProject,
     canDeployK8s,
     openStaticUpload,
@@ -223,6 +224,12 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
                               disabled: !p.assignedPort,
                               onSelect: () => openTunnelForProject(p),
                             },
+                            {
+                              key: 'webhook',
+                              label: t('projects.gitWebhook'),
+                              disabled: !p.workingDir,
+                              onSelect: () => setWebhookProject(p),
+                            },
                             ...(canDeployK8s
                               ? [
                                   {
@@ -317,6 +324,7 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
               onStart={() => startMut.mutate(p.id)}
               onStop={() => stopMut.mutate(p.id)}
               onTunnel={() => openTunnelForProject(p)}
+              onWebhook={() => setWebhookProject(p)}
               onDeployK8s={canDeployK8s ? () => openDeployK8sForProject(p) : undefined}
               onUpload={() => openStaticUpload(p)}
               onLogs={() => setLogProject(p)}

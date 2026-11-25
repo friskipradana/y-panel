@@ -9,6 +9,7 @@ export const DEFAULTS: Record<
   apps: { title: 'Docker', width: 1040, height: 528, singleton: true },
   kubernetes: { title: 'Kubernetes', width: 1080, height: 580, singleton: true },
   backups: { title: 'Backup & Restore', width: 1020, height: 560, singleton: true },
+  uptime: { title: 'Uptime & SSL', width: 1020, height: 560, singleton: true },
   database: { title: 'Database', width: 1040, height: 528, singleton: true },
   tunnels: { title: 'Cloudflare', width: 1040, height: 528, singleton: true },
   projects: { title: 'Projects', width: 1040, height: 528, singleton: true },

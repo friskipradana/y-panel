@@ -88,5 +88,19 @@ func k8sSpecs() []apiSpec {
 			Desc:   "Trigger an immediate backup run for a scheduled database or project backup job.",
 			Params: []apiParam{pathParam("id", "Backup job ID from backup_overview.")},
 		},
+		{
+			Name: "uptime_list_monitors", Title: "List Uptime & SSL monitors", Method: "GET", Path: "/api/v1/uptime/monitors",
+			Desc: "List all HTTP/HTTPS/TCP uptime monitors with 24h uptime percentage, latency, and SSL certificate expiry days.",
+		},
+		{
+			Name: "uptime_check_monitor", Title: "Check an uptime monitor now", Method: "POST", Path: "/api/v1/uptime/monitors/{id}/check", Hint: "write",
+			Desc:   "Trigger an immediate health and SSL expiry probe for a specific uptime monitor.",
+			Params: []apiParam{pathParam("id", "Monitor ID from uptime_list_monitors.")},
+		},
+		{
+			Name: "project_webhook_trigger", Title: "Trigger Git pull & auto-deploy for a project", Method: "POST", Path: "/api/v1/projects/{id}/webhook/trigger", Hint: "write",
+			Desc:   "Run git pull and redeploy a Reneo project (either local rebuild/restart or K8s rolling build/deploy).",
+			Params: []apiParam{pathParam("id", "Project ID.")},
+		},
 	}
 }

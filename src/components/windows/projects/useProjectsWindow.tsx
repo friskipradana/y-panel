@@ -74,6 +74,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
   const [uploadDraft, setUploadDraft] = useState<UploadDraft | null>(null)
   // the project whose domain is being pointed through a Cloudflare tunnel
   const [domainProject, setDomainProject] = useState<Project | null>(null)
+  const [webhookProject, setWebhookProject] = useState<Project | null>(null)
   // the project whose log is open
   const [logProject, setLogProject] = useState<Project | null>(null)
 
@@ -369,6 +370,8 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     canDeployK8s,
     domainProject,
     setDomainProject,
+    webhookProject,
+    setWebhookProject,
     logProject,
     setLogProject,
     pollingActive,

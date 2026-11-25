@@ -12,6 +12,7 @@ interface ProjectRowProps {
   onStart: () => void
   onStop: () => void
   onTunnel: () => void
+  onWebhook: () => void
   onDeployK8s?: () => void
   onUpload: () => void
   onLogs: () => void
@@ -25,7 +26,7 @@ interface ProjectRowProps {
 }
 
 // One project, in the same row as a container: icon and name, state, port, and its actions
-export function ProjectRow({ project: p, index, highlighted, onStart, onStop, onTunnel, onDeployK8s, onUpload, onLogs, onRebuild, onFiles, onEdit, onDelete, busy, deleting }: ProjectRowProps) {
+export function ProjectRow({ project: p, index, highlighted, onStart, onStop, onTunnel, onWebhook, onDeployK8s, onUpload, onLogs, onRebuild, onFiles, onEdit, onDelete, busy, deleting }: ProjectRowProps) {
   const { t } = useI18n()
   const state = projectState(p)
   const drift = p.runtime?.drift ? (p.runtime.driftReason ? p.runtime.driftReason.split('_').join(' ') : t('projects.runtimeMismatch')) : ''
@@ -51,6 +52,12 @@ export function ProjectRow({ project: p, index, highlighted, onStart, onStop, on
       label: t('projects.connectTunnel'),
       disabled: !p.assignedPort,
       onSelect: onTunnel,
+    },
+    {
+      key: 'webhook',
+      label: t('projects.gitWebhook'),
+      disabled: !p.workingDir,
+      onSelect: onWebhook,
     },
     ...(onDeployK8s
       ? [{

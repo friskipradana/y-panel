@@ -32,6 +32,12 @@ export const MENU_ITEMS: AppMenuItem[] = [
     category: 'system',
   },
   {
+    kind: 'uptime',
+    descId: 'Pantau uptime HTTP/HTTPS/TCP, latency, dan masa berlaku sertifikat SSL beserta peringatan otomatis',
+    descEn: 'Monitor HTTP/HTTPS/TCP uptime, latency, and SSL certificate expiry with automatic alerts',
+    category: 'system',
+  },
+  {
     kind: 'app-catalog',
     descId: 'Pasang aplikasi self-hosted Docker atau Web App sebagai window desktop',
     descEn: 'Install self-hosted Docker apps or Web Apps as desktop windows',
@@ -155,6 +161,7 @@ export const APP_KEYWORDS: Partial<Record<WindowKind, string[]>> = {
   apps: ['docker', 'container', 'kontainer', 'image', 'compose', 'deploy', 'network'],
   kubernetes: ['kubernetes', 'k8s', 'k3s', 'cluster', 'pod', 'pods', 'deployment', 'service', 'ingress', 'yaml', 'kubectl', 'scale', 'node'],
   backups: ['backup', 'restore', 'cadangan', 'pulihkan', 's3', 'r2', 'cloudflare r2', 'minio', 'dump', 'snapshot', 'schedule', 'jadwal'],
+  uptime: ['uptime', 'monitor', 'ssl', 'tls', 'health', 'ping', 'latency', 'down', 'alert', 'status'],
   'app-catalog': ['catalog', 'katalog', 'store', 'toko', 'install', 'pasang', 'app', 'aplikasi', 'self-hosted'],
   'host-terminal': ['terminal', 'shell', 'bash', 'ssh', 'console', 'konsol', 'command', 'perintah'],
   system: ['system', 'sistem', 'cpu', 'ram', 'memory', 'memori', 'disk', 'monitor', 'suhu', 'uptime', 'info'],

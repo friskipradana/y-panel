@@ -153,6 +153,7 @@ func (s *Server) executeBackupJob(ctx context.Context, job *database.BackupJob) 
 	failRun := func(runErr error) (*database.BackupRun, error) {
 		_ = s.database.FinishBackupRun(run.ID, "failed", run.StorageKey, 0, "", runErr.Error())
 		_ = s.database.MarkBackupJobRan(job.ID, "failed", job.IntervalHours, job.Enabled)
+		s.notifyUserAction(job.OwnerUserID, fmt.Sprintf("Backup Gagal: %s", job.Name), runErr.Error(), "error")
 		return nil, runErr
 	}
 
@@ -219,6 +220,24 @@ func (s *Server) executeBackupJob(ctx context.Context, job *database.BackupJob) 
 		if fileCloseErr != nil {
 			return failRun(fileCloseErr)
 		}
+	case "docker-volume":
+		archErr := backup.ArchiveDockerVolume(ctx, job.ResourceName, tmpFile)
+		fileCloseErr := tmpFile.Close()
+		if archErr != nil {
+			return failRun(archErr)
+		}
+		if fileCloseErr != nil {
+			return failRun(fileCloseErr)
+		}
+	case "panel-config":
+		archErr := backup.ArchivePanelConfig(runtimepath.StateDir(), tmpFile)
+		fileCloseErr := tmpFile.Close()
+		if archErr != nil {
+			return failRun(archErr)
+		}
+		if fileCloseErr != nil {
+			return failRun(fileCloseErr)
+		}
 	default:
 		_ = tmpFile.Close()
 		return failRun(errors.New("tipe scope backup tidak dikenal"))
@@ -258,6 +277,7 @@ func (s *Server) executeBackupJob(ctx context.Context, job *database.BackupJob) 
 		return nil, err
 	}
 	_ = s.database.MarkBackupJobRan(job.ID, "success", job.IntervalHours, job.Enabled)
+	s.notifyUserAction(job.OwnerUserID, fmt.Sprintf("Backup Selesai: %s", job.Name), fmt.Sprintf("Arsip %s (%d KB) tersimpan di %s.", job.ResourceName, sizeBytes/1024, target.Name), "success")
 
 	// Retention pruning
 	if job.RetentionCount > 0 {
@@ -354,12 +374,20 @@ func (s *Server) handleBackupOverview(w http.ResponseWriter, r *http.Request) {
 			projOptions = append(projOptions, map[string]any{"id": p.ID, "name": p.Name, "workingDir": p.WorkingDir})
 		}
 	}
+	var volumes []string
+	if isSuper {
+		volumes, _ = backup.ListDockerVolumeNames(r.Context())
+	} else {
+		volumes = []string{}
+	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"targets":         targets,
 		"jobs":            jobs,
 		"runs":            runs,
 		"databases":       dbOptions,
 		"projects":        projOptions,
+		"volumes":         volumes,
+		"isSuper":         isSuper,
 		"defaultLocalDir": defaultBackupDir(),
 	})
 }
@@ -527,6 +555,7 @@ func (s *Server) handleCreateBackupJob(w http.ResponseWriter, r *http.Request) {
 		Name           string `json:"name"`
 		Scope          string `json:"scope"`
 		ResourceID     int64  `json:"resourceId"`
+		ResourceName   string `json:"resourceName"`
 		IntervalHours  int    `json:"intervalHours"`
 		RetentionCount int    `json:"retentionCount"`
 		Enabled        bool   `json:"enabled"`
@@ -567,8 +596,25 @@ func (s *Server) handleCreateBackupJob(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		resName = proj.Name
+	case "docker-volume":
+		if !isSuper {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "backup volume Docker hanya untuk superadmin"})
+			return
+		}
+		volName := strings.TrimSpace(req.ResourceName)
+		if !backup.ValidVolumeName(volName) {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "pilih volume Docker yang valid"})
+			return
+		}
+		resName = volName
+	case "panel-config":
+		if !isSuper {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "backup konfigurasi panel hanya untuk superadmin"})
+			return
+		}
+		resName = "reneo-panel-config"
 	default:
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "scope harus database atau project"})
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "scope harus database, project, docker-volume, atau panel-config"})
 		return
 	}
 	name := strings.TrimSpace(req.Name)
@@ -853,6 +899,18 @@ func (s *Server) handleRestoreBackupRun(w http.ResponseWriter, r *http.Request) 
 		}
 		s.auditSensitiveAction(r, u, "backup.restore", "ok", map[string]any{"runId": run.ID, "scope": "project", "project": proj.Name})
 		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": fmt.Sprintf("Berkas proyek %s berhasil dipulihkan", proj.Name)})
+	case "docker-volume":
+		if !isSuper {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "restore volume Docker hanya untuk superadmin"})
+			return
+		}
+		if err := backup.RestoreDockerVolume(ctx, run.ResourceName, rc); err != nil {
+			s.auditSensitiveAction(r, u, "backup.restore", "error", map[string]any{"runId": run.ID, "scope": "docker-volume", "error": err.Error()})
+			s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": err.Error()})
+			return
+		}
+		s.auditSensitiveAction(r, u, "backup.restore", "ok", map[string]any{"runId": run.ID, "scope": "docker-volume", "volume": run.ResourceName})
+		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": fmt.Sprintf("Volume Docker %s berhasil dipulihkan", run.ResourceName)})
 	default:
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "tipe backup tidak mendukung restore"})
 	}

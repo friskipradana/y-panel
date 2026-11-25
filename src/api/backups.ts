@@ -23,7 +23,7 @@ export interface BackupJob {
   targetName: string
   targetKind: string
   name: string
-  scope: 'database' | 'project'
+  scope: 'database' | 'project' | 'docker-volume' | 'panel-config'
   resourceId: number
   resourceName: string
   intervalHours: number
@@ -42,7 +42,7 @@ export interface BackupRun {
   jobName: string
   ownerUserId: number
   targetId: number
-  scope: 'database' | 'project'
+  scope: 'database' | 'project' | 'docker-volume' | 'panel-config'
   resourceId: number
   resourceName: string
   status: 'running' | 'success' | 'failed'
@@ -61,6 +61,8 @@ export interface BackupOverview {
   runs: BackupRun[]
   databases: { id: number; name: string; engine: string }[]
   projects: { id: number; name: string; workingDir: string }[]
+  volumes?: string[]
+  isSuper?: boolean
   defaultLocalDir: string
 }
 
@@ -80,8 +82,9 @@ export interface CreateBackupTargetInput {
 export interface CreateBackupJobInput {
   targetId: number
   name?: string
-  scope: 'database' | 'project'
+  scope: 'database' | 'project' | 'docker-volume' | 'panel-config'
   resourceId: number
+  resourceName?: string
   intervalHours: number
   retentionCount: number
   enabled: boolean

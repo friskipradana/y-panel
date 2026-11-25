@@ -126,8 +126,9 @@ function AddTargetModal({ bw }: { bw: BackupsWindowState }) {
 function AddJobModal({ bw }: { bw: BackupsWindowState }) {
   const { t, addJobOpen, setAddJobOpen, createJobMut, overviewQ } = bw
   const [name, setName] = useState('')
-  const [scope, setScope] = useState<'database' | 'project'>('database')
+  const [scope, setScope] = useState<'database' | 'project' | 'docker-volume' | 'panel-config'>('database')
   const [resourceId, setResourceId] = useState('')
+  const [volumeName, setVolumeName] = useState('')
   const [targetId, setTargetId] = useState('')
   const [intervalHours, setIntervalHours] = useState('24')
   const [retentionCount, setRetentionCount] = useState('7')
@@ -136,6 +137,8 @@ function AddJobModal({ bw }: { bw: BackupsWindowState }) {
   const targets = overviewQ.data?.targets ?? []
   const databases = overviewQ.data?.databases ?? []
   const projects = overviewQ.data?.projects ?? []
+  const volumes = overviewQ.data?.volumes ?? []
+  const isSuper = overviewQ.data?.isSuper === true
 
   useEffect(() => {
     if (!addJobOpen) return
@@ -145,14 +148,17 @@ function AddJobModal({ bw }: { bw: BackupsWindowState }) {
   const resourceOptions =
     scope === 'database'
       ? databases.map((d) => ({ value: String(d.id), label: `${d.name} (${d.engine})` }))
-      : projects.map((p) => ({ value: String(p.id), label: p.name, description: p.workingDir }))
+      : scope === 'project'
+        ? projects.map((p) => ({ value: String(p.id), label: p.name, description: p.workingDir }))
+        : volumes.map((v) => ({ value: v, label: v }))
 
   const submit = () => {
     createJobMut.mutate(
       {
         name: name.trim() || undefined,
         scope,
-        resourceId: Number(resourceId),
+        resourceId: scope === 'database' || scope === 'project' ? Number(resourceId) : 0,
+        resourceName: scope === 'docker-volume' ? volumeName : scope === 'panel-config' ? 'reneo-panel-config' : undefined,
         targetId: Number(targetId),
         intervalHours: Number(intervalHours) || 0,
         retentionCount: Math.max(1, Number(retentionCount) || 7),
@@ -162,10 +168,26 @@ function AddJobModal({ bw }: { bw: BackupsWindowState }) {
         onSuccess: () => {
           setName('')
           setResourceId('')
+          setVolumeName('')
         },
       },
     )
   }
+
+  const hasTargetResource =
+    scope === 'panel-config' ||
+    (scope === 'docker-volume' ? Boolean(volumeName) : Boolean(resourceId))
+
+  const scopeOptions = [
+    { value: 'database', label: t('backups.scopeDatabase') },
+    { value: 'project', label: t('backups.scopeProject') },
+    ...(isSuper
+      ? [
+          { value: 'docker-volume', label: t('backups.scopeDockerVolume') },
+          { value: 'panel-config', label: t('backups.scopePanelConfig') },
+        ]
+      : []),
+  ]
 
   return (
     <Modal open={addJobOpen} onClose={() => setAddJobOpen(false)} title={t('backups.addJobTitle')} size="md">
@@ -178,13 +200,11 @@ function AddJobModal({ bw }: { bw: BackupsWindowState }) {
             <Select
               value={scope}
               onChange={(v) => {
-                setScope(v as 'database' | 'project')
+                setScope(v as 'database' | 'project' | 'docker-volume' | 'panel-config')
                 setResourceId('')
+                setVolumeName('')
               }}
-              options={[
-                { value: 'database', label: t('backups.scopeDatabase') },
-                { value: 'project', label: t('backups.scopeProject') },
-              ]}
+              options={scopeOptions}
             />
           </Field>
           <Field label={t('backups.targetLabel')}>
@@ -195,9 +215,16 @@ function AddJobModal({ bw }: { bw: BackupsWindowState }) {
             />
           </Field>
         </div>
-        <Field label={t('backups.resourceLabel')}>
-          <Select searchable value={resourceId} onChange={setResourceId} options={resourceOptions} />
-        </Field>
+        {scope !== 'panel-config' ? (
+          <Field label={t('backups.resourceLabel')}>
+            <Select
+              searchable
+              value={scope === 'docker-volume' ? volumeName : resourceId}
+              onChange={scope === 'docker-volume' ? setVolumeName : setResourceId}
+              options={resourceOptions}
+            />
+          </Field>
+        ) : null}
         <div className="grid grid-cols-2 gap-2.5">
           <Field label={t('backups.intervalLabel')}>
             <Select
@@ -224,7 +251,7 @@ function AddJobModal({ bw }: { bw: BackupsWindowState }) {
           <Button
             size="sm"
             variant="primary"
-            disabled={!targetId || !resourceId}
+            disabled={!targetId || !hasTargetResource}
             loading={createJobMut.isPending}
             onClick={submit}
           >
