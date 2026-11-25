@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.83] - 2026-11-25
+
+Add host security hardening (SSH keys, Fail2Ban ban/unban, failed SSH logins, OS updates) in Firewall window.
+
+### Fitur baru
+- Add host security hardening (SSH keys, Fail2Ban ban/unban, failed SSH logins, OS updates) in Firewall window ([`82782e2`](https://github.com/friskipradana/y-panel/commit/82782e2))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.82...v1.88.83
+
 ## [1.88.82] - 2026-11-25
 
 Add Cron & Systemd manager window and K8s pod xterm shell, Helm manager, PVC, CronJob & metrics.
