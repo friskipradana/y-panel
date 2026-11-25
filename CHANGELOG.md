@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.94] - 2026-11-25
+
+Add permanent Static IPv4 assignment with reneo-static network and 1-click auto-assign.
+
+### Fitur baru
+- **docker:** Add permanent Static IPv4 assignment with reneo-static network and 1-click auto-assign ([`d8ce606`](https://github.com/friskipradana/y-panel/commit/d8ce606))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.93...v1.88.94
+
 ## [1.88.93] - 2026-11-25
 
 Allow superadmin host volume mounts and validate before removing container on redeploy.
