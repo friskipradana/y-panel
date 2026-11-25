@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.85] - 2026-11-25
+
+Use native single-line docker-topbar and ListTable across Services, Uptime, Backups, and Kubernetes.
+
+### Perbaikan
+- **ui:** Use native single-line docker-topbar and ListTable across Services, Uptime, Backups, and Kubernetes ([`2e29b0b`](https://github.com/friskipradana/y-panel/commit/2e29b0b))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.84...v1.88.85
+
 ## [1.88.84] - 2026-11-25
 
 Align Kubernetes, Backups, Uptime, Services, Hardening, and Webhook views with Reneo design system.
