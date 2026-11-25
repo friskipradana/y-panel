@@ -364,16 +364,6 @@ func (s *Server) Tools() []Tool {
 	return tools
 }
 
-func (s *Server) sendResult(id any, result any) error {
-	s.outMu.Lock()
-	defer s.outMu.Unlock()
-	return s.out.Encode(Response{
-		JSONRPC: "2.0",
-		ID:      id,
-		Result:  result,
-	})
-}
-
 func (s *Server) sendError(id any, code int, message string) error {
 	s.outMu.Lock()
 	defer s.outMu.Unlock()

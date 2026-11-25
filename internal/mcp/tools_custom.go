@@ -78,7 +78,7 @@ func num(v any) float64 {
 }
 
 // registerCustomTools adds tools that compose several API calls.
-func registerCustomTools(s *Server, client *apiClient, isAdmin bool) {
+func registerCustomTools(s *Server, client *apiClient, _ bool) {
 	s.Register(Tool{
 		Name:        "server_overview",
 		Description: "One-call health snapshot: host facts, CPU/RAM/disk, Docker state, container counts, projects needing attention and unread notifications. Start here when diagnosing or reporting status.",

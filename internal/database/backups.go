@@ -266,9 +266,7 @@ func (m *Manager) CreateBackupJob(j BackupJob) (*BackupJob, error) {
 	}
 	var nextRun any
 	if j.Enabled && j.IntervalHours > 0 {
-		t := time.Now().Add(time.Duration(j.IntervalHours) * time.Hour)
-		nextRun = t
-		j.NextRunAt = &t
+		nextRun = time.Now().Add(time.Duration(j.IntervalHours) * time.Hour)
 	}
 	err := m.db.QueryRow(`
 		INSERT INTO backup_jobs (

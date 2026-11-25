@@ -72,11 +72,12 @@ func (sp apiSpec) tool() Tool {
 
 	hint := sp.Hint
 	if hint == "" {
-		if sp.Method == "GET" {
+		switch sp.Method {
+		case "GET":
 			hint = "read"
-		} else if sp.Method == "DELETE" {
+		case "DELETE":
 			hint = "destroy"
-		} else {
+		default:
 			hint = "write"
 		}
 	}
