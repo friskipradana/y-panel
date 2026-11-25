@@ -9,12 +9,17 @@ const ARC_LENGTH = Math.PI * R
 const CEILINGS = [10, 50, 100, 250, 500, 1000, 2500, 10000]
 const TICKS = [1, 10, 100, 1000]
 
-const format = (n: number) => (n >= 100 ? n.toFixed(0) : n.toFixed(1))
+const clampSpeed = (n: number) => (Number.isFinite(n) && n > 0 ? n : 0)
+const format = (n: number) => {
+  const v = clampSpeed(n)
+  return v >= 100 ? v.toFixed(0) : v.toFixed(1)
+}
 const tickLabel = (n: number) => (n >= 1000 ? `${n / 1000}k` : String(n))
 
 // A point on the arc: 0 is the left end, 1 the right end
 const at = (fraction: number, radius: number) => {
-  const angle = Math.PI * (1 - fraction)
+  const clamped = Math.max(0, Math.min(1, Number.isFinite(fraction) ? fraction : 0))
+  const angle = Math.PI * (1 - clamped)
   return { x: CX + radius * Math.cos(angle), y: CY - radius * Math.sin(angle) }
 }
 
@@ -31,22 +36,24 @@ interface SpeedGaugeProps {
 
 // Half-circle meter on a log scale with a marker on the arc
 export function SpeedGauge({ value, label, active, scaleKey, tone }: SpeedGaugeProps) {
-  const shown = useAnimatedNumber(value)
+  const safeValue = clampSpeed(value)
+  const shown = clampSpeed(useAnimatedNumber(safeValue))
   // the scale only grows while measuring, so the arc never jumps back
-  const [peak, setPeak] = useState(value)
+  const [peak, setPeak] = useState(safeValue)
   const [seenKey, setSeenKey] = useState(scaleKey)
-  const nextPeak = !active || seenKey !== scaleKey ? value : Math.max(peak, value)
+  const nextPeak = !active || seenKey !== scaleKey ? safeValue : Math.max(peak, safeValue)
   if (seenKey !== scaleKey) setSeenKey(scaleKey)
   if (nextPeak !== peak) setPeak(nextPeak)
   const ceiling = CEILINGS.find((c) => c >= nextPeak) ?? CEILINGS[CEILINGS.length - 1]
 
-  const scale = (v: number) => Math.min(1, Math.log10(1 + v) / Math.log10(1 + ceiling))
+  const scale = (v: number) => Math.max(0, Math.min(1, Math.log10(1 + clampSpeed(v)) / Math.log10(1 + ceiling)))
   const progress = scale(shown)
   const marker = at(progress, R)
   const ticks = [0, ...TICKS.filter((v) => v < ceiling), ceiling]
+  const display = format(shown)
 
   return (
-    <div className={`speed-gauge speed-gauge--${tone}`} role="img" aria-label={`${format(value)} Mbps`}>
+    <div className={`speed-gauge speed-gauge--${tone}`} role="img" aria-label={`${format(safeValue)} Mbps`}>
       <svg viewBox="0 0 240 146" className="speed-gauge__svg" aria-hidden="true">
         {ticks.map((v) => {
           const from = at(scale(v), R + 9)
@@ -66,7 +73,7 @@ export function SpeedGauge({ value, label, active, scaleKey, tone }: SpeedGaugeP
         {progress > 0.004 ? <circle cx={marker.x} cy={marker.y} r="8" className="speed-gauge__marker" /> : null}
       </svg>
       <div className="speed-gauge__center">
-        <span className="speed-gauge__number">{format(shown)}</span>
+        <span className={`speed-gauge__number${display.length >= 5 ? ' speed-gauge__number--compact' : ''}`}>{display}</span>
         <span className="speed-gauge__unit">Mbps</span>
       </div>
       <span className="speed-gauge__label">{label}</span>

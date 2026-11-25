@@ -58,6 +58,7 @@
   left: 0;
   right: 0;
   top: 50%;
+  padding: 0 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -65,11 +66,19 @@
 }
 
 .speed-gauge__number {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: 2.25rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--win-text);
+
+  &--compact {
+    font-size: 1.625rem;
+  }
 }
 
 .speed-gauge__unit {

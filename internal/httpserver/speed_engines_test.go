@@ -102,6 +102,29 @@ func TestOoklaRunIgnoresGarbageAndKeepsTheClientsError(t *testing.T) {
 	}
 }
 
+func TestOoklaRunDropsBogusNegativeOrOverflowSamples(t *testing.T) {
+	rec := httptest.NewRecorder()
+	run := &ooklaRun{out: &speedStream{w: rec}}
+	lines := []string{
+		`{"type":"testStart","server":{"id":12807,"host":"speedtest.cbn.id","name":"CBN","location":"Jakarta","country":"Indonesia"}}`,
+		`{"type":"ping","ping":{"jitter":0.4,"latency":3.6,"progress":1.0}}`,
+		`{"type":"download","download":{"bandwidth":40125000,"progress":0.5}}`,
+		`{"type":"upload","upload":{"bandwidth":-8648368362,"progress":0.1}}`,
+		`{"type":"upload","upload":{"bandwidth":999999999999,"progress":0.2}}`,
+		`{"type":"upload","upload":{"bandwidth":12500000,"progress":0.5}}`,
+		`{"type":"result","ping":{"jitter":0.4,"latency":3.6},"download":{"bandwidth":40125000},"upload":{"bandwidth":-8648368362}}`,
+	}
+	for _, line := range lines {
+		run.consume([]byte(line))
+	}
+	if strings.Contains(rec.Body.String(), "-") {
+		t.Fatalf("negative speed must never be streamed: %s", rec.Body.String())
+	}
+	if run.result == nil || run.result.DownloadMbps != 321 || run.result.UploadMbps != 100 {
+		t.Fatalf("final result must fall back to last sane upload sample: %+v", run.result)
+	}
+}
+
 func TestLastLineSkipsTheLicenceBanner(t *testing.T) {
 	text := "==========\n\nYou may only use this Speedtest software...\n\n==========\n\n[error] Cannot open socket\n"
 	if got := lastLine(text); got != "[error] Cannot open socket" {

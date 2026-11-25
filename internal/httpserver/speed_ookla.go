@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"strconv"
@@ -168,13 +169,15 @@ func fetchOoklaNearest(bin string) []ooklaListed {
 
 // ooklaRun carries what the lines of the client's output add up to
 type ooklaRun struct {
-	out        *speedStream
-	phase      string
-	latency    float64
-	jitter     float64
-	serverName string
-	serverHost string
-	serverID   int
+	out          *speedStream
+	phase        string
+	latency      float64
+	jitter       float64
+	lastDownMbps float64
+	lastUpMbps   float64
+	serverName   string
+	serverHost   string
+	serverID     int
 	// the client's own words when it logs an error line
 	failure string
 	result  *speedInternetResult
@@ -206,7 +209,27 @@ type ooklaDirection struct {
 	Progress  float64 `json:"progress"`
 }
 
-func ooklaMbps(bytesPerSecond float64) float64 { return round1(bytesPerSecond * 8 / 1e6) }
+// 100 Gbps ceiling: Ookla's CLI can emit negative or integer-overflowed bandwidth ticks
+// right as a phase starts (e.g. -8.6 GB/s), which must be discarded rather than streamed.
+const maxSaneSpeedMbps = 100000
+
+func ooklaMbps(bytesPerSecond float64) (float64, bool) {
+	if math.IsNaN(bytesPerSecond) || math.IsInf(bytesPerSecond, 0) || bytesPerSecond < 0 {
+		return 0, false
+	}
+	mbps := round1(bytesPerSecond * 8 / 1e6)
+	if mbps > maxSaneSpeedMbps {
+		return 0, false
+	}
+	return mbps, true
+}
+
+func saneNonNeg(v float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 {
+		return 0
+	}
+	return round1(v)
+}
 
 // consume folds one line of the client's JSON lines output into events for the browser
 func (r *ooklaRun) consume(line []byte) {
@@ -228,19 +251,22 @@ func (r *ooklaRun) consume(line []byte) {
 		r.out.send(speedEvent{Type: "phase", Phase: "ping"})
 	case "ping":
 		if l.Ping != nil {
-			r.latency, r.jitter = l.Ping.Latency, l.Ping.Jitter
-			r.out.send(speedEvent{Type: "ping", LatencyMs: fptr(round1(l.Ping.Latency))})
+			r.latency, r.jitter = saneNonNeg(l.Ping.Latency), saneNonNeg(l.Ping.Jitter)
+			r.out.send(speedEvent{Type: "ping", LatencyMs: fptr(r.latency)})
 		}
 	case "download":
 		if l.Download == nil {
 			return
 		}
 		if r.phase != "download" {
-			r.out.send(speedEvent{Type: "latency", LatencyMs: fptr(round1(r.latency)), JitterMs: fptr(round1(r.jitter))})
+			r.out.send(speedEvent{Type: "latency", LatencyMs: fptr(r.latency), JitterMs: fptr(r.jitter)})
 			r.phase = "download"
 			r.out.send(speedEvent{Type: "phase", Phase: "download"})
 		}
-		r.out.send(speedEvent{Type: "download", Mbps: fptr(ooklaMbps(l.Download.Bandwidth)), Fraction: fptr(l.Download.Progress)})
+		if mbps, ok := ooklaMbps(l.Download.Bandwidth); ok {
+			r.lastDownMbps = mbps
+			r.out.send(speedEvent{Type: "download", Mbps: fptr(mbps), Fraction: fptr(l.Download.Progress)})
+		}
 	case "upload":
 		if l.Upload == nil {
 			return
@@ -249,7 +275,10 @@ func (r *ooklaRun) consume(line []byte) {
 			r.phase = "upload"
 			r.out.send(speedEvent{Type: "phase", Phase: "upload"})
 		}
-		r.out.send(speedEvent{Type: "upload", Mbps: fptr(ooklaMbps(l.Upload.Bandwidth)), Fraction: fptr(l.Upload.Progress)})
+		if mbps, ok := ooklaMbps(l.Upload.Bandwidth); ok {
+			r.lastUpMbps = mbps
+			r.out.send(speedEvent{Type: "upload", Mbps: fptr(mbps), Fraction: fptr(l.Upload.Progress)})
+		}
 	case "result":
 		var final struct {
 			Ping struct {
@@ -262,11 +291,19 @@ func (r *ooklaRun) consume(line []byte) {
 		if json.Unmarshal(line, &final) != nil {
 			return
 		}
+		down, okDown := ooklaMbps(final.Download.Bandwidth)
+		if !okDown {
+			down = r.lastDownMbps
+		}
+		up, okUp := ooklaMbps(final.Upload.Bandwidth)
+		if !okUp {
+			up = r.lastUpMbps
+		}
 		r.result = &speedInternetResult{
-			DownloadMbps: ooklaMbps(final.Download.Bandwidth),
-			UploadMbps:   ooklaMbps(final.Upload.Bandwidth),
-			LatencyMs:    round1(final.Ping.Latency),
-			JitterMs:     round1(final.Ping.Jitter),
+			DownloadMbps: down,
+			UploadMbps:   up,
+			LatencyMs:    saneNonNeg(final.Ping.Latency),
+			JitterMs:     saneNonNeg(final.Ping.Jitter),
 			Server:       r.serverHost,
 			ServerID:     speedOoklaPrefix + strconv.Itoa(r.serverID),
 			ServerName:   r.serverName + " (Ookla)",

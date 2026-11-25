@@ -62,6 +62,11 @@ const MAX_SAMPLES = 80
 
 const now = () => performance.now()
 const round1 = (n: number) => Math.round(n * 10) / 10
+const MAX_SANE_MBPS = 100000
+const saneMbps = (n: number | undefined): number | null =>
+  typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= MAX_SANE_MBPS ? n : null
+const saneNonNeg = (n: number | undefined): number =>
+  typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : 0
 
 function abortError(signal?: AbortSignal) {
   if (signal?.reason instanceof Error) return signal.reason
@@ -319,16 +324,24 @@ export async function runServerSpeedtest(serverId: string, onLive: (live: SpeedL
       case 'latency':
         emit({ latencyMs: event.latencyMs ?? null, jitterMs: event.jitterMs ?? null })
         break
-      case 'download':
-        emit({ mbps: event.mbps ?? 0, fraction: event.fraction ?? 0, downloadMbps: event.mbps ?? 0, sample: { kind: 'down', mbps: event.mbps ?? 0 } })
+      case 'download': {
+        const mbps = saneMbps(event.mbps)
+        if (mbps !== null) emit({ mbps, fraction: event.fraction ?? 0, downloadMbps: mbps, sample: { kind: 'down', mbps } })
         break
-      case 'upload':
-        emit({ mbps: event.mbps ?? 0, fraction: event.fraction ?? 0, uploadMbps: event.mbps ?? 0, sample: { kind: 'up', mbps: event.mbps ?? 0 } })
+      }
+      case 'upload': {
+        const mbps = saneMbps(event.mbps)
+        if (mbps !== null) emit({ mbps, fraction: event.fraction ?? 0, uploadMbps: mbps, sample: { kind: 'up', mbps } })
         break
-      case 'done':
-        result = event.result ?? null
-        if (result) emit({ phase: 'done', mbps: 0, fraction: 1, downloadMbps: result.downloadMbps, uploadMbps: result.uploadMbps, latencyMs: result.latencyMs, jitterMs: result.jitterMs })
+      }
+      case 'done': {
+        const r = event.result
+        if (r) {
+          result = { ...r, downloadMbps: saneMbps(r.downloadMbps) ?? 0, uploadMbps: saneMbps(r.uploadMbps) ?? 0, latencyMs: saneNonNeg(r.latencyMs), jitterMs: saneNonNeg(r.jitterMs) }
+          emit({ phase: 'done', mbps: 0, fraction: 1, downloadMbps: result.downloadMbps, uploadMbps: result.uploadMbps, latencyMs: result.latencyMs, jitterMs: result.jitterMs })
+        }
         break
+      }
       case 'error':
         throw new Error(event.error ?? 'speed test failed')
     }

@@ -15,9 +15,10 @@ function Trace({ samples, isUpload }: { samples?: number[]; isUpload?: boolean }
     )
   }
 
-  const peak = Math.max(...samples, 1)
-  const step = 100 / (samples.length - 1)
-  const points = samples.map((v, i) => `${(i * step).toFixed(1)},${(28 - (v / peak) * 24).toFixed(1)}`)
+  const safe = samples.map((v) => (Number.isFinite(v) && v > 0 ? v : 0))
+  const peak = Math.max(...safe, 1)
+  const step = 100 / (safe.length - 1)
+  const points = safe.map((v, i) => `${(i * step).toFixed(1)},${(28 - (v / peak) * 24).toFixed(1)}`)
   const fillPoints = `0,30 ${points.join(' ')} 100,30`
   const gradId = isUpload ? 'speedtest-trace-upload' : 'speedtest-trace-download'
 
@@ -63,16 +64,18 @@ export function SpeedStats({ live, delta, uploadAvailable }: SpeedStatsProps) {
   const shownPing = useAnimatedNumber(live.latencyMs ?? 0)
   const shownJitter = useAnimatedNumber(live.jitterMs ?? 0)
 
-  const formatNumber = (val: number | null, animated: number) =>
-    val === null ? '-' : animated.toFixed(animated >= 100 ? 0 : 1)
+  const formatNumber = (val: number | null, animated: number) => {
+    if (val === null) return '-'
+    const safe = Number.isFinite(animated) && animated > 0 ? animated : 0
+    return safe.toFixed(safe >= 100 ? 0 : 1)
+  }
 
   return (
     <div className="speed-stats-card">
       {/* 1. Download Row */}
       <div
-        className={`speed-stat-row ${
-          live.phase === 'download' ? 'speed-stat-row--active' : ''
-        }`}
+        className={`speed-stat-row ${live.phase === 'download' ? 'speed-stat-row--active' : ''
+          }`}
       >
         <div className="flex items-center gap-3 shrink-0">
           <IconBadge
@@ -108,9 +111,8 @@ export function SpeedStats({ live, delta, uploadAvailable }: SpeedStatsProps) {
 
       {/* 2. Upload Row */}
       <div
-        className={`speed-stat-row speed-stat-row--upload ${
-          live.phase === 'upload' ? 'speed-stat-row--active' : ''
-        }`}
+        className={`speed-stat-row speed-stat-row--upload ${live.phase === 'upload' ? 'speed-stat-row--active' : ''
+          }`}
       >
         <div className="flex items-center gap-3 shrink-0">
           <IconBadge
@@ -149,9 +151,8 @@ export function SpeedStats({ live, delta, uploadAvailable }: SpeedStatsProps) {
       {/* 3. Latency & Jitter Split Row */}
       <div className="speed-stats-card__bottom">
         <div
-          className={`speed-stat-mini ${
-            live.phase === 'ping' ? 'speed-stat-mini--active' : ''
-          }`}
+          className={`speed-stat-mini ${live.phase === 'ping' ? 'speed-stat-mini--active' : ''
+            }`}
         >
           <IconBadge
             size="sm"
