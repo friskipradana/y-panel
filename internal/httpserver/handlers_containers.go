@@ -340,14 +340,7 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		s.writePortError(w, actor, err)
 		return
 	}
-	// what the container was, kept so it can be put back when the new one cannot be made
-	var previous *docker.ContainerConfig
-	if req.ReplaceContainerID != "" {
-		previous, _ = docker.InspectContainerConfig(req.ReplaceContainerID)
-		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
-	}
-
-	result, err := docker.DeployFromImage(owner, docker.DeployImageRequest{
+	deployReq := docker.DeployImageRequest{
 		Name:         req.Name,
 		Image:        req.Image,
 		Network:      req.Network,
@@ -357,7 +350,20 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		EnvRaw:       req.EnvRaw,
 		RegistryAuth: req.RegistryAuth,
 		Volumes:      req.Volumes,
-	})
+	}
+	if err := docker.ValidateDeployImage(owner, deployReq); err != nil {
+		s.writeError(w, http.StatusUnprocessableEntity, err)
+		return
+	}
+
+	// what the container was, kept so it can be put back when the new one cannot be made
+	var previous *docker.ContainerConfig
+	if req.ReplaceContainerID != "" {
+		previous, _ = docker.InspectContainerConfig(req.ReplaceContainerID)
+		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
+	}
+
+	result, err := docker.DeployFromImage(owner, deployReq)
 	if err != nil {
 		s.writeError(w, http.StatusUnprocessableEntity, restoreAfterFailedReplace(owner, previous, err))
 		return

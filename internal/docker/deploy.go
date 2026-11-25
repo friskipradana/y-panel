@@ -11,6 +11,52 @@ import (
 	"strings"
 )
 
+// ValidateDeployImage validates project name, ports, volumes, env, and policy without
+// touching disk or Docker containers, so replace-edits fail safely before removing the old container.
+func ValidateDeployImage(owner OwnerContext, req DeployImageRequest) error {
+	projectName, _, _, err := prepareProject(owner, req.Name)
+	if err != nil {
+		return err
+	}
+	ports, err := normalizePortBindings(req.Ports)
+	if err != nil {
+		return err
+	}
+	volumes := make([]VolumeBinding, 0, len(req.Volumes))
+	for _, item := range req.Volumes {
+		hostPath := strings.TrimSpace(item.HostPath)
+		containerPath := strings.TrimSpace(item.ContainerPath)
+		if hostPath == "" && containerPath == "" {
+			continue
+		}
+		if hostPath == "" || containerPath == "" {
+			return errors.New("host path and container path are required")
+		}
+		resolved, rErr := resolveVolumeHostPath(owner, hostPath)
+		if rErr != nil {
+			return rErr
+		}
+		volumes = append(volumes, VolumeBinding{HostPath: resolved, ContainerPath: containerPath, ReadOnly: item.ReadOnly})
+	}
+	env, err := normalizeEnvVars(req.EnvMode, req.EnvRaw, req.Env)
+	if err != nil {
+		return err
+	}
+	composeYAML, err := buildComposeForImage(owner, projectName, req.Image, req.Network, ports, env, volumes)
+	if err != nil {
+		return err
+	}
+	if !IsPolicyExempt(owner.Role) {
+		if err := CheckNetworkPolicy(req.Network); err != nil {
+			return err
+		}
+		if err := CheckComposePolicy(composeYAML, owner.HomeDir); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult, error) {
 	defer InvalidateAll()
 	projectName, projectDir, composePath, err := prepareProject(owner, req.Name)
@@ -119,10 +165,10 @@ func ValidateCompose(owner OwnerContext, rawName, composeYAML string) error {
 	if content == "" {
 		return errors.New("compose yaml is required")
 	}
-	if err := ensureComposeWithinOwnerRoot(content, owner.HomeDir); err != nil {
-		return err
-	}
 	if !IsPolicyExempt(owner.Role) {
+		if err := ensureComposeWithinOwnerRoot(content, owner.HomeDir); err != nil {
+			return err
+		}
 		if err := CheckComposePolicy(content, owner.HomeDir); err != nil {
 			return err
 		}
@@ -159,10 +205,10 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 	if content == "" {
 		return nil, errors.New("compose yaml is required")
 	}
-	if err := ensureComposeWithinOwnerRoot(content, owner.HomeDir); err != nil {
-		return nil, err
-	}
 	if !IsPolicyExempt(owner.Role) {
+		if err := ensureComposeWithinOwnerRoot(content, owner.HomeDir); err != nil {
+			return nil, err
+		}
 		if err := CheckComposePolicy(content, owner.HomeDir); err != nil {
 			return nil, err
 		}
@@ -269,6 +315,9 @@ func resolveVolumeHostPath(owner OwnerContext, hostPath string) (string, error) 
 		candidate = filepath.Join(owner.HomeDir, candidate)
 	}
 	candidate = filepath.Clean(candidate)
+	if IsPolicyExempt(owner.Role) {
+		return candidate, nil
+	}
 	root := filepath.Clean(owner.HomeDir)
 	if candidate != root && !strings.HasPrefix(candidate, root+string(filepath.Separator)) {
 		return "", fmt.Errorf("volume path %q berada di luar root user", hostPath)
