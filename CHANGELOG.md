@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.82] - 2026-11-25
+
+Add Cron & Systemd manager window and K8s pod xterm shell, Helm manager, PVC, CronJob & metrics.
+
+### Fitur baru
+- Add Cron & Systemd manager window and K8s pod xterm shell, Helm manager, PVC, CronJob & metrics ([`4a80b15`](https://github.com/friskipradana/y-panel/commit/4a80b15))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.81...v1.88.82
+
 ## [1.88.81] - 2026-11-25
 
 Add Git webhook auto-deploy, Uptime & SSL monitor, and Docker volume/panel config backups.
