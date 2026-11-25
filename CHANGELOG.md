@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.80] - 2026-11-25
+
+Simplify tool registration and method hint logic.
+
+### Peningkatan
+- **mcp:** Simplify tool registration and method hint logic ([`58b0120`](https://github.com/friskipradana/y-panel/commit/58b0120))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.79...v1.88.80
+
 ## [1.88.79] - 2026-11-25
 
 Add K8s live pod logs, events, MCP tools, auto-build project deploy, and scheduled S3/local backup & restore.
