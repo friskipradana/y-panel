@@ -4,7 +4,7 @@ export type WindowKind =
   | 'docs' | 'changelog' | 'settings' | 'database' | 'trash'
   | 'file-manager' | 'file-editor' | 'users' | 'projects' | 'tunnels'
   | 'profile' | 'widgets' | 'speedtest' | 'hosting' | 'firewall' | 'email' | 'kvm'
-  | 'app-catalog' | 'installed-app' | 'app-licenses' | 'kubernetes' | 'backups' | 'uptime'
+  | 'app-catalog' | 'installed-app' | 'app-licenses' | 'kubernetes' | 'backups' | 'uptime' | 'services'
 
 export type WindowId = WindowKind
 

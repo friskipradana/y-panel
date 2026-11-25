@@ -34,7 +34,7 @@ import { alertLib } from '@/lib/alert'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import type { RouteSubject } from '@/components/windows/tunnels/RouteDomainModal'
 
-export type K8sSection = 'overview' | 'nodes' | 'pods' | 'deployments' | 'services' | 'configs' | 'events' | 'yaml'
+export type K8sSection = 'overview' | 'nodes' | 'pods' | 'deployments' | 'services' | 'configs' | 'storage' | 'helm' | 'events' | 'yaml'
 
 export interface K8sDeployPreset {
   projectId?: number
@@ -58,6 +58,7 @@ export function useKubernetesWindow(win: WindowState, authenticated: boolean) {
   const [addClusterOpen, setAddClusterOpen] = useState(false)
   const [logsPod, setLogsPod] = useState<K8sPod | null>(null)
   const [execPod, setExecPod] = useState<K8sPod | null>(null)
+  const [shellPod, setShellPod] = useState<K8sPod | null>(null)
   const [scaleDep, setScaleDep] = useState<K8sDeployment | null>(null)
   const [yamlTarget, setYamlTarget] = useState<{ kind: string; namespace: string; name: string } | null>(null)
   const [deployPreset, setDeployPreset] = useState<K8sDeployPreset | null>(null)
@@ -394,6 +395,8 @@ export function useKubernetesWindow(win: WindowState, authenticated: boolean) {
     setLogsPod,
     execPod,
     setExecPod,
+    shellPod,
+    setShellPod,
     scaleDep,
     setScaleDep,
     yamlTarget,

@@ -35,6 +35,8 @@ export function K8sToolbar({ kw }: { kw: KubernetesWindowState }) {
     { key: 'deployments', label: t('k8s.tab.deployments') },
     { key: 'services', label: t('k8s.tab.services') },
     { key: 'configs', label: t('k8s.tab.configs') },
+    { key: 'storage', label: t('k8s.tab.storage') },
+    { key: 'helm', label: t('k8s.tab.helm') },
     { key: 'events', label: t('k8s.tab.events') },
     { key: 'yaml', label: t('k8s.tab.yaml') },
   ]
@@ -44,8 +46,8 @@ export function K8sToolbar({ kw }: { kw: KubernetesWindowState }) {
     ...(namespacesQ.data ?? []).map((ns) => ({ value: ns, label: ns })),
   ]
 
-  const showNsPicker = hasCluster && ['pods', 'deployments', 'services', 'configs', 'events'].includes(section)
-  const showSearch = hasCluster && ['nodes', 'pods', 'deployments', 'services', 'configs', 'events'].includes(section)
+  const showNsPicker = hasCluster && ['pods', 'deployments', 'services', 'configs', 'storage', 'events'].includes(section)
+  const showSearch = hasCluster && ['nodes', 'pods', 'deployments', 'services', 'configs', 'storage', 'helm', 'events'].includes(section)
 
   return (
     <div className="docker-topbar">

@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Scaling,
   Server,
+  SquareTerminal,
   Terminal,
   Trash2,
 } from 'lucide-react'
@@ -46,6 +47,7 @@ export function K8sWorkloadsTab({ kw }: { kw: KubernetesWindowState }) {
     eventsQ,
     setLogsPod,
     setExecPod,
+    setShellPod,
     setScaleDep,
     setYamlTarget,
     deletePodMut,
@@ -192,6 +194,9 @@ export function K8sWorkloadsTab({ kw }: { kw: KubernetesWindowState }) {
             <div className="flex items-center gap-1 shrink-0">
               <IconButton size="sm" variant="ghost" label={t('k8s.logs')} onClick={() => setLogsPod(pod)}>
                 <FileText className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </IconButton>
+              <IconButton size="sm" variant="ghost" label={t('k8s.shell')} onClick={() => setShellPod(pod)}>
+                <SquareTerminal className="h-3.5 w-3.5" strokeWidth={1.75} />
               </IconButton>
               <IconButton size="sm" variant="ghost" label={t('k8s.exec')} onClick={() => setExecPod(pod)}>
                 <Terminal className="h-3.5 w-3.5" strokeWidth={1.75} />

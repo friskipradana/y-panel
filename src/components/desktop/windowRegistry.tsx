@@ -31,13 +31,14 @@ const AppLicensesWindow = lazyNamed(() => import('@/components/windows/AppLicens
 const KubernetesWindow = lazyNamed(() => import('@/components/windows/KubernetesWindow'), 'KubernetesWindow')
 const BackupsWindow = lazyNamed(() => import('@/components/windows/BackupsWindow'), 'BackupsWindow')
 const UptimeWindow = lazyNamed(() => import('@/components/windows/UptimeWindow'), 'UptimeWindow')
+const ServicesWindow = lazyNamed(() => import('@/components/windows/ServicesWindow'), 'ServicesWindow')
 
 
 // Every account works in its own area (terminal as its own OS account, own files, containers,
 // databases, projects, Cloudflare token, widgets, settings). Only user management and Kubernetes are for admins.
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['users', 'kubernetes', 'backups'])
 // service journals, host firewall, KVM display, Docs, Email, and App Licenses windows belong to the superadmin
-const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewall', 'kvm', 'docs', 'email', 'app-licenses'])
+const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewall', 'kvm', 'docs', 'email', 'app-licenses', 'services'])
 
 // The public demo account only looks: the windows below work read-only on its own (empty) data.
 // No terminal, files, users, settings or logs: they would need a shell or reach shared data.
@@ -117,6 +118,7 @@ export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authe
   kubernetes: (win, auth) => <KubernetesWindow win={win} authenticated={auth} />,
   backups: (win, auth) => <BackupsWindow win={win} authenticated={auth} />,
   uptime: (win, auth) => <UptimeWindow win={win} authenticated={auth} />,
+  services: (win, auth) => <ServicesWindow win={win} authenticated={auth} />,
 }
 
 export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKind }[] = [
@@ -124,6 +126,7 @@ export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKin
   { id: 'kubernetes', label: 'Kubernetes', windowId: 'kubernetes' },
   { id: 'backups', label: 'Backup & Restore', windowId: 'backups' },
   { id: 'uptime', label: 'Uptime & SSL', windowId: 'uptime' },
+  { id: 'services', label: 'Cron & Systemd', windowId: 'services' },
   { id: 'app-catalog', label: 'App Catalog', windowId: 'app-catalog' },
   { id: 'app-licenses', label: 'Lisensi Aplikasi', windowId: 'app-licenses' },
   { id: 'host-terminal', label: 'Terminal', windowId: 'host-terminal' },

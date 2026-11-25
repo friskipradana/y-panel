@@ -282,3 +282,87 @@ export const deployProjectSourceToK8sStream = async (
     signal,
   )
 }
+
+export interface K8sPVC {
+  name: string
+  namespace: string
+  status: string
+  volume: string
+  capacity: string
+  storageClass: string
+  age: string
+}
+
+export interface K8sCronJob {
+  name: string
+  namespace: string
+  schedule: string
+  suspend: boolean
+  active: number
+  lastSchedule: string
+  age: string
+}
+
+export interface K8sTopItem {
+  namespace?: string
+  name: string
+  cpu: string
+  memory: string
+}
+
+export interface K8sStorageBatchResponse {
+  pvcs: K8sPVC[]
+  cronJobs: K8sCronJob[]
+  metricsAvailable: boolean
+  nodeMetrics: K8sTopItem[]
+  podMetrics: K8sTopItem[]
+}
+
+export interface HelmRelease {
+  name: string
+  namespace: string
+  revision: string
+  updated: string
+  status: string
+  chart: string
+  app_version: string
+}
+
+export interface HelmOverview {
+  installed: boolean
+  version?: string
+  releases: HelmRelease[]
+}
+
+export const getK8sStorageBatch = (clusterId: string, namespace: string) =>
+  agentApi
+    .get<K8sStorageBatchResponse>(`/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/storage-batch`, { params: { namespace } })
+    .then((r) => r.data)
+
+export const triggerK8sCronJob = (clusterId: string, namespace: string, name: string) =>
+  agentApi
+    .post<{ ok: boolean; output: string }>(`/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/cronjobs/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/trigger`)
+    .then((r) => r.data)
+
+export const getK8sHelmOverview = (clusterId: string) =>
+  agentApi.get<HelmOverview>(`/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/helm`).then((r) => r.data)
+
+export const installK8sHelmChart = (
+  clusterId: string,
+  payload: { release: string; chart: string; repoName?: string; repoUrl?: string; namespace: string; valuesYaml?: string },
+) => agentApi.post<{ ok: boolean; output: string }>(`/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/helm/install`, payload).then((r) => r.data)
+
+export const getK8sHelmValues = (clusterId: string, namespace: string, name: string) =>
+  agentApi
+    .get<{ values: string }>(`/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/helm/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/values`)
+    .then((r) => r.data.values)
+
+export const rollbackK8sHelmRelease = (clusterId: string, namespace: string, name: string) =>
+  agentApi
+    .post<{ ok: boolean; output: string }>(`/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/helm/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/rollback`)
+    .then((r) => r.data)
+
+export const uninstallK8sHelmRelease = (clusterId: string, namespace: string, name: string) =>
+  agentApi
+    .delete<{ ok: boolean; output: string }>(`/api/v1/k8s/clusters/${encodeURIComponent(clusterId)}/helm/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`)
+    .then((r) => r.data)

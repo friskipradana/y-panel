@@ -38,6 +38,12 @@ export const MENU_ITEMS: AppMenuItem[] = [
     category: 'system',
   },
   {
+    kind: 'services',
+    descId: 'Kelola layanan systemd Linux (start/stop/restart/journalctl) dan jadwal Cron Job host',
+    descEn: 'Manage Linux systemd services (start/stop/restart/journalctl) and host Cron Jobs',
+    category: 'system',
+  },
+  {
     kind: 'app-catalog',
     descId: 'Pasang aplikasi self-hosted Docker atau Web App sebagai window desktop',
     descEn: 'Install self-hosted Docker apps or Web Apps as desktop windows',
@@ -162,6 +168,7 @@ export const APP_KEYWORDS: Partial<Record<WindowKind, string[]>> = {
   kubernetes: ['kubernetes', 'k8s', 'k3s', 'cluster', 'pod', 'pods', 'deployment', 'service', 'ingress', 'yaml', 'kubectl', 'scale', 'node'],
   backups: ['backup', 'restore', 'cadangan', 'pulihkan', 's3', 'r2', 'cloudflare r2', 'minio', 'dump', 'snapshot', 'schedule', 'jadwal'],
   uptime: ['uptime', 'monitor', 'ssl', 'tls', 'health', 'ping', 'latency', 'down', 'alert', 'status'],
+  services: ['cron', 'crontab', 'systemd', 'service', 'daemon', 'journalctl', 'schedule', 'jadwal', 'unit'],
   'app-catalog': ['catalog', 'katalog', 'store', 'toko', 'install', 'pasang', 'app', 'aplikasi', 'self-hosted'],
   'host-terminal': ['terminal', 'shell', 'bash', 'ssh', 'console', 'konsol', 'command', 'perintah'],
   system: ['system', 'sistem', 'cpu', 'ram', 'memory', 'memori', 'disk', 'monitor', 'suhu', 'uptime', 'info'],

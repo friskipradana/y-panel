@@ -102,5 +102,14 @@ func k8sSpecs() []apiSpec {
 			Desc:   "Run git pull and redeploy a Reneo project (either local rebuild/restart or K8s rolling build/deploy).",
 			Params: []apiParam{pathParam("id", "Project ID.")},
 		},
+		{
+			Name: "hostops_overview", Title: "List systemd services and host cron jobs", Method: "GET", Path: "/api/v1/hostops/overview", SuperOnly: true,
+			Desc: "Inspect Linux systemd service states and host crontab entries.",
+		},
+		{
+			Name: "k8s_helm_list", Title: "List Helm releases in a Kubernetes cluster", Method: "GET", Path: "/api/v1/k8s/clusters/{id}/helm", AdminOnly: true,
+			Desc:   "List installed Helm chart releases across all namespaces in a Kubernetes cluster.",
+			Params: []apiParam{clusterID},
+		},
 	}
 }
