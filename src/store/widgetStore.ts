@@ -9,8 +9,15 @@ import {
   getDefaultPositions, autoSpaceWidgets, snapWidgetPosition, resolveWidgetOverlap, widgetsAreFree,
   sanitizeLayout, findSmartSpawnPosition,
 } from './widgetLayout'
+import { projectWidgetsToViewport } from './widgetProjection'
+
+function currentViewportSize(): { w: number; h: number } | null {
+  if (typeof window === 'undefined') return null
+  return { w: window.innerWidth, h: window.innerHeight }
+}
 
 export * from './widgetLayout'
+export * from './widgetProjection'
 
 export interface MobileWidgetLayout {
   order: string[]
@@ -99,6 +106,7 @@ export const useNoteListStore = create<{ openFor: string | null; setOpenFor: (id
 
 interface WidgetState {
   placedWidgets: PlacedWidget[]
+  layoutViewport: { w: number; h: number } | null
   notes: StickyNote[]
   setNotes: (notes: StickyNote[]) => void
   normalizeNotes: () => void
@@ -129,6 +137,7 @@ export const useWidgetStore = create<WidgetState>()(
   persist(
     (set, get) => ({
       placedWidgets: getDefaultPositions(),
+      layoutViewport: currentViewportSize(),
       notes: [],
       mobile: EMPTY_MOBILE,
 
@@ -215,6 +224,7 @@ export const useWidgetStore = create<WidgetState>()(
 
         set((state) => ({
           placedWidgets: [...state.placedWidgets, newWidget],
+          layoutViewport: currentViewportSize() ?? state.layoutViewport,
           notes: created.length ? [...state.notes, ...created] : state.notes,
         }))
 
@@ -250,25 +260,41 @@ export const useWidgetStore = create<WidgetState>()(
       },
 
       updateWidgetPosition: (id, x, y) => {
-        set((state) => ({
-          placedWidgets: state.placedWidgets.map((w) => (w.id === id ? { ...w, x: Math.round(x), y: Math.round(y) } : w)),
-        }))
+        set((state) => {
+          const vp = currentViewportSize()
+          const projected = vp ? projectWidgetsToViewport(state.placedWidgets, state.layoutViewport, vp.w, vp.h) : null
+          return {
+            placedWidgets: state.placedWidgets.map((w) => {
+              if (w.id === id) return { ...w, x: Math.round(x), y: Math.round(y) }
+              const p = projected?.get(w.id)
+              return p ? { ...w, x: p.x, y: p.y } : w
+            }),
+            layoutViewport: vp ?? state.layoutViewport,
+          }
+        })
       },
 
       resizeWidget: (id, rect) => {
-        set((state) => ({
-          placedWidgets: state.placedWidgets.map((w) =>
-            w.id === id && !w.isLocked
-              ? {
+        set((state) => {
+          const vp = currentViewportSize()
+          const projected = vp ? projectWidgetsToViewport(state.placedWidgets, state.layoutViewport, vp.w, vp.h) : null
+          return {
+            placedWidgets: state.placedWidgets.map((w) => {
+              if (w.id === id && !w.isLocked) {
+                return {
                   ...w,
                   x: Math.round(rect.x),
                   y: Math.round(rect.y),
                   w: Math.round(Math.min(WIDGET_MAX_WIDTH, Math.max(WIDGET_MIN_WIDTH, rect.w))),
                   h: Math.round(Math.min(WIDGET_MAX_HEIGHT, Math.max(WIDGET_MIN_HEIGHT, rect.h))),
                 }
-              : w,
-          ),
-        }))
+              }
+              const p = projected?.get(w.id)
+              return p ? { ...w, x: p.x, y: p.y } : w
+            }),
+            layoutViewport: vp ?? state.layoutViewport,
+          }
+        })
       },
 
       toggleWidgetLock: (id) => {
@@ -277,7 +303,7 @@ export const useWidgetStore = create<WidgetState>()(
         }))
       },
 
-      resetToDefault: () => set({ placedWidgets: getDefaultPositions() }),
+      resetToDefault: () => set({ placedWidgets: getDefaultPositions(), layoutViewport: currentViewportSize() }),
 
       resetLayout: () => {
         if (isMobileLayoutNow()) {
@@ -312,12 +338,12 @@ export const useWidgetStore = create<WidgetState>()(
           currentY += h + WIDGET_GAP
         })
 
-        set({ placedWidgets: sanitizeLayout(rearranged) })
+        set({ placedWidgets: sanitizeLayout(rearranged), layoutViewport: currentViewportSize() })
       },
 
       tidyUpWidgets: () => {
         if (isMobileLayoutNow()) return
-        set({ placedWidgets: sanitizeLayout(autoSpaceWidgets(get().placedWidgets)) })
+        set({ placedWidgets: sanitizeLayout(autoSpaceWidgets(get().placedWidgets)), layoutViewport: currentViewportSize() })
       },
 
       hasWidget: (type) => {

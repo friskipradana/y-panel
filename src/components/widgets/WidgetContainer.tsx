@@ -18,6 +18,7 @@ import {
   WIDGET_MIN_WIDTH,
   WIDGET_TOP,
   WIDGET_WIDTH,
+  type ProjectedWidgetRect,
 } from '@/store/widgetStore'
 import { ClockUptimeWidget } from './ClockUptimeWidget'
 import { SystemVitalWidget } from './SystemVitalWidget'
@@ -31,6 +32,9 @@ import { useI18n } from '@/lib/i18n'
 
 interface WidgetContainerProps {
   widget: PlacedWidget
+  viewport: { w: number; h: number }
+  projectedRect?: ProjectedWidgetRect
+  projectedMap: Map<string, ProjectedWidgetRect>
   onUpdatePosition: (id: string, x: number, y: number) => void
   onRemove: (id: string) => void
   onToggleLock: (id: string) => void
@@ -66,23 +70,20 @@ const HANDLES: Array<{ dir: HandleDir; className: string }> = [
   { dir: 'sw', className: 'bottom-0 left-0 h-3 w-3 cursor-nesw-resize' },
 ]
 
-function useViewport() {
-  const [size, setSize] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }))
-  useEffect(() => {
-    const onResize = () => setSize({ w: window.innerWidth, h: window.innerHeight })
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-  return size
-}
-
-export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLock }: WidgetContainerProps) {
+export function WidgetContainer({
+  widget,
+  viewport,
+  projectedRect,
+  projectedMap,
+  onUpdatePosition,
+  onRemove,
+  onToggleLock,
+}: WidgetContainerProps) {
   const { t } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const viewport = useViewport()
   const Component = WIDGET_COMPONENTS[widget.type]
   // a sticky note is named by its first line, and by the widget name while it is empty
   const noteTitle = useWidgetStore((s) =>
@@ -110,12 +111,12 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
     }
   }, [widget.id])
 
-  // Width follows the viewport on narrow screens; position is kept inside it
-  const width = Math.min(widgetWidthOf(widget), viewport.w - EDGE * 2)
+  // Width and position follow responsive viewport projection without destroying saved coordinates
+  const width = projectedRect?.w ?? Math.min(widgetWidthOf(widget), viewport.w - EDGE * 2)
   const height = widgetHeightOf(widget)
   const resizeWidget = useWidgetStore((s) => s.resizeWidget)
-  const left = Math.max(EDGE, Math.min(widget.x, viewport.w - width - EDGE))
-  const top = Math.max(TOP_MIN, Math.min(widget.y, viewport.h - height - 24))
+  const left = projectedRect?.x ?? Math.max(EDGE, Math.min(widget.x, viewport.w - width - EDGE))
+  const top = projectedRect?.y ?? Math.max(TOP_MIN, Math.min(widget.y, viewport.h - height - 24))
 
   const isNote = widget.type === 'quick-note'
   const noteColor = useWidgetStore((s) => (isNote ? s.notes.find((n) => n.id === widget.config?.noteId)?.color : undefined))
@@ -172,8 +173,11 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
       window.removeEventListener('pointercancel', onPointerUp)
 
       // light alignment, the smallest move out of an overlap, or back to where it was picked up
-      const allWidgets = useWidgetStore.getState().placedWidgets
-      const snapped = placeDroppedWidget(widget.id, widget.type, latestX, latestY, allWidgets, { x: widget.x, y: widget.y })
+      const allWidgets = useWidgetStore.getState().placedWidgets.map((w) => {
+        const p = projectedMap.get(w.id)
+        return p ? { ...w, x: p.x, y: p.y, w: p.w } : w
+      })
+      const snapped = placeDroppedWidget(widget.id, widget.type, latestX, latestY, allWidgets, { x: left, y: top })
 
       if (containerRef.current) {
         containerRef.current.style.left = `${snapped.x}px`
@@ -197,7 +201,13 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
     if (!card) return
 
     const start = { x: e.clientX, y: e.clientY, left, top, w: width, h: height }
-    const others = useWidgetStore.getState().placedWidgets.filter((w) => w.id !== widget.id)
+    const others = useWidgetStore
+      .getState()
+      .placedWidgets.filter((w) => w.id !== widget.id)
+      .map((w) => {
+        const p = projectedMap.get(w.id)
+        return p ? { ...w, x: p.x, y: p.y, w: p.w } : w
+      })
     let rect = { x: left, y: top, w: width, h: height }
     setIsDragging(true)
 
