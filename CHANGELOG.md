@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.87] - 2026-11-25
+
+Resolve all undefined CSS tokens, scss-hex, a11y, and hardcoded-text warnings.
+
+### Perbaikan
+- **ui:** Resolve all undefined CSS tokens, scss-hex, a11y, and hardcoded-text warnings ([`f0bf3a4`](https://github.com/friskipradana/y-panel/commit/f0bf3a4))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.86...v1.88.87
+
 ## [1.88.86] - 2026-11-25
 
 Discard negative/overflowed Ookla bandwidth samples and clamp gauge display.
