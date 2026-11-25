@@ -4093,7 +4093,8 @@ func stripPanelCookies(cookieHeader string) string {
 			continue
 		}
 		name, _, _ := strings.Cut(trimmed, "=")
-		if strings.EqualFold(strings.TrimSpace(name), "reneo_session") {
+		n := strings.TrimSpace(name)
+		if strings.EqualFold(n, "reneo_session") || strings.EqualFold(n, "reneo_app_ctx") {
 			continue
 		}
 		kept = append(kept, trimmed)
@@ -4905,6 +4906,10 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 				if resp.Header.Get("Content-Encoding") == "" && resp.Body != nil {
 					isHTML := strings.Contains(ct, "text/html")
 					isCSS := strings.Contains(ct, "text/css")
+					if isHTML && u != nil && app != nil && app.ID > 0 {
+						ctxVal := strconv.FormatInt(app.ID, 10)
+						resp.Header.Add("Set-Cookie", "reneo_app_ctx="+ctxVal+"; Path=/; HttpOnly; SameSite=Lax")
+					}
 					if isHTML || isCSS {
 						raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 						_ = resp.Body.Close()
@@ -4962,6 +4967,60 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 	}
 
 	proxy.ServeHTTP(w, r)
+}
+
+// handleRootAppWebSocketProxy forwards root-level /websockify and /websockify-audio connections
+// opened by Web Workers (e.g. jlesage/firefox WEB_AUDIO=1 audio streams) back to the active proxied app.
+func (s *Server) handleRootAppWebSocketProxy(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	if u == nil || s.isDemoUser(u) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	loadOwned := func(id int64) *database.InstalledApp {
+		if id <= 0 {
+			return nil
+		}
+		cand, err := s.database.GetInstalledApp(id)
+		if err != nil || cand == nil {
+			return nil
+		}
+		if cand.UserID != u.ID && !auth.HasRole(u.Role, auth.SuperadminRole) {
+			return nil
+		}
+		return cand
+	}
+	var app *database.InstalledApp
+	if ref := strings.TrimSpace(r.Header.Get("Referer")); ref != "" {
+		if refURL, err := url.Parse(ref); err == nil {
+			if slug, _, _ := appGatewaySplitPath(refURL.Path); slug != "" {
+				app, _ = s.database.GetInstalledAppBySlug(u.ID, slug)
+			} else if strings.HasPrefix(refURL.Path, appCatalogProxyPrefix) {
+				rest := strings.TrimPrefix(refURL.Path, appCatalogProxyPrefix)
+				idPart, _, _ := strings.Cut(rest, "/")
+				if appID, pErr := strconv.ParseInt(idPart, 10, 64); pErr == nil {
+					app = loadOwned(appID)
+				}
+			}
+		}
+	}
+	if app == nil {
+		if c, err := r.Cookie("reneo_app_ctx"); err == nil {
+			if appID, pErr := strconv.ParseInt(strings.TrimSpace(c.Value), 10, 64); pErr == nil {
+				app = loadOwned(appID)
+			}
+		}
+	}
+	if app == nil {
+		http.NotFound(w, r)
+		return
+	}
+	prefix := fmt.Sprintf("%s%d", appCatalogProxyPrefix, app.ID)
+	if strings.TrimSpace(app.Slug) != "" {
+		prefix = "/app/" + strings.TrimSpace(app.Slug)
+	}
+	rest := strings.TrimPrefix(r.URL.Path, "/")
+	s.serveAppProxy(w, r, u, app, prefix, rest)
 }
 
 func isPublicReneoCrmPath(rest string) bool {

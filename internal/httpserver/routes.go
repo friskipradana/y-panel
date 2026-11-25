@@ -580,6 +580,11 @@ func (s *Server) routes() {
 
 	// Direct app catalog gateway proxy (/app/{slug}/*)
 	s.mux.Handle("/app/", s.appGatewayProxy())
+	// Root-level websockify & audio streams opened by GUI app workers (e.g. jlesage/firefox WEB_AUDIO=1)
+	s.mux.Handle("/websockify", s.requireAuthV2(http.HandlerFunc(s.handleRootAppWebSocketProxy)))
+	s.mux.Handle("/websockify/", s.requireAuthV2(http.HandlerFunc(s.handleRootAppWebSocketProxy)))
+	s.mux.Handle("/websockify-audio", s.requireAuthV2(http.HandlerFunc(s.handleRootAppWebSocketProxy)))
+	s.mux.Handle("/websockify-audio/", s.requireAuthV2(http.HandlerFunc(s.handleRootAppWebSocketProxy)))
 
 	s.mux.Handle("/", s.authedFrontend)
 }
