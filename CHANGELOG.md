@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.96] - 2026-11-25
+
+Scale and anchor desktop widget positions responsively across viewport resizes.
+
+### Perbaikan
+- **widgets:** Scale and anchor desktop widget positions responsively across viewport resizes ([`bd082e1`](https://github.com/friskipradana/y-panel/commit/bd082e1))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.95...v1.88.96
+
 ## [1.88.95] - 2026-11-25
 
 Set stream:false and parse SSE data: responses for routers like 9router.
