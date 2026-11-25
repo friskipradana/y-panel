@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.91] - 2026-11-25
+
+Proxy root /websockify and /websockify-audio WebSocket streams for jlesage GUI audio workers.
+
+### Perbaikan
+- **proxy:** Proxy root /websockify and /websockify-audio WebSocket streams for jlesage GUI audio workers ([`5b2e854`](https://github.com/friskipradana/y-panel/commit/5b2e854))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.90...v1.88.91
+
 ## [1.88.90] - 2026-11-25
 
 Add live AI model listing & field order, update Ctrl+K palette, share Panel PostgreSQL for official apps, and add DBX/Adminer access to Settings > Database Reneo.
