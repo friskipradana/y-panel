@@ -103,6 +103,15 @@ func TestAppCatalogProxyRewrites(t *testing.T) {
 	if !strings.Contains(out, `history.replaceState`) || !strings.Contains(out, `window.WebSocket`) || !strings.Contains(out, `isURLObj`) {
 		t.Fatalf("expected SPA router, WebSocket shim and URL-object handling injected, got %s", out)
 	}
+	if !strings.Contains(out, `Worklet.prototype.addModule`) || !strings.Contains(out, `AudioContext`) || !strings.Contains(out, `HTMLMediaElement`) || !strings.Contains(out, `pr!==undefined`) {
+		t.Fatalf("expected AudioWorklet, AudioContext unlock, media src hooks, and safe WebSocket protocol handling, got %s", out)
+	}
+	if !isLocalProxyTarget("localhost") || !isLocalProxyTarget("127.0.0.1") || !isLocalProxyTarget("::1") || !isLocalProxyTarget("192.168.1.20") {
+		t.Fatalf("expected local hosts to be detected for Origin alignment")
+	}
+	if isLocalProxyTarget("example.com") {
+		t.Fatalf("expected public domain not to match local proxy target")
+	}
 
 	css := []byte(`@font-face{src:url('/fonts/inter.woff2');background:url(/img/bg.png);image:url("//cdn.example.com/a.png")}`)
 	cssOut := string(rewriteProxyCSS(css, "/api/v1/app-catalog/proxy/7"))

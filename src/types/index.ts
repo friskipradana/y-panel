@@ -41,6 +41,8 @@ export interface WindowState {
   isMinimized: boolean
   isMaximized: boolean
   isFullscreen: boolean
+  isPip?: boolean
+  prePipRect?: { x: number; y: number; width: number; height: number; isMaximized: boolean }
   lastAction?: 'open' | 'minimize' | 'restore'
   /** Snapshot data for restoring window state after refresh */
   params?: Record<string, unknown>

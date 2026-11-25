@@ -1,5 +1,27 @@
 // Window Chrome & Frame System
 
+.window-frame--pip {
+  .window-titlebar--pip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    backdrop-filter: blur(14px);
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+
+  &:hover .window-titlebar--pip,
+  &:focus-within .window-titlebar--pip {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+
 .panel-window {
   display: flex;
   height: 100%;

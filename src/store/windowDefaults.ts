@@ -47,14 +47,20 @@ export const DEFAULTS: Record<
 const Z_NORMAL = Z.windowNormal
 const Z_MAXIMIZED = Z.windowMaximized
 const Z_FOCUS_BOOST = Z.windowFocused
+const Z_PIP = Z.windowPip
 const Z_FULLSCREEN = Z.windowFullscreen
 
 export function reorder(windows: WindowState[]) {
-  const non = windows.filter((w) => !w.isFullscreen)
-  const full = windows.filter((w) => !w.isFullscreen === false)
+  const non = windows.filter((w) => !w.isFullscreen && !w.isPip)
+  const pip = windows.filter((w) => !w.isFullscreen && Boolean(w.isPip))
+  const full = windows.filter((w) => Boolean(w.isFullscreen))
 
   non.forEach((w, i) => {
     w.zIndex = (w.isMaximized ? Z_MAXIMIZED : Z_NORMAL) + i
+  })
+
+  pip.forEach((w, i) => {
+    w.zIndex = Z_PIP + i
   })
 
   full.forEach((w, i) => {
@@ -68,29 +74,29 @@ export function bringToFront(windows: WindowState[], id: string) {
 
   const win = windows[index]
   const isFullscreen = win.isFullscreen
+  const isPip = Boolean(win.isPip) && !isFullscreen
 
-  const nonFull = windows.filter((w) => !w.isFullscreen)
-  const full = windows.filter((w) => w.isFullscreen)
+  const nonFull = windows.filter((w) => !w.isFullscreen && !w.isPip)
+  const pip = windows.filter((w) => !w.isFullscreen && Boolean(w.isPip))
+  const full = windows.filter((w) => Boolean(w.isFullscreen))
 
-  if (isFullscreen) {
-    const fi = full.findIndex((w) => w.id === id)
-    if (fi !== -1 && fi !== full.length - 1) {
-      const [w] = full.splice(fi, 1)
-      full.push(w)
-    }
-  } else {
-    const ni = nonFull.findIndex((w) => w.id === id)
-    if (ni !== -1 && ni !== nonFull.length - 1) {
-      const [w] = nonFull.splice(ni, 1)
-      nonFull.push(w)
+  const promote = (list: WindowState[]) => {
+    const idx = list.findIndex((w) => w.id === id)
+    if (idx !== -1 && idx !== list.length - 1) {
+      const [w] = list.splice(idx, 1)
+      list.push(w)
     }
   }
 
+  if (isFullscreen) promote(full)
+  else if (isPip) promote(pip)
+  else promote(nonFull)
+
   windows.length = 0
-  windows.push(...nonFull, ...full)
+  windows.push(...nonFull, ...pip, ...full)
   reorder(windows)
 
-  if (!isFullscreen) {
+  if (!isFullscreen && !isPip) {
     win.zIndex = Z_FOCUS_BOOST
   }
 }

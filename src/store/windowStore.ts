@@ -29,6 +29,8 @@ interface WindowStore {
   minimizeWindow: (id: string) => void;
   maximizeWindow: (id: string) => void;
   toggleFullscreenWindow: (id: string) => void;
+  togglePipWindow: (id: string, aspectRatio?: number) => void;
+  fitWindowToContent: (id: string, width: number, height: number) => void;
   moveWindow: (id: string, x: number, y: number) => void;
   resizeWindow: (id: string, width: number, height: number) => void;
   setGlobalContentZoom: (value: number) => void;
@@ -223,6 +225,10 @@ export const useWindowStore = create<WindowStore>()(
         set((state) => {
           const win = state.windows.find((w) => w.id === id);
           if (!win) return;
+          if (win.isPip) {
+            win.isPip = false;
+            delete win.prePipRect;
+          }
           if (win.isFullscreen) {
             win.isFullscreen = false;
             win.isMaximized = true;
@@ -237,11 +243,82 @@ export const useWindowStore = create<WindowStore>()(
         set((state) => {
           const win = state.windows.find((w) => w.id === id);
           if (!win) return;
+          if (win.isPip) {
+            win.isPip = false;
+            delete win.prePipRect;
+          }
           win.isFullscreen = !win.isFullscreen;
           if (win.isFullscreen) {
             win.isMinimized = false;
             win.lastAction = "restore";
           }
+          bringToFront(state.windows, id);
+          state.focusedId = id;
+        }),
+
+      togglePipWindow: (id, aspectRatio) =>
+        set((state) => {
+          const win = state.windows.find((w) => w.id === id);
+          if (!win) return;
+          if (win.isPip) {
+            win.isPip = false;
+            if (win.prePipRect) {
+              win.x = win.prePipRect.x;
+              win.y = win.prePipRect.y;
+              win.width = win.prePipRect.width;
+              win.height = win.prePipRect.height;
+              win.isMaximized = win.prePipRect.isMaximized;
+              delete win.prePipRect;
+            }
+            bringToFront(state.windows, id);
+            state.focusedId = id;
+            return;
+          }
+          win.prePipRect = {
+            x: win.x,
+            y: win.y,
+            width: win.width,
+            height: win.height,
+            isMaximized: win.isMaximized,
+          };
+          win.isMaximized = false;
+          win.isFullscreen = false;
+          win.isMinimized = false;
+          win.isPip = true;
+          const ratio = aspectRatio && Number.isFinite(aspectRatio) ? Math.min(2.4, Math.max(0.75, aspectRatio)) : 16 / 9;
+          const pipW = Math.min(464, Math.max(280, Math.round(window.innerWidth * 0.34)));
+          const pipH = Math.min(Math.max(180, Math.round(pipW / ratio)), Math.max(200, window.innerHeight - 140));
+          win.width = pipW;
+          win.height = pipH;
+          win.x = Math.max(12, window.innerWidth - pipW - 20);
+          win.y = Math.max(52, window.innerHeight - pipH - 88);
+          delete win.prefWidth;
+          delete win.prefHeight;
+          bringToFront(state.windows, id);
+          state.focusedId = id;
+        }),
+
+      fitWindowToContent: (id, targetWidth, targetHeight) =>
+        set((state) => {
+          const win = state.windows.find((w) => w.id === id);
+          if (!win) return;
+          const maxW = Math.max(320, window.innerWidth - 24);
+          const maxH = Math.max(220, window.innerHeight - 44 - 24);
+          const width = Math.min(maxW, Math.max(300, Math.round(targetWidth)));
+          const height = Math.min(maxH, Math.max(220, Math.round(targetHeight)));
+          win.isMaximized = false;
+          win.isFullscreen = false;
+          win.width = width;
+          win.height = height;
+          if (!win.isPip) {
+            win.x = Math.max(12, Math.min(win.x, window.innerWidth - width - 12));
+            win.y = Math.max(48, Math.min(win.y, window.innerHeight - height - 16));
+          } else {
+            win.x = Math.max(12, Math.min(win.x, window.innerWidth - width - 12));
+            win.y = Math.max(48, Math.min(win.y, window.innerHeight - height - 20));
+          }
+          delete win.prefWidth;
+          delete win.prefHeight;
           bringToFront(state.windows, id);
           state.focusedId = id;
         }),

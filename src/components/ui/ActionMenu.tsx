@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { createPortal } from 'react-dom'
 import { LoaderCircle, MoreHorizontal } from 'lucide-react'
 import { IconButton, type IconButtonSize, type IconButtonVariant } from '@/components/ui/IconButton'
+import { Z } from '@/lib/zLayers'
 
 export interface ActionMenuItem {
   key: string
@@ -25,6 +26,7 @@ interface ActionMenuProps {
   variant?: IconButtonVariant
   align?: 'left' | 'right'
   className?: string
+  onOpenChange?: (open: boolean) => void
 }
 
 // Menu aksi kompak untuk merangkum aksi sekunder pada toolbar maupun baris tabel
@@ -38,11 +40,23 @@ export function ActionMenu({
   variant,
   align = 'right',
   className = '',
+  onOpenChange,
 }: ActionMenuProps) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpenState] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({})
+
+  const setOpen = useCallback(
+    (next: boolean | ((prev: boolean) => boolean)) => {
+      setOpenState((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next
+        if (resolved !== prev) onOpenChange?.(resolved)
+        return resolved
+      })
+    },
+    [onOpenChange],
+  )
 
   const visibleItems = items.filter(Boolean)
 
@@ -63,6 +77,7 @@ export function ActionMenu({
       position: 'fixed',
       left: leftPos,
       width: menuWidth,
+      zIndex: Z.floatingMenu,
       maxHeight: Math.max(120, openUp ? above : below),
       ...(openUp ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
     })
@@ -92,13 +107,16 @@ export function ActionMenu({
         triggerRef.current?.focus()
       }
     }
-    document.addEventListener('pointerdown', onPointerDown)
+    const onWindowBlur = () => setOpen(false)
+    document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('keydown', onKeyDown)
+    window.addEventListener('blur', onWindowBlur)
     return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('pointerdown', onPointerDown, true)
       document.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('blur', onWindowBlur)
     }
-  }, [open])
+  }, [open, setOpen])
 
   if (visibleItems.length === 0) return null
 

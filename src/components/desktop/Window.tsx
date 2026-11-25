@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, Maximize, Minimize as ExitFullscreen, Minus, Square, X } from 'lucide-react'
+import { Copy, Maximize, Minimize as ExitFullscreen, Minus, PictureInPicture2, Square, X } from 'lucide-react'
 import { useWindowStore, selectFocusedId } from '@/store/windowStore'
 import { useAlertStore } from '@/store/alertStore'
 import { InnerAlert } from '@/components/alert/GlobalAlert'
@@ -41,7 +41,7 @@ function snapRect(zone: Exclude<SnapZone, null>) {
 
 export function Window({ win, children }: Props) {
   const { t } = useI18n()
-  const { closeWindow, minimizeWindow, maximizeWindow, toggleFullscreenWindow, focusWindow, moveWindow, resizeWindow } = useWindowStore()
+  const { closeWindow, minimizeWindow, maximizeWindow, toggleFullscreenWindow, togglePipWindow, focusWindow, moveWindow, resizeWindow } = useWindowStore()
   const windowRef = useRef<HTMLDivElement>(null)
 
   const focusedId = useWindowStore(selectFocusedId)
@@ -101,6 +101,7 @@ export function Window({ win, children }: Props) {
 
     const begin = () => {
       started = true
+      document.body.classList.add('window-interacting')
       document.body.style.userSelect = 'none'
       document.body.style.cursor = 'move'
       if (wasMaximized) {
@@ -149,6 +150,7 @@ export function Window({ win, children }: Props) {
       }
       preview?.remove()
       preview = null
+      document.body.classList.remove('window-interacting')
       document.body.style.userSelect = ''
       document.body.style.cursor = ''
       window.removeEventListener('pointermove', onMove)
@@ -187,8 +189,8 @@ export function Window({ win, children }: Props) {
     const startX = event.clientX
     const startY = event.clientY
     const initial = { x: win.x, y: win.y, width: win.width, height: win.height }
-    const minWidth = win.kind === 'host-terminal' ? 480 : win.kind === 'system' ? 360 : 300
-    const minHeight = win.kind === 'host-terminal' ? 320 : win.kind === 'system' ? 360 : 220
+    const minWidth = win.isPip ? 260 : win.kind === 'host-terminal' ? 480 : win.kind === 'system' ? 360 : 300
+    const minHeight = win.isPip ? 160 : win.kind === 'host-terminal' ? 320 : win.kind === 'system' ? 360 : 220
 
     let curX = initial.x
     let curY = initial.y
@@ -196,6 +198,7 @@ export function Window({ win, children }: Props) {
     let curHeight = initial.height
     let rafId: number | null = null
 
+    document.body.classList.add('window-interacting')
     document.body.style.userSelect = 'none'
 
     const onMove = (moveEvent: PointerEvent) => {
@@ -242,6 +245,7 @@ export function Window({ win, children }: Props) {
         cancelAnimationFrame(rafId)
         rafId = null
       }
+      document.body.classList.remove('window-interacting')
       document.body.style.userSelect = ''
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
@@ -262,6 +266,9 @@ export function Window({ win, children }: Props) {
       ? { left: 0, top: TOP_SAFE_OFFSET, width: '100vw', height: `calc(100vh - ${TOP_SAFE_OFFSET}px)`, zIndex: win.zIndex }
       : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: win.zIndex }
 
+  const isPip = Boolean(win.isPip) && !win.isFullscreen
+  const canPip = win.kind === 'installed-app' || win.kind === 'kvm'
+  const pipTitle = isPip ? t('window.pipExit') : t('window.pipEnter')
   const maxTitle = win.isMaximized ? t('window.restore') : t('window.maximize')
   const fullTitle = win.isFullscreen ? t('window.exitFullscreen') : t('window.fullscreen')
   const lockScroll =
@@ -279,13 +286,13 @@ export function Window({ win, children }: Props) {
       animate={{ scale: win.isMinimized ? 0.88 : 1, opacity: win.isMinimized ? 0 : 1, y: win.isMinimized ? 40 : 0, pointerEvents: win.isMinimized ? 'none' : 'auto' }}
       exit={animation.exit}
       transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-      className="window-frame absolute flex flex-col overflow-hidden select-none pointer-events-auto"
+      className={`window-frame absolute flex flex-col overflow-hidden select-none pointer-events-auto ${isPip ? 'window-frame--pip' : ''}`}
       style={{
         ...style,
         background: 'var(--win-bg)',
-        borderRadius: isExpanded ? 0 : 14,
-        border: isExpanded ? 'none' : `1px solid ${isFocused ? 'var(--win-border-focus)' : 'var(--win-border)'}`,
-        boxShadow: isExpanded ? 'none' : isFocused ? 'var(--win-shadow-focus)' : 'var(--win-shadow)',
+        borderRadius: isExpanded ? 0 : isPip ? 12 : 14,
+        border: isExpanded ? 'none' : `1px solid ${isPip || isFocused ? 'var(--win-border-focus)' : 'var(--win-border)'}`,
+        boxShadow: isExpanded ? 'none' : isPip || isFocused ? 'var(--win-shadow-focus)' : 'var(--win-shadow)',
         transition: 'box-shadow 100ms ease, border-color 100ms ease, border-radius 150ms ease',
         backdropFilter: 'blur(20px)',
       }}
@@ -295,10 +302,10 @@ export function Window({ win, children }: Props) {
       }}
     >
       <div
-        className="flex items-center justify-between px-3 shrink-0 relative z-10 transition-colors duration-150 select-none border-b border-[var(--win-border)]"
-        style={{ height: 38, background: isFocused ? 'var(--win-bar-focus)' : 'var(--win-bar)', borderBottom: '1px solid var(--win-border)', cursor: isExpanded ? 'default' : 'move' }}
+        className={`flex items-center justify-between px-3 shrink-0 z-10 transition-colors duration-150 select-none border-b border-[var(--win-border)] ${isPip ? 'window-titlebar--pip' : 'relative'}`}
+        style={{ height: isPip ? 32 : 38, background: isFocused ? 'var(--win-bar-focus)' : 'var(--win-bar)', borderBottom: '1px solid var(--win-border)', cursor: isExpanded ? 'default' : 'move' }}
         onPointerDown={handleBarPointerDown}
-        onDoubleClick={() => maximizeWindow(win.id)}
+        onDoubleClick={() => (isPip ? togglePipWindow(win.id) : maximizeWindow(win.id))}
       >
         <div className="flex items-center gap-2 min-w-0 pr-3 pointer-events-none">
           <AppIcon
@@ -315,15 +322,35 @@ export function Window({ win, children }: Props) {
         </div>
 
         <div className="flex items-center gap-1 shrink-0" data-window-controls onPointerDown={(e) => e.stopPropagation()}>
-          <button type="button" onClick={() => minimizeWindow(win.id)} style={controlButtonStyle} onMouseEnter={(e) => applyHover(e.currentTarget)} onMouseLeave={(e) => resetHover(e.currentTarget)} title={t('window.minimize')} aria-label={t('window.minimize')}>
-            <Minus size={13} strokeWidth={1.75} />
-          </button>
-          <button type="button" onClick={() => maximizeWindow(win.id)} style={controlButtonStyle} onMouseEnter={(e) => applyHover(e.currentTarget)} onMouseLeave={(e) => resetHover(e.currentTarget)} title={maxTitle} aria-label={maxTitle}>
-            {win.isMaximized ? <Copy size={11} strokeWidth={1.75} className="rotate-90" /> : <Square size={11} strokeWidth={1.75} />}
-          </button>
-          <button type="button" onClick={() => toggleFullscreenWindow(win.id)} style={controlButtonStyle} onMouseEnter={(e) => applyHover(e.currentTarget)} onMouseLeave={(e) => resetHover(e.currentTarget)} title={fullTitle} aria-label={fullTitle}>
-            {win.isFullscreen ? <ExitFullscreen size={12} strokeWidth={1.75} /> : <Maximize size={12} strokeWidth={1.75} />}
-          </button>
+          {canPip ? (
+            <button
+              type="button"
+              onClick={() => togglePipWindow(win.id)}
+              style={{ ...controlButtonStyle, color: isPip ? 'var(--panel-primary-text)' : controlButtonStyle.color }}
+              onMouseEnter={(e) => applyHover(e.currentTarget)}
+              onMouseLeave={(e) => {
+                resetHover(e.currentTarget)
+                if (isPip) e.currentTarget.style.color = 'var(--panel-primary-text)'
+              }}
+              title={pipTitle}
+              aria-label={pipTitle}
+            >
+              <PictureInPicture2 size={13} strokeWidth={1.75} />
+            </button>
+          ) : null}
+          {!isPip ? (
+            <>
+              <button type="button" onClick={() => minimizeWindow(win.id)} style={controlButtonStyle} onMouseEnter={(e) => applyHover(e.currentTarget)} onMouseLeave={(e) => resetHover(e.currentTarget)} title={t('window.minimize')} aria-label={t('window.minimize')}>
+                <Minus size={13} strokeWidth={1.75} />
+              </button>
+              <button type="button" onClick={() => maximizeWindow(win.id)} style={controlButtonStyle} onMouseEnter={(e) => applyHover(e.currentTarget)} onMouseLeave={(e) => resetHover(e.currentTarget)} title={maxTitle} aria-label={maxTitle}>
+                {win.isMaximized ? <Copy size={11} strokeWidth={1.75} className="rotate-90" /> : <Square size={11} strokeWidth={1.75} />}
+              </button>
+              <button type="button" onClick={() => toggleFullscreenWindow(win.id)} style={controlButtonStyle} onMouseEnter={(e) => applyHover(e.currentTarget)} onMouseLeave={(e) => resetHover(e.currentTarget)} title={fullTitle} aria-label={fullTitle}>
+                {win.isFullscreen ? <ExitFullscreen size={12} strokeWidth={1.75} /> : <Maximize size={12} strokeWidth={1.75} />}
+              </button>
+            </>
+          ) : null}
           <button
             type="button"
             onClick={() => closeWindow(win.id)}
