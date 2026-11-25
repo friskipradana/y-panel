@@ -14,6 +14,7 @@ export function FirewallToolbar({ fw }: { fw: FirewallWindowState }) {
     { key: 'rules', label: t('firewall.section.rules'), count: ufw?.rules.length },
     { key: 'ports', label: t('firewall.section.ports'), count: data?.listeners.length },
     { key: 'policy', label: t('firewall.section.policy') },
+    { key: 'hardening', label: t('firewall.section.hardening') },
   ]
   const statusPill = state ? (
     <span className={`docker-status-pill docker-status-pill--${state === 'active' ? 'running' : state === 'inactive' ? 'paused' : 'exited'}`}>

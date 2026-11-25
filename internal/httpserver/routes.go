@@ -350,6 +350,14 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/hostops/cron/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDeleteCronJob)))
 	s.mux.Handle("POST /api/v1/hostops/cron/{id}/run", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleRunCronJobNow)))
 
+	// Security Hardening: SSH Keys, Fail2Ban & OS Updates (Superadmin only)
+	s.mux.Handle("GET /api/v1/security/hardening", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSecurityHardeningOverview)))
+	s.mux.Handle("POST /api/v1/security/ssh-keys", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleAddSSHKey)))
+	s.mux.Handle("DELETE /api/v1/security/ssh-keys/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDeleteSSHKey)))
+	s.mux.Handle("POST /api/v1/security/fail2ban/ban", s.requireRole(auth.SuperadminRole, s.handleFail2BanAction("banip")))
+	s.mux.Handle("POST /api/v1/security/fail2ban/unban", s.requireRole(auth.SuperadminRole, s.handleFail2BanAction("unbanip")))
+	s.mux.Handle("POST /api/v1/security/os-updates/apply", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleApplyOSUpdates)))
+
 	// Scheduled Backup & Restore (Local & S3/R2)
 	s.mux.Handle("GET /api/v1/backups/overview", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleBackupOverview)))
 	s.mux.Handle("POST /api/v1/backups/targets", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCreateBackupTarget)))

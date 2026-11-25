@@ -111,5 +111,9 @@ func k8sSpecs() []apiSpec {
 			Desc:   "List installed Helm chart releases across all namespaces in a Kubernetes cluster.",
 			Params: []apiParam{clusterID},
 		},
+		{
+			Name: "security_hardening_overview", Title: "Inspect SSH keys, Fail2Ban jails, and OS updates", Method: "GET", Path: "/api/v1/security/hardening", SuperOnly: true,
+			Desc: "Read authorized SSH keys, Fail2Ban banned IPs, recent failed SSH logins, and available OS package updates.",
+		},
 	}
 }

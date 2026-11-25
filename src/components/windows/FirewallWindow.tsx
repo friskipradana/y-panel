@@ -1,5 +1,6 @@
 import type { WindowState } from '@/types'
 import { FirewallToolbar } from './firewall/FirewallToolbar'
+import { HardeningSection } from './firewall/HardeningSection'
 import { PolicySection } from './firewall/PolicySection'
 import { PortsSection } from './firewall/PortsSection'
 import { RuleModal } from './firewall/RuleModal'
@@ -15,6 +16,7 @@ export function FirewallWindow({ win }: { win?: WindowState; authenticated?: boo
       {fw.section === 'rules' ? <RulesSection fw={fw} /> : null}
       {fw.section === 'ports' ? <PortsSection fw={fw} /> : null}
       {fw.section === 'policy' ? <PolicySection fw={fw} /> : null}
+      {fw.section === 'hardening' ? <HardeningSection /> : null}
       <RuleModal fw={fw} />
     </div>
   )

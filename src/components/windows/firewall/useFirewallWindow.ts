@@ -23,7 +23,7 @@ import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import type { WindowState } from '@/types'
 
-export type Section = 'rules' | 'ports' | 'policy'
+export type Section = 'rules' | 'ports' | 'policy' | 'hardening'
 
 const KEY = ['firewall']
 
