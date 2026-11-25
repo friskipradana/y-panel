@@ -465,6 +465,7 @@ func (s *Server) routes() {
 
 	// ── Docker Networks & Images & Templates ──────────────────────────────────
 	s.mux.Handle("GET /api/v1/docker/networks", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworksList)))
+	s.mux.Handle("GET /api/v1/docker/networks/suggest-ip", s.requireAuthV2(http.HandlerFunc(s.handleDockerSuggestStaticIP)))
 	s.mux.Handle("POST /api/v1/docker/networks", s.requireCapability(auth.CapabilityDockerNetworkManage, http.HandlerFunc(s.handleDockerNetworkCreate)))
 	s.mux.Handle("DELETE /api/v1/docker/networks/{id}", s.requireCapability(auth.CapabilityDockerNetworkManage, http.HandlerFunc(s.handleDockerNetworkDelete)))
 	s.mux.Handle("GET /api/v1/docker/volumes", s.requireAuthV2(http.HandlerFunc(s.handleDockerVolumes)))

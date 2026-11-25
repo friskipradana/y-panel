@@ -42,12 +42,16 @@ func ValidateDeployImage(owner OwnerContext, req DeployImageRequest) error {
 	if err != nil {
 		return err
 	}
-	composeYAML, err := buildComposeForImage(owner, projectName, req.Image, req.Network, ports, env, volumes)
+	resolvedNet, cleanIP, err := ValidateStaticIPAssignment(req.Network, req.StaticIP)
+	if err != nil {
+		return err
+	}
+	composeYAML, err := buildComposeForImage(owner, projectName, req.Image, resolvedNet, cleanIP, ports, env, volumes)
 	if err != nil {
 		return err
 	}
 	if !IsPolicyExempt(owner.Role) {
-		if err := CheckNetworkPolicy(req.Network); err != nil {
+		if err := CheckNetworkPolicy(resolvedNet); err != nil {
 			return err
 		}
 		if err := CheckComposePolicy(composeYAML, owner.HomeDir); err != nil {
@@ -75,6 +79,15 @@ func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult,
 	if err != nil {
 		return nil, err
 	}
+	resolvedNet, cleanIP, err := ValidateStaticIPAssignment(req.Network, req.StaticIP)
+	if err != nil {
+		return nil, err
+	}
+	if cleanIP != "" {
+		if _, _, netErr := EnsureStaticNetwork(resolvedNet); netErr != nil {
+			return nil, netErr
+		}
+	}
 	logout, err := loginRegistryIfNeeded(req.RegistryAuth)
 	if err != nil {
 		return nil, err
@@ -82,12 +95,12 @@ func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult,
 	if logout != nil {
 		defer logout()
 	}
-	composeYAML, err := buildComposeForImage(owner, projectName, req.Image, req.Network, ports, env, volumes)
+	composeYAML, err := buildComposeForImage(owner, projectName, req.Image, resolvedNet, cleanIP, ports, env, volumes)
 	if err != nil {
 		return nil, err
 	}
 	if !IsPolicyExempt(owner.Role) {
-		if err := CheckNetworkPolicy(req.Network); err != nil {
+		if err := CheckNetworkPolicy(resolvedNet); err != nil {
 			return nil, err
 		}
 		if err := CheckComposePolicy(composeYAML, owner.HomeDir); err != nil {

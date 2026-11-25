@@ -14,7 +14,7 @@ func testOwner(t *testing.T) OwnerContext {
 
 func TestComposeForImageUsesNetworkModeForTheNetworksDockerMadeItself(t *testing.T) {
 	for _, name := range []string{"bridge", "host", "none"} {
-		yaml, err := buildComposeForImage(testOwner(t), "web", "nginx:latest", name, nil, nil, nil)
+		yaml, err := buildComposeForImage(testOwner(t), "web", "nginx:latest", name, "", nil, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -22,11 +22,11 @@ func TestComposeForImageUsesNetworkModeForTheNetworksDockerMadeItself(t *testing
 			t.Errorf("%s is a network mode, not a network of the project:\n%s", name, yaml)
 		}
 	}
-	custom, _ := buildComposeForImage(testOwner(t), "web", "nginx:latest", "my-net", nil, nil, nil)
+	custom, _ := buildComposeForImage(testOwner(t), "web", "nginx:latest", "my-net", "", nil, nil, nil)
 	if !strings.Contains(custom, "networks:\n      - \"my-net\"") || !strings.Contains(custom, "external: true") || strings.Contains(custom, "network_mode") {
 		t.Errorf("a network made by the user is joined as before:\n%s", custom)
 	}
-	none, _ := buildComposeForImage(testOwner(t), "web", "nginx:latest", "", nil, nil, nil)
+	none, _ := buildComposeForImage(testOwner(t), "web", "nginx:latest", "", "", nil, nil, nil)
 	if strings.Contains(none, "network") {
 		t.Errorf("no network asked, none written:\n%s", none)
 	}

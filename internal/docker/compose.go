@@ -70,7 +70,7 @@ func builtinNetwork(name string) bool {
 	return false
 }
 
-func buildComposeForImage(owner OwnerContext, projectName, image, network string, ports []PortBinding, env []EnvVar, volumes []VolumeBinding) (string, error) {
+func buildComposeForImage(owner OwnerContext, projectName, image, network, staticIP string, ports []PortBinding, env []EnvVar, volumes []VolumeBinding) (string, error) {
 	image = strings.TrimSpace(image)
 	if image == "" {
 		return "", errors.New("image is required")
@@ -80,6 +80,7 @@ func buildComposeForImage(owner OwnerContext, projectName, image, network string
 		serviceName = "app"
 	}
 	network = strings.TrimSpace(network)
+	staticIP = strings.TrimSpace(staticIP)
 	var b strings.Builder
 	b.WriteString("services:\n")
 	b.WriteString(fmt.Sprintf("  %s:\n", serviceName))
@@ -134,7 +135,12 @@ func buildComposeForImage(owner OwnerContext, projectName, image, network string
 		b.WriteString(fmt.Sprintf("    network_mode: %s\n", network))
 	} else if network != "" {
 		b.WriteString("    networks:\n")
-		b.WriteString(fmt.Sprintf("      - %s\n", yamlScalar(network)))
+		if staticIP != "" {
+			b.WriteString(fmt.Sprintf("      %s:\n", yamlScalar(network)))
+			b.WriteString(fmt.Sprintf("        ipv4_address: %s\n", yamlScalar(staticIP)))
+		} else {
+			b.WriteString(fmt.Sprintf("      - %s\n", yamlScalar(network)))
+		}
 	}
 	if owner.CPULimitPct > 0 || owner.MemoryLimitMB > 0 {
 		b.WriteString("    deploy:\n")

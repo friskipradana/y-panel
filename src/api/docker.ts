@@ -72,6 +72,13 @@ export const createDockerNetwork = (payload: { name: string; subnet?: string; ga
 export const deleteDockerNetwork = (id: string) =>
   agentApi.delete<{ status: string }>(`/api/v1/docker/networks/${id}`).then((r) => r.data)
 
+export const suggestDockerStaticIP = (network?: string) =>
+  agentApi
+    .get<{ network: string; subnet: string; gateway: string; ip: string }>('/api/v1/docker/networks/suggest-ip', {
+      params: network ? { network } : undefined,
+    })
+    .then((r) => r.data)
+
 export const listDockerImages = (query: ListQuery) =>
   agentApi.get<TableResult<DockerImage>>('/api/v1/docker/images', { params: listParams(query) }).then((r) => r.data)
 

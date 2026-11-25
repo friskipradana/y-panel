@@ -39,8 +39,11 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 		} `json:"Mounts"`
 		NetworkSettings struct {
 			Networks map[string]struct {
-				NetworkID string `json:"NetworkID"`
-				IPAddress string `json:"IPAddress"`
+				NetworkID  string `json:"NetworkID"`
+				IPAddress  string `json:"IPAddress"`
+				IPAMConfig *struct {
+					IPv4Address string `json:"IPv4Address"`
+				} `json:"IPAMConfig"`
 			} `json:"Networks"`
 		} `json:"NetworkSettings"`
 	}
@@ -55,13 +58,17 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 
 	// Primary network (skip Docker built-in networks when a user network exists).
 	network := ""
+	staticIP := ""
 	var fallbackNetwork string
-	for netName := range insp.NetworkSettings.Networks {
+	for netName, netCfg := range insp.NetworkSettings.Networks {
 		if fallbackNetwork == "" {
 			fallbackNetwork = netName
 		}
 		if netName != "bridge" && netName != "host" && netName != "none" {
 			network = netName
+			if netCfg.IPAMConfig != nil {
+				staticIP = strings.TrimSpace(netCfg.IPAMConfig.IPv4Address)
+			}
 			break
 		}
 	}
@@ -154,6 +161,7 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 		Name:        name,
 		Image:       insp.Config.Image,
 		Network:     network,
+		StaticIP:    staticIP,
 		Ports:       ports,
 		Env:         env,
 		EnvMode:     "form",

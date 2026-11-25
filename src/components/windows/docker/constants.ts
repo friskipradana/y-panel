@@ -50,6 +50,7 @@ export function createDefaultDeployForm() {
   return {
     ownerUserId: 0,
     network: '',
+    staticIp: '',
     name: '',
     image: '',
     ports: [{ hostPort: '', containerPort: '' }] as Array<{ hostPort: string; containerPort: string }>,

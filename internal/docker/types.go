@@ -95,6 +95,7 @@ type DeployImageRequest struct {
 	Name         string          `json:"name"`
 	Image        string          `json:"image"`
 	Network      string          `json:"network,omitempty"`
+	StaticIP     string          `json:"staticIp,omitempty"`
 	Ports        []PortBinding   `json:"ports"`
 	Env          []EnvVar        `json:"env"`
 	EnvMode      string          `json:"envMode,omitempty"`
@@ -122,6 +123,7 @@ type ContainerConfig struct {
 	Name        string          `json:"name"`
 	Image       string          `json:"image"`
 	Network     string          `json:"network"`
+	StaticIP    string          `json:"staticIp,omitempty"`
 	Ports       []PortBinding   `json:"ports"`
 	Env         []EnvVar        `json:"env"`
 	EnvMode     string          `json:"envMode,omitempty"`

@@ -144,6 +144,7 @@ export interface DockerContainerConfig {
   name: string
   image: string
   network: string
+  staticIp?: string
   ports: PortBindingInput[]
   env: EnvVarInput[]
   envMode?: DockerEnvMode
@@ -159,6 +160,7 @@ export interface DockerDeployImagePayload {
   name: string
   image: string
   network?: string
+  staticIp?: string
   ports: PortBindingInput[]
   env: EnvVarInput[]
   envMode?: DockerEnvMode

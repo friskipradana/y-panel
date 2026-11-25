@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
-import { Boxes, Plus, Box, Code, X, Check, ChevronDown, Pencil } from 'lucide-react'
+import { Boxes, Plus, Box, Code, X, Check, ChevronDown, Pencil, Lock } from 'lucide-react'
+import { suggestDockerStaticIP } from '@/api/docker'
 import { EMPTY_ENV_ROW, toRawEnv, toEnvRows } from './constants'
 import { DeployStep } from './DockerComponents'
 import { DockerProgressOverlay } from './DockerProgressOverlay'
@@ -13,6 +15,7 @@ import { Tabs } from '@/components/ui/Tabs'
 import { Checkbox } from '@/components/ui/Checkbox'
 
 export function DeployModal({ docker }: { docker: DockerWindowState }) {
+  const [suggestingIp, setSuggestingIp] = useState(false)
   const {
     t,
     refetch,
@@ -81,6 +84,7 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
                       replaceContainerId: editContainer?.id,
                       image: deployForm.image.trim(),
                       network: deployForm.network.trim() || undefined,
+                      staticIp: deployForm.staticIp.trim() || undefined,
                       ports: deployForm.ports
                         .filter((p) => p.containerPort.trim() && p.hostPort.trim())
                         .map((p) => ({
@@ -388,6 +392,45 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Static IPv4 */}
+            <div>
+              <label className="panel-section-label">{t('docker.staticIpLabel')}</label>
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <TextInput
+                    mono
+                    value={deployForm.staticIp}
+                    onChange={(e) => setDeployForm({ ...deployForm, staticIp: e.target.value })}
+                    placeholder={t('docker.staticIpPlaceholder')}
+                    autoComplete="off"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  icon={<Lock className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                  loading={suggestingIp}
+                  onClick={async () => {
+                    setSuggestingIp(true)
+                    try {
+                      const res = await suggestDockerStaticIP(deployForm.network.trim() || undefined)
+                      setDeployForm({ ...deployForm, network: res.network, staticIp: res.ip })
+                      setNetInputValue('')
+                      toast.success(t('docker.staticIpAssigned', { ip: res.ip, network: res.network, subnet: res.subnet }))
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : t('docker.unknownError'))
+                    } finally {
+                      setSuggestingIp(false)
+                    }
+                  }}
+                >
+                  {t('docker.staticIpAutoBtn')}
+                </Button>
+              </div>
+              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{t('docker.staticIpHint')}</p>
             </div>
           </div>
 

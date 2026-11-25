@@ -23,6 +23,7 @@ type dockerDeployImageRequest struct {
 	Name               string                 `json:"name"`
 	Image              string                 `json:"image"`
 	Network            string                 `json:"network"`
+	StaticIP           string                 `json:"staticIp"`
 	Ports              []docker.PortBinding   `json:"ports"`
 	Env                []docker.EnvVar        `json:"env"`
 	EnvMode            string                 `json:"envMode"`
@@ -344,6 +345,7 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		Name:         req.Name,
 		Image:        req.Image,
 		Network:      req.Network,
+		StaticIP:     req.StaticIP,
 		Ports:        req.Ports,
 		Env:          req.Env,
 		EnvMode:      req.EnvMode,
@@ -567,11 +569,30 @@ func restoreAfterFailedReplace(owner docker.OwnerContext, previous *docker.Conta
 		return deployErr
 	}
 	_, restoreErr := docker.DeployFromImage(owner, docker.DeployImageRequest{
-		Name: previous.Name, Image: previous.Image, Network: previous.Network, Ports: previous.Ports,
+		Name: previous.Name, Image: previous.Image, Network: previous.Network, StaticIP: previous.StaticIP, Ports: previous.Ports,
 		Env: previous.Env, EnvMode: previous.EnvMode, EnvRaw: previous.EnvRaw, Volumes: previous.Volumes,
 	})
 	if restoreErr != nil {
 		return fmt.Errorf("%w; the previous container could not be put back either: %v", deployErr, restoreErr)
 	}
 	return fmt.Errorf("%w; the previous container was put back as it was", deployErr)
+}
+
+func (s *Server) handleDockerSuggestStaticIP(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUserRecord(r)
+	if u == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+	if u.Role == "demo" {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "demo account is read-only"})
+		return
+	}
+	network := strings.TrimSpace(r.URL.Query().Get("network"))
+	suggestion, err := docker.SuggestStaticIP(network)
+	if err != nil {
+		s.writeError(w, http.StatusUnprocessableEntity, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, suggestion)
 }
