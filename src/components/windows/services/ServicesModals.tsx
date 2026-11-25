@@ -40,22 +40,35 @@ function SystemdLogsModal({ sw }: { sw: ServicesWindowState }) {
   })
 
   return (
-    <Modal open={Boolean(logsUnit)} onClose={() => setLogsUnit(null)} title={logsUnit ? `journalctl: ${logsUnit}` : 'journalctl'} size="lg">
-      <div className="space-y-2.5">
-        <div className="flex justify-end">
-          <Button size="sm" variant="ghost" loading={q.isFetching} onClick={() => void q.refetch()}>
-            <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('common.refresh')}</span>
+    <Modal
+      open={Boolean(logsUnit)}
+      onClose={() => setLogsUnit(null)}
+      title={t('services.logs')}
+      subtitle={logsUnit ?? undefined}
+      size="lg"
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => setLogsUnit(null)}>
+            {t('common.close')}
           </Button>
-        </div>
-        {q.isLoading ? (
-          <LoadingState>{t('services.loadingLogs')}</LoadingState>
-        ) : (
-          <pre className="panel-mono max-h-[60vh] overflow-y-auto rounded-md border border-[var(--win-border)] bg-[var(--app-terminal-bg)] p-3 text-[11.5px] leading-5 text-[var(--app-terminal-text)] whitespace-pre-wrap break-words">
-            {q.data || t('services.noLogs')}
-          </pre>
-        )}
-      </div>
+          <Button
+            variant="outline"
+            icon={<RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />}
+            loading={q.isFetching}
+            onClick={() => void q.refetch()}
+          >
+            {t('common.refresh')}
+          </Button>
+        </>
+      }
+    >
+      {q.isLoading ? (
+        <LoadingState>{t('services.loadingLogs')}</LoadingState>
+      ) : (
+        <pre className="panel-mono max-h-[60vh] overflow-y-auto rounded-lg border border-[var(--win-border)] bg-[var(--panel-code-bg)] p-3 text-[0.75rem] leading-5 text-[var(--panel-code-text)] whitespace-pre-wrap break-words">
+          {q.data || t('services.noLogs')}
+        </pre>
+      )}
     </Modal>
   )
 }
@@ -83,34 +96,17 @@ function CronJobModal({ sw }: { sw: ServicesWindowState }) {
   }, [editCron])
 
   return (
-    <Modal open={Boolean(editCron)} onClose={() => setEditCron(null)} title={editCron === 'new' ? t('services.addCronTitle') : t('services.editCronTitle')} size="md">
-      <div className="space-y-3">
-        <Field label={t('services.cronNameLabel')}>
-          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t('services.cronNamePlaceholder')} />
-        </Field>
-        <div className="grid grid-cols-2 gap-2.5">
-          <Field label={t('services.cronPresetLabel')}>
-            <Select
-              value={CRON_PRESETS.some((p) => p.value === schedule) ? schedule : ''}
-              onChange={(v) => v && setSchedule(v)}
-              options={CRON_PRESETS}
-              placeholder={t('services.cronPresetPlaceholder')}
-            />
-          </Field>
-          <Field label={t('services.cronScheduleLabel')}>
-            <TextInput className="panel-input--mono" value={schedule} onChange={(e) => setSchedule(e.target.value)} />
-          </Field>
-        </div>
-        <Field label={t('services.cronCommandLabel')} hint={t('services.cronCommandHint')}>
-          <TextInput className="panel-input--mono" value={command} onChange={(e) => setCommand(e.target.value)} />
-        </Field>
-        <Checkbox checked={enabled} onChange={setEnabled} label={t('services.cronEnabledLabel')} />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button size="sm" variant="ghost" onClick={() => setEditCron(null)}>
+    <Modal
+      open={Boolean(editCron)}
+      onClose={() => setEditCron(null)}
+      title={editCron === 'new' ? t('services.addCronTitle') : t('services.editCronTitle')}
+      size="md"
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => setEditCron(null)}>
             {t('common.cancel')}
           </Button>
           <Button
-            size="sm"
             variant="primary"
             disabled={!schedule.trim() || !command.trim()}
             loading={saveCronMut.isPending}
@@ -126,7 +122,30 @@ function CronJobModal({ sw }: { sw: ServicesWindowState }) {
           >
             {t('common.save')}
           </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <Field label={t('services.cronNameLabel')}>
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t('services.cronNamePlaceholder')} />
+        </Field>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Field label={t('services.cronPresetLabel')}>
+            <Select
+              value={CRON_PRESETS.some((p) => p.value === schedule) ? schedule : ''}
+              onChange={(v) => v && setSchedule(v)}
+              options={CRON_PRESETS}
+              placeholder={t('services.cronPresetPlaceholder')}
+            />
+          </Field>
+          <Field label={t('services.cronScheduleLabel')}>
+            <TextInput mono value={schedule} onChange={(e) => setSchedule(e.target.value)} />
+          </Field>
         </div>
+        <Field label={t('services.cronCommandLabel')} hint={t('services.cronCommandHint')}>
+          <TextInput mono value={command} onChange={(e) => setCommand(e.target.value)} />
+        </Field>
+        <Checkbox checked={enabled} onChange={setEnabled} label={t('services.cronEnabledLabel')} />
       </div>
     </Modal>
   )
@@ -138,18 +157,24 @@ function CronRunOutputModal({ sw }: { sw: ServicesWindowState }) {
     <Modal
       open={Boolean(cronRunResult)}
       onClose={() => setCronRunResult(null)}
-      title={cronRunResult ? `${t('services.cronRunOutput')}: ${cronRunResult.name}` : t('services.cronRunOutput')}
+      title={t('services.cronRunOutput')}
+      subtitle={cronRunResult?.name}
       size="lg"
+      footer={
+        <Button variant="ghost" onClick={() => setCronRunResult(null)}>
+          {t('common.close')}
+        </Button>
+      }
     >
       {cronRunResult ? (
         <div className="space-y-2.5">
           <div className="flex items-center gap-2">
-            <Badge tone={cronRunResult.ok ? 'success' : 'danger'}>
+            <Badge tone={cronRunResult.ok ? 'success' : 'danger'} dot>
               {cronRunResult.ok ? 'OK' : 'ERROR'}
             </Badge>
-            {cronRunResult.error ? <span className="text-[12px] text-[var(--panel-danger-text)]">{cronRunResult.error}</span> : null}
+            {cronRunResult.error ? <span className="text-[0.75rem] text-[var(--panel-danger-text)]">{cronRunResult.error}</span> : null}
           </div>
-          <pre className="panel-mono max-h-80 overflow-y-auto rounded-md border border-[var(--win-border)] bg-[var(--app-terminal-bg)] p-3 text-[11.5px] leading-5 text-[var(--app-terminal-text)] whitespace-pre-wrap break-words">
+          <pre className="panel-mono max-h-80 overflow-y-auto rounded-lg border border-[var(--win-border)] bg-[var(--panel-code-bg)] p-3 text-[0.75rem] leading-5 text-[var(--panel-code-text)] whitespace-pre-wrap break-words">
             {cronRunResult.output || t('services.noLogs')}
           </pre>
         </div>

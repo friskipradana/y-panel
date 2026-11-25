@@ -4,6 +4,7 @@ import { useKubernetesWindow } from './kubernetes/useKubernetesWindow'
 import { K8sToolbar } from './kubernetes/K8sToolbar'
 import { K8sOverviewTab } from './kubernetes/K8sOverviewTab'
 import { K8sWorkloadsTab } from './kubernetes/K8sWorkloadsTab'
+import { K8sNetworkAndConfigTab } from './kubernetes/K8sNetworkAndConfigTab'
 import { K8sAdvancedTab } from './kubernetes/K8sAdvancedTab'
 import { K8sPodShellModal } from './kubernetes/K8sPodShellModal'
 import { K8sModals } from './kubernetes/K8sModals'
@@ -23,8 +24,10 @@ export function KubernetesWindow({ win, authenticated }: KubernetesWindowProps) 
         <K8sOverviewTab kw={kw} />
       ) : kw.section === 'storage' || kw.section === 'helm' ? (
         <K8sAdvancedTab kw={kw} />
-      ) : (
+      ) : kw.section === 'nodes' || kw.section === 'pods' || kw.section === 'deployments' ? (
         <K8sWorkloadsTab kw={kw} />
+      ) : (
+        <K8sNetworkAndConfigTab kw={kw} />
       )}
       <K8sModals kw={kw} />
       <K8sPodShellModal kw={kw} />

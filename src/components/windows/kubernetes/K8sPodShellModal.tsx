@@ -69,7 +69,7 @@ export function K8sPodShellModal({ kw }: { kw: KubernetesWindowState }) {
       try {
         fit.fit()
       } catch {
-        // ignore resize errors when hidden
+        // ignore resize when dialog is transitioning
       }
     }
     window.addEventListener('resize', onResize)
@@ -93,13 +93,15 @@ export function K8sPodShellModal({ kw }: { kw: KubernetesWindowState }) {
     <Modal
       open={Boolean(shellPod)}
       onClose={() => setShellPod(null)}
-      title={shellPod ? `${t('k8s.shell')}: ${shellPod.namespace}/${shellPod.name}` : t('k8s.shell')}
-      size="xl"
+      title={t('k8s.shell')}
+      subtitle={shellPod ? `${shellPod.namespace}/${shellPod.name}` : undefined}
+      size="sheet"
+      width={1040}
     >
-      <div className="space-y-2.5">
+      <div className="flex h-full min-h-0 flex-col gap-2.5">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={status === 'connected' ? 'success' : status === 'connecting' ? 'info' : 'neutral'}>
-            {status}
+          <Badge tone={status === 'connected' ? 'success' : status === 'connecting' ? 'info' : 'neutral'} dot>
+            {t(`k8s.shellStatus.${status}`)}
           </Badge>
           {shellPod && shellPod.containers.length > 1 ? (
             <Select
@@ -118,14 +120,17 @@ export function K8sPodShellModal({ kw }: { kw: KubernetesWindowState }) {
               { value: '/bin/bash', label: '/bin/bash' },
             ]}
           />
-          <Button size="sm" variant="ghost" onClick={() => setAttempt((n) => n + 1)}>
-            <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('common.refresh')}</span>
+          <Button
+            variant="outline"
+            icon={<RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />}
+            onClick={() => setAttempt((n) => n + 1)}
+          >
+            {t('common.refresh')}
           </Button>
         </div>
         <div
           ref={hostRef}
-          className="h-[55vh] min-h-[280px] w-full overflow-hidden rounded-md border border-[var(--win-border)] bg-[var(--app-terminal-bg)] p-2"
+          className="min-h-0 flex-1 w-full overflow-hidden rounded-lg border border-[var(--win-border)] bg-[var(--panel-code-bg)] p-2"
         />
       </div>
     </Modal>

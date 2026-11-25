@@ -64,7 +64,22 @@ function AddTargetModal({ bw }: { bw: BackupsWindowState }) {
     (kind === 'local' || (Boolean(bucket.trim()) && Boolean(accessKey.trim()) && Boolean(secretKey.trim())))
 
   return (
-    <Modal open={addTargetOpen} onClose={() => setAddTargetOpen(false)} title={t('backups.addTargetTitle')} size="md">
+    <Modal
+      open={addTargetOpen}
+      onClose={() => setAddTargetOpen(false)}
+      title={t('backups.addTargetTitle')}
+      size="md"
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => setAddTargetOpen(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant="primary" disabled={!valid} loading={createTargetMut.isPending} onClick={submit}>
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
       <div className="space-y-3">
         <Field label={t('backups.targetNameLabel')}>
           <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t('backups.targetNamePlaceholder')} />
@@ -81,27 +96,27 @@ function AddTargetModal({ bw }: { bw: BackupsWindowState }) {
         </Field>
         {kind === 'local' ? (
           <Field label={t('backups.localDirLabel')}>
-            <TextInput className="panel-input--mono" value={localDir} onChange={(e) => setLocalDir(e.target.value)} />
+            <TextInput mono value={localDir} onChange={(e) => setLocalDir(e.target.value)} />
           </Field>
         ) : (
           <>
             <Field label={t('backups.s3EndpointLabel')} hint={t('backups.s3EndpointHint')}>
-              <TextInput className="panel-input--mono" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} />
+              <TextInput mono value={endpoint} onChange={(e) => setEndpoint(e.target.value)} />
             </Field>
             <div className="grid grid-cols-2 gap-2.5">
               <Field label={t('backups.s3BucketLabel')}>
-                <TextInput className="panel-input--mono" value={bucket} onChange={(e) => setBucket(e.target.value)} />
+                <TextInput mono value={bucket} onChange={(e) => setBucket(e.target.value)} />
               </Field>
               <Field label={t('backups.s3RegionLabel')}>
-                <TextInput className="panel-input--mono" value={region} onChange={(e) => setRegion(e.target.value)} />
+                <TextInput mono value={region} onChange={(e) => setRegion(e.target.value)} />
               </Field>
             </div>
             <Field label={t('backups.s3PrefixLabel')}>
-              <TextInput className="panel-input--mono" value={prefix} onChange={(e) => setPrefix(e.target.value)} />
+              <TextInput mono value={prefix} onChange={(e) => setPrefix(e.target.value)} />
             </Field>
             <div className="grid grid-cols-2 gap-2.5">
               <Field label={t('backups.s3AccessKeyLabel')}>
-                <TextInput className="panel-input--mono" value={accessKey} onChange={(e) => setAccessKey(e.target.value)} />
+                <TextInput mono value={accessKey} onChange={(e) => setAccessKey(e.target.value)} />
               </Field>
               <Field label={t('backups.s3SecretKeyLabel')}>
                 <PasswordInput value={secretKey} onChange={(e) => setSecretKey(e.target.value)} />
@@ -110,14 +125,6 @@ function AddTargetModal({ bw }: { bw: BackupsWindowState }) {
             <Checkbox checked={forcePathStyle} onChange={setForcePathStyle} label={t('backups.s3PathStyleLabel')} />
           </>
         )}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button size="sm" variant="ghost" onClick={() => setAddTargetOpen(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button size="sm" variant="primary" disabled={!valid} loading={createTargetMut.isPending} onClick={submit}>
-            {t('common.save')}
-          </Button>
-        </div>
       </div>
     </Modal>
   )
@@ -135,6 +142,7 @@ function AddJobModal({ bw }: { bw: BackupsWindowState }) {
   const [enabled, setEnabled] = useState(true)
 
   const targets = overviewQ.data?.targets ?? []
+  const firstTargetId = targets[0]?.id
   const databases = overviewQ.data?.databases ?? []
   const projects = overviewQ.data?.projects ?? []
   const volumes = overviewQ.data?.volumes ?? []
@@ -142,8 +150,8 @@ function AddJobModal({ bw }: { bw: BackupsWindowState }) {
 
   useEffect(() => {
     if (!addJobOpen) return
-    if (!targetId && targets.length > 0) setTargetId(String(targets[0].id))
-  }, [addJobOpen, targetId, targets])
+    if (!targetId && firstTargetId != null) setTargetId(String(firstTargetId))
+  }, [addJobOpen, targetId, firstTargetId])
 
   const resourceOptions =
     scope === 'database'
@@ -190,7 +198,27 @@ function AddJobModal({ bw }: { bw: BackupsWindowState }) {
   ]
 
   return (
-    <Modal open={addJobOpen} onClose={() => setAddJobOpen(false)} title={t('backups.addJobTitle')} size="md">
+    <Modal
+      open={addJobOpen}
+      onClose={() => setAddJobOpen(false)}
+      title={t('backups.addJobTitle')}
+      size="md"
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => setAddJobOpen(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!targetId || !hasTargetResource}
+            loading={createJobMut.isPending}
+            onClick={submit}
+          >
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
       <div className="space-y-3">
         <Field label={t('backups.jobNameLabel')}>
           <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t('backups.jobNamePlaceholder')} />
@@ -240,24 +268,10 @@ function AddJobModal({ bw }: { bw: BackupsWindowState }) {
             />
           </Field>
           <Field label={t('backups.retentionLabel')}>
-            <TextInput type="number" min={1} max={90} className="panel-input--mono" value={retentionCount} onChange={(e) => setRetentionCount(e.target.value)} />
+            <TextInput mono type="number" min={1} max={90} value={retentionCount} onChange={(e) => setRetentionCount(e.target.value)} />
           </Field>
         </div>
         <Checkbox checked={enabled} onChange={setEnabled} label={t('backups.enabledLabel')} />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button size="sm" variant="ghost" onClick={() => setAddJobOpen(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={!targetId || !hasTargetResource}
-            loading={createJobMut.isPending}
-            onClick={submit}
-          >
-            {t('common.save')}
-          </Button>
-        </div>
       </div>
     </Modal>
   )

@@ -13,8 +13,10 @@ import {
 import { alertLib } from '@/lib/alert'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { EntityRow } from '@/components/ui/EntityRow'
 import { Field, TextInput, Textarea } from '@/components/ui/Field'
 import { IconButton } from '@/components/ui/IconButton'
+import { KpiCard } from '@/components/ui/KpiCard'
 import { ListRowIcon } from '@/components/ui/ListTable'
 import { Modal } from '@/components/ui/Modal'
 import { SectionHeader } from '@/components/ui/SectionHeader'
@@ -98,7 +100,7 @@ export function K8sAdvancedTab({ kw }: { kw: KubernetesWindowState }) {
 
   if (!hasCluster) {
     return (
-      <div className="p-4 flex-1">
+      <div className="p-6 flex-1">
         <EmptyState>{t('k8s.noClusterTitle')}</EmptyState>
       </div>
     )
@@ -107,10 +109,10 @@ export function K8sAdvancedTab({ kw }: { kw: KubernetesWindowState }) {
   const q = search.trim().toLowerCase()
 
   if (section === 'storage') {
-    if (storageQ.isLoading) return <div className="p-4"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
+    if (storageQ.isLoading) return <div className="p-6"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
     if (storageQ.isError) {
       return (
-        <div className="p-4">
+        <div className="p-6">
           <ErrorState
             title={t('k8s.loadError')}
             hint={(storageQ.error as Error)?.message}
@@ -124,75 +126,82 @@ export function K8sAdvancedTab({ kw }: { kw: KubernetesWindowState }) {
     const cjs = (d?.cronJobs ?? []).filter((c) => !q || c.name.toLowerCase().includes(q) || c.namespace.toLowerCase().includes(q))
 
     return (
-      <div className="p-3.5 space-y-4 overflow-y-auto flex-1">
-        <section className="space-y-2">
-          <SectionHeader icon={<HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} />} title={t('k8s.pvcsTitle')} />
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3.5 sm:p-4">
+        <section className="panel-shell-card settings-card flex flex-col gap-3 p-3.5">
+          <SectionHeader icon={<HardDrive />} title={t('k8s.pvcsTitle')} tone="primary" className="mb-0" />
           {pvcs.length === 0 ? (
             <EmptyState icon={<HardDrive />}>{t('k8s.emptyPvcs')}</EmptyState>
           ) : (
             <div className="space-y-1.5">
               {pvcs.map((p) => (
-                <div key={`${p.namespace}/${p.name}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="panel-mono text-[13px] font-semibold text-[var(--win-text)]">{p.name}</span>
-                      <Badge tone={p.status === 'Bound' ? 'success' : 'warning'}>{p.status}</Badge>
+                <EntityRow
+                  key={`${p.namespace}/${p.name}`}
+                  centered
+                  leading={<ListRowIcon><HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
+                  title={<span className="panel-mono">{p.name}</span>}
+                  badges={
+                    <>
+                      <Badge tone={p.status === 'Bound' ? 'success' : 'warning'} dot>{p.status}</Badge>
                       <Badge tone="neutral">{p.namespace}</Badge>
-                    </div>
-                    <p className="panel-mono text-[11.5px] text-[var(--text-secondary)]">
-                      {p.capacity || '-'} · {p.storageClass || 'default'} · {p.volume || '-'}
-                    </p>
-                  </div>
-                </div>
+                    </>
+                  }
+                  subtitle={<span className="panel-mono">{p.capacity || '-'} · {p.storageClass || '-'} · {p.volume || '-'}</span>}
+                />
               ))}
             </div>
           )}
         </section>
 
-        <section className="space-y-2">
-          <SectionHeader icon={<Clock className="h-3.5 w-3.5" strokeWidth={1.75} />} title={t('k8s.cronJobsTitle')} />
+        <section className="panel-shell-card settings-card flex flex-col gap-3 p-3.5">
+          <SectionHeader icon={<Clock />} title={t('k8s.cronJobsTitle')} tone="info" className="mb-0" />
           {cjs.length === 0 ? (
             <EmptyState icon={<Clock />}>{t('k8s.emptyCronJobs')}</EmptyState>
           ) : (
             <div className="space-y-1.5">
               {cjs.map((cj) => (
-                <div key={`${cj.namespace}/${cj.name}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="panel-mono text-[13px] font-semibold text-[var(--win-text)]">{cj.name}</span>
+                <EntityRow
+                  key={`${cj.namespace}/${cj.name}`}
+                  centered
+                  leading={<ListRowIcon><Clock className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
+                  title={<span className="panel-mono">{cj.name}</span>}
+                  badges={
+                    <>
                       <Badge tone="primary">{cj.schedule}</Badge>
                       <Badge tone="neutral">{cj.namespace}</Badge>
-                    </div>
-                    <p className="panel-mono text-[11.5px] text-[var(--text-secondary)]">
-                      Active: {cj.active} · Last: {cj.lastSchedule || '-'}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="primary-soft"
-                    loading={triggerCJMut.isPending}
-                    onClick={() => triggerCJMut.mutate({ ns: cj.namespace, name: cj.name })}
-                  >
-                    <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    <span>{t('k8s.runNow')}</span>
-                  </Button>
-                </div>
+                    </>
+                  }
+                  subtitle={
+                    <span className="panel-mono">
+                      {t('k8s.cronMeta', { active: cj.active, last: cj.lastSchedule || '-' })}
+                    </span>
+                  }
+                  actions={
+                    <Button
+                      size="sm"
+                      variant="primary-soft"
+                      icon={<Play className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                      loading={triggerCJMut.isPending}
+                      onClick={() => triggerCJMut.mutate({ ns: cj.namespace, name: cj.name })}
+                    >
+                      {t('k8s.runNow')}
+                    </Button>
+                  }
+                />
               ))}
             </div>
           )}
         </section>
 
-        <section className="space-y-2">
-          <SectionHeader icon={<Cpu className="h-3.5 w-3.5" strokeWidth={1.75} />} title={t('k8s.metricsTitle')} />
+        <section className="panel-shell-card settings-card flex flex-col gap-3 p-3.5">
+          <SectionHeader icon={<Cpu />} title={t('k8s.metricsTitle')} tone="neutral" className="mb-0" />
           {!d?.metricsAvailable ? (
-            <p className="text-[12px] text-[var(--text-secondary)]">{t('k8s.metricsUnavailable')}</p>
+            <p className="panel-muted-block px-3 py-2 text-[0.75rem] text-[var(--text-secondary)]">
+              {t('k8s.metricsUnavailable')}
+            </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               {d.nodeMetrics.map((m) => (
-                <div key={m.name} className="rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2">
-                  <div className="panel-mono text-[12.5px] font-semibold text-[var(--win-text)]">{m.name}</div>
-                  <div className="panel-mono text-[11.5px] text-[var(--text-secondary)]">CPU {m.cpu} · RAM {m.memory}</div>
-                </div>
+                <KpiCard key={m.name} title={m.name} value={m.cpu} subtitle={m.memory} />
               ))}
             </div>
           )}
@@ -202,10 +211,10 @@ export function K8sAdvancedTab({ kw }: { kw: KubernetesWindowState }) {
   }
 
   // Helm Manager
-  if (helmQ.isLoading) return <div className="p-4"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
+  if (helmQ.isLoading) return <div className="p-6"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
   if (helmQ.isError) {
     return (
-      <div className="p-4">
+      <div className="p-6">
         <ErrorState
           title={t('k8s.loadError')}
           hint={(helmQ.error as Error)?.message}
@@ -218,23 +227,26 @@ export function K8sAdvancedTab({ kw }: { kw: KubernetesWindowState }) {
   const helm = helmQ.data
   if (!helm?.installed) {
     return (
-      <div className="p-4 flex-1">
+      <div className="p-6 flex-1">
         <EmptyState icon={<Package />}>{t('k8s.helmNotInstalled')}</EmptyState>
       </div>
     )
   }
 
-  const releases = (helm.releases ?? []).filter((r) => !q || r.name.toLowerCase().includes(q) || r.chart.toLowerCase().includes(q) || r.namespace.toLowerCase().includes(q))
+  const releases = (helm.releases ?? []).filter(
+    (r) => !q || r.name.toLowerCase().includes(q) || r.chart.toLowerCase().includes(q) || r.namespace.toLowerCase().includes(q),
+  )
 
   return (
-    <div className="p-3.5 space-y-3 overflow-y-auto flex-1">
+    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3.5 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           {HELM_PRESETS.map((p) => (
             <Button
               key={p.name}
               size="sm"
-              variant="ghost"
+              variant="outline"
+              icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.75} />}
               onClick={() => {
                 setRelease(p.name)
                 setChart(p.chart)
@@ -245,14 +257,16 @@ export function K8sAdvancedTab({ kw }: { kw: KubernetesWindowState }) {
                 setHelmOpen(true)
               }}
             >
-              <Plus className="h-3 w-3" strokeWidth={1.75} />
-              <span>{p.name}</span>
+              {p.name}
             </Button>
           ))}
         </div>
-        <Button size="sm" variant="primary" onClick={() => setHelmOpen(true)}>
-          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-          <span>{t('k8s.helmInstallBtn')}</span>
+        <Button
+          variant="primary-soft"
+          icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.75} />}
+          onClick={() => setHelmOpen(true)}
+        >
+          {t('k8s.helmInstallBtn')}
         </Button>
       </div>
 
@@ -261,84 +275,99 @@ export function K8sAdvancedTab({ kw }: { kw: KubernetesWindowState }) {
       ) : (
         <div className="space-y-1.5">
           {releases.map((rel) => (
-            <div key={`${rel.namespace}/${rel.name}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2">
-              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                <ListRowIcon><Package className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="panel-mono text-[13px] font-semibold text-[var(--win-text)]">{rel.name}</span>
-                    <Badge tone={rel.status === 'deployed' ? 'success' : 'warning'}>{rel.status}</Badge>
-                    <Badge tone="neutral">{rel.namespace}</Badge>
-                    <Badge tone="info">rev {rel.revision}</Badge>
-                  </div>
-                  <p className="panel-mono text-[11.5px] text-[var(--text-secondary)] truncate">
-                    {rel.chart} {rel.app_version ? `(${rel.app_version})` : ''}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <IconButton
-                  size="sm"
-                  variant="ghost"
-                  label={t('k8s.helmRollback')}
-                  onClick={() => rollbackHelmMut.mutate({ ns: rel.namespace, name: rel.name })}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </IconButton>
-                <IconButton
-                  size="sm"
-                  variant="ghost"
-                  label={t('common.delete')}
-                  onClick={async () => {
-                    const ok = await alertLib.confirm(
-                      t('k8s.helmUninstallTitle'),
-                      t('k8s.helmUninstallConfirm', { name: `${rel.namespace}/${rel.name}` }),
-                      t('common.delete'),
-                      t('common.cancel'),
-                      'warning',
-                      'kubernetes',
-                    )
-                    if (ok) uninstallHelmMut.mutate({ ns: rel.namespace, name: rel.name })
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </IconButton>
-              </div>
-            </div>
+            <EntityRow
+              key={`${rel.namespace}/${rel.name}`}
+              centered
+              leading={<ListRowIcon><Package className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
+              title={<span className="panel-mono">{rel.name}</span>}
+              badges={
+                <>
+                  <Badge tone={rel.status === 'deployed' ? 'success' : 'warning'} dot>{rel.status}</Badge>
+                  <Badge tone="neutral">{rel.namespace}</Badge>
+                  <Badge tone="info">{t('k8s.helmRevision', { rev: rel.revision })}</Badge>
+                </>
+              }
+              subtitle={<span className="panel-mono">{rel.chart}{rel.app_version ? ` (${rel.app_version})` : ''}</span>}
+              actions={
+                <>
+                  <IconButton
+                    size="sm"
+                    variant="ghost"
+                    label={t('k8s.helmRollback')}
+                    onClick={() => rollbackHelmMut.mutate({ ns: rel.namespace, name: rel.name })}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </IconButton>
+                  <IconButton
+                    size="sm"
+                    variant="ghost"
+                    tone="danger"
+                    label={t('common.delete')}
+                    onClick={async () => {
+                      const ok = await alertLib.confirm(
+                        t('k8s.helmUninstallTitle'),
+                        t('k8s.helmUninstallConfirm', { name: `${rel.namespace}/${rel.name}` }),
+                        t('common.delete'),
+                        t('common.cancel'),
+                        'warning',
+                        'kubernetes',
+                      )
+                      if (ok) uninstallHelmMut.mutate({ ns: rel.namespace, name: rel.name })
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </IconButton>
+                </>
+              }
+            />
           ))}
         </div>
       )}
 
-      <Modal open={helmOpen} onClose={() => setHelmOpen(false)} title={t('k8s.helmInstallTitle')} size="lg">
+      <Modal
+        open={helmOpen}
+        onClose={() => setHelmOpen(false)}
+        title={t('k8s.helmInstallTitle')}
+        size="lg"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setHelmOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              disabled={!release.trim() || !chart.trim()}
+              loading={installHelmMut.isPending}
+              onClick={() => installHelmMut.mutate()}
+            >
+              {t('k8s.helmInstallBtn')}
+            </Button>
+          </>
+        }
+      >
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2.5">
             <Field label={t('k8s.helmReleaseLabel')}>
-              <TextInput className="panel-input--mono" value={release} onChange={(e) => setRelease(e.target.value)} />
+              <TextInput mono value={release} onChange={(e) => setRelease(e.target.value)} />
             </Field>
             <Field label={t('k8s.namespaceLabel')}>
-              <TextInput className="panel-input--mono" value={helmNs} onChange={(e) => setHelmNs(e.target.value)} />
+              <TextInput mono value={helmNs} onChange={(e) => setHelmNs(e.target.value)} />
             </Field>
           </div>
           <Field label={t('k8s.helmChartLabel')}>
-            <TextInput className="panel-input--mono" value={chart} onChange={(e) => setChart(e.target.value)} />
+            <TextInput mono value={chart} onChange={(e) => setChart(e.target.value)} />
           </Field>
           <div className="grid grid-cols-2 gap-2.5">
             <Field label={t('k8s.helmRepoNameLabel')}>
-              <TextInput className="panel-input--mono" value={repoName} onChange={(e) => setRepoName(e.target.value)} />
+              <TextInput mono value={repoName} onChange={(e) => setRepoName(e.target.value)} />
             </Field>
             <Field label={t('k8s.helmRepoUrlLabel')}>
-              <TextInput className="panel-input--mono" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} />
+              <TextInput mono value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} />
             </Field>
           </div>
           <Field label={t('k8s.helmValuesLabel')}>
-            <Textarea rows={7} className="panel-input--mono" value={valuesYaml} onChange={(e) => setValuesYaml(e.target.value)} />
+            <Textarea mono rows={7} value={valuesYaml} onChange={(e) => setValuesYaml(e.target.value)} />
           </Field>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button size="sm" variant="ghost" onClick={() => setHelmOpen(false)}>{t('common.cancel')}</Button>
-            <Button size="sm" variant="primary" disabled={!release.trim() || !chart.trim()} loading={installHelmMut.isPending} onClick={() => installHelmMut.mutate()}>
-              {t('k8s.helmInstallBtn')}
-            </Button>
-          </div>
         </div>
       </Modal>
     </div>

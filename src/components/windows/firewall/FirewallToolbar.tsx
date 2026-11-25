@@ -31,10 +31,12 @@ export function FirewallToolbar({ fw }: { fw: FirewallWindowState }) {
           {statusPill}
         </div>
         <div className="docker-topbar__row">
-          <button type="button" className="docker-primary-btn flex-1 justify-center" disabled={!ufw?.installed} onClick={() => setRuleDraft({})}>
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('firewall.addRule')}</span>
-          </button>
+          {section !== 'hardening' ? (
+            <button type="button" className="docker-primary-btn flex-1 justify-center" disabled={!ufw?.installed} onClick={() => setRuleDraft({})}>
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>{t('firewall.addRule')}</span>
+            </button>
+          ) : null}
           {ufw?.installed ? (
             <button type="button" className="docker-secondary-btn" disabled={busy !== null} onClick={() => void (ufw.active ? disable() : enable())}>
               {working ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Power className="h-3.5 w-3.5" strokeWidth={1.75} />}
@@ -58,10 +60,12 @@ export function FirewallToolbar({ fw }: { fw: FirewallWindowState }) {
     <div className="docker-topbar">
       <div className="docker-topbar__left">
         <FilterMenu label={t('firewall.sections')} value={section} onChange={(key) => setSection(key as Section)} items={sectionItems} />
-        <button type="button" className="docker-primary-btn" disabled={!ufw?.installed} onClick={() => setRuleDraft({})}>
-          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-          <span>{t('firewall.addRule')}</span>
-        </button>
+        {section !== 'hardening' ? (
+          <button type="button" className="docker-primary-btn" disabled={!ufw?.installed} onClick={() => setRuleDraft({})}>
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <span>{t('firewall.addRule')}</span>
+          </button>
+        ) : null}
       </div>
       <div className="docker-topbar__right">
         {statusPill}

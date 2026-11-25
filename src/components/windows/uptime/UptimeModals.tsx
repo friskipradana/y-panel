@@ -4,6 +4,7 @@ import { listUptimeHistory } from '@/api/uptime'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { EntityRow } from '@/components/ui/EntityRow'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
@@ -51,7 +52,22 @@ function AddMonitorModal({ uw }: { uw: UptimeWindowState }) {
   }
 
   return (
-    <Modal open={addOpen} onClose={() => setAddOpen(false)} title={t('uptime.addTitle')} size="md">
+    <Modal
+      open={addOpen}
+      onClose={() => setAddOpen(false)}
+      title={t('uptime.addTitle')}
+      size="md"
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => setAddOpen(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant="primary" disabled={!target.trim()} loading={createMut.isPending} onClick={submit}>
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
       <div className="space-y-3">
         <Field label={t('uptime.nameLabel')}>
           <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t('uptime.namePlaceholder')} />
@@ -81,29 +97,21 @@ function AddMonitorModal({ uw }: { uw: UptimeWindowState }) {
           </Field>
         </div>
         <Field label={t('uptime.targetLabel')} hint={kind === 'http' ? t('uptime.targetHttpHint') : t('uptime.targetTcpHint')}>
-          <TextInput className="panel-input--mono" value={target} onChange={(e) => setTarget(e.target.value)} />
+          <TextInput mono value={target} onChange={(e) => setTarget(e.target.value)} />
         </Field>
         <div className="grid grid-cols-2 gap-2.5">
           {kind === 'http' ? (
             <Field label={t('uptime.expectedStatusLabel')}>
-              <TextInput type="number" className="panel-input--mono" value={expectedStatus} onChange={(e) => setExpectedStatus(e.target.value)} />
+              <TextInput mono type="number" value={expectedStatus} onChange={(e) => setExpectedStatus(e.target.value)} />
             </Field>
           ) : (
             <div />
           )}
           <Field label={t('uptime.timeoutLabel')}>
-            <TextInput type="number" min={2} max={60} className="panel-input--mono" value={timeoutSeconds} onChange={(e) => setTimeoutSeconds(e.target.value)} />
+            <TextInput mono type="number" min={2} max={60} value={timeoutSeconds} onChange={(e) => setTimeoutSeconds(e.target.value)} />
           </Field>
         </div>
         <Checkbox checked={notifyEnabled} onChange={setNotifyEnabled} label={t('uptime.notifyLabel')} />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button size="sm" variant="ghost" onClick={() => setAddOpen(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button size="sm" variant="primary" disabled={!target.trim()} loading={createMut.isPending} onClick={submit}>
-            {t('common.save')}
-          </Button>
-        </div>
       </div>
     </Modal>
   )
@@ -121,8 +129,14 @@ function HistoryMonitorModal({ uw }: { uw: UptimeWindowState }) {
     <Modal
       open={Boolean(historyMonitor)}
       onClose={() => setHistoryMonitor(null)}
-      title={historyMonitor ? `${t('uptime.historyTitle')}: ${historyMonitor.name}` : t('uptime.historyTitle')}
+      title={t('uptime.historyTitle')}
+      subtitle={historyMonitor?.name}
       size="lg"
+      footer={
+        <Button variant="ghost" onClick={() => setHistoryMonitor(null)}>
+          {t('common.close')}
+        </Button>
+      }
     >
       {q.isLoading ? (
         <LoadingState>{t('uptime.loading')}</LoadingState>
@@ -131,20 +145,23 @@ function HistoryMonitorModal({ uw }: { uw: UptimeWindowState }) {
       ) : (
         <div className="max-h-96 space-y-1.5 overflow-y-auto">
           {(q.data ?? []).map((chk) => (
-            <div
+            <EntityRow
               key={chk.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--win-border)] bg-[var(--panel-surface-subtle)] px-3 py-1.5 text-[12px]"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <Badge tone={chk.status === 'up' ? 'success' : 'danger'}>{chk.status.toUpperCase()}</Badge>
-                {chk.httpCode > 0 ? <span className="panel-mono text-[11.5px]">HTTP {chk.httpCode}</span> : null}
-                <span className="panel-mono text-[11.5px] text-[var(--text-secondary)]">{chk.latencyMs} ms</span>
-                {chk.errorText ? <span className="truncate text-[11.5px] text-[var(--panel-danger-text)]">{chk.errorText}</span> : null}
-              </div>
-              <span className="panel-mono text-[11px] text-[var(--text-secondary)] shrink-0">
-                {new Date(chk.checkedAt).toLocaleString()}
-              </span>
-            </div>
+              centered
+              title={<span className="panel-mono">{chk.latencyMs} ms</span>}
+              badges={
+                <>
+                  <Badge tone={chk.status === 'up' ? 'success' : 'danger'} dot>{chk.status.toUpperCase()}</Badge>
+                  {chk.httpCode > 0 ? <Badge tone="neutral">HTTP {chk.httpCode}</Badge> : null}
+                </>
+              }
+              subtitle={chk.errorText || undefined}
+              actions={
+                <span className="panel-mono text-[0.75rem] text-[var(--text-secondary)]">
+                  {new Date(chk.checkedAt).toLocaleString()}
+                </span>
+              }
+            />
           ))}
         </div>
       )}

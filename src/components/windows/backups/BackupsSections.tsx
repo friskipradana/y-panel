@@ -1,5 +1,6 @@
 import {
   Archive,
+  Box,
   CheckCircle2,
   Cloud,
   Database,
@@ -8,14 +9,16 @@ import {
   HardDrive,
   Play,
   RotateCcw,
+  Settings,
   Trash2,
 } from 'lucide-react'
 import { backupRunDownloadUrl } from '@/api/backups'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Checkbox } from '@/components/ui/Checkbox'
+import { EntityRow } from '@/components/ui/EntityRow'
 import { IconButton } from '@/components/ui/IconButton'
 import { ListRowIcon } from '@/components/ui/ListTable'
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import type { BackupsWindowState } from './useBackupsWindow'
 
@@ -29,6 +32,13 @@ function formatBytes(n: number) {
     i++
   }
   return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+}
+
+function scopeIcon(scope: string) {
+  if (scope === 'database') return <Database className="h-3.5 w-3.5" strokeWidth={1.75} />
+  if (scope === 'docker-volume') return <Box className="h-3.5 w-3.5" strokeWidth={1.75} />
+  if (scope === 'panel-config') return <Settings className="h-3.5 w-3.5" strokeWidth={1.75} />
+  return <FolderCode className="h-3.5 w-3.5" strokeWidth={1.75} />
 }
 
 export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
@@ -53,7 +63,7 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
 
   if (overviewQ.isLoading) {
     return (
-      <div className="p-4 flex-1">
+      <div className="p-6 flex-1">
         <LoadingState>{t('backups.loading')}</LoadingState>
       </div>
     )
@@ -61,7 +71,7 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
 
   if (overviewQ.isError) {
     return (
-      <div className="p-4 flex-1">
+      <div className="p-6 flex-1">
         <ErrorState
           title={t('backups.loadFailed')}
           hint={(overviewQ.error as Error)?.message}
@@ -84,14 +94,14 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
     )
     if (jobs.length === 0) {
       return (
-        <div className="p-4 flex-1 flex flex-col items-center justify-center gap-3 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
           <EmptyState icon={<Archive />}>{t('backups.emptyJobs')}</EmptyState>
           {(data?.targets.length ?? 0) === 0 ? (
-            <Button size="sm" variant="primary" onClick={() => setAddTargetOpen(true)}>
+            <Button variant="primary" onClick={() => setAddTargetOpen(true)}>
               {t('backups.addTarget')}
             </Button>
           ) : (
-            <Button size="sm" variant="primary" onClick={() => setAddJobOpen(true)}>
+            <Button variant="primary" onClick={() => setAddJobOpen(true)}>
               {t('backups.addJob')}
             </Button>
           )}
@@ -100,55 +110,50 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
     }
 
     return (
-      <div className="p-3 space-y-2 overflow-y-auto flex-1">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
         {jobs.map((job) => (
-          <div
+          <EntityRow
             key={job.id}
-            className="flex flex-wrap items-center justify-between gap-2.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2.5"
-          >
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <ListRowIcon>
-                {job.scope === 'database' ? (
-                  <Database className="h-3.5 w-3.5" strokeWidth={1.75} />
-                ) : (
-                  <FolderCode className="h-3.5 w-3.5" strokeWidth={1.75} />
-                )}
-              </ListRowIcon>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[13px] font-semibold text-[var(--win-text)] truncate">{job.name}</span>
-                  <Badge tone={job.scope === 'database' ? 'primary' : 'info'}>{job.scope}</Badge>
-                  <Badge tone={job.lastStatus === 'success' ? 'success' : job.lastStatus === 'failed' ? 'danger' : 'neutral'}>
-                    {job.lastStatus}
-                  </Badge>
-                </div>
-                <p className="panel-mono text-[11.5px] text-[var(--text-secondary)] truncate">
-                  {job.resourceName} · {job.targetName || '-'} ({job.targetKind || 'local'}) ·{' '}
-                  {job.intervalHours > 0 ? t('backups.everyHours', { hours: job.intervalHours }) : t('backups.manualOnly')} ·{' '}
-                  {t('backups.keepCount', { count: job.retentionCount })}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Checkbox
-                checked={job.enabled}
-                onChange={() => toggleJobMut.mutate(job)}
-                aria-label={t('backups.toggleJob')}
-              />
-              <Button
-                size="sm"
-                variant="primary-soft"
-                loading={runningJobId === job.id}
-                onClick={() => runJobMut.mutate(job)}
-              >
-                <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
-                <span>{t('backups.runNow')}</span>
-              </Button>
-              <IconButton size="sm" variant="ghost" label={t('common.delete')} onClick={() => void confirmDeleteJob(job)}>
-                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </IconButton>
-            </div>
-          </div>
+            centered
+            leading={<ListRowIcon>{scopeIcon(job.scope)}</ListRowIcon>}
+            title={job.name}
+            badges={
+              <>
+                <Badge tone={job.scope === 'database' ? 'primary' : 'info'}>{job.scope}</Badge>
+                <Badge tone={job.lastStatus === 'success' ? 'success' : job.lastStatus === 'failed' ? 'danger' : 'neutral'} dot>
+                  {job.lastStatus}
+                </Badge>
+              </>
+            }
+            subtitle={
+              <span className="panel-mono">
+                {job.resourceName} · {job.targetName || '-'} ({job.targetKind || 'local'}) ·{' '}
+                {job.intervalHours > 0 ? t('backups.everyHours', { hours: job.intervalHours }) : t('backups.manualOnly')} ·{' '}
+                {t('backups.keepCount', { count: job.retentionCount })}
+              </span>
+            }
+            actions={
+              <>
+                <ToggleSwitch
+                  checked={job.enabled}
+                  onChange={() => toggleJobMut.mutate(job)}
+                  label={t('backups.toggleJob')}
+                />
+                <Button
+                  size="sm"
+                  variant="primary-soft"
+                  icon={<Play className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                  loading={runningJobId === job.id}
+                  onClick={() => runJobMut.mutate(job)}
+                >
+                  {t('backups.runNow')}
+                </Button>
+                <IconButton size="sm" variant="ghost" tone="danger" label={t('common.delete')} onClick={() => void confirmDeleteJob(job)}>
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </IconButton>
+              </>
+            }
+          />
         ))}
       </div>
     )
@@ -160,20 +165,19 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
     )
     if (runs.length === 0) {
       return (
-        <div className="p-4 flex-1">
+        <div className="p-6 flex-1">
           <EmptyState icon={<Archive />}>{t('backups.emptyRuns')}</EmptyState>
         </div>
       )
     }
 
     return (
-      <div className="p-3 space-y-2 overflow-y-auto flex-1">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
         {runs.map((run) => (
-          <div
+          <EntityRow
             key={run.id}
-            className="flex flex-wrap items-center justify-between gap-2.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2.5"
-          >
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            centered
+            leading={
               <ListRowIcon>
                 {run.storageKind === 's3' ? (
                   <Cloud className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -181,51 +185,57 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
                   <HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} />
                 )}
               </ListRowIcon>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[13px] font-semibold text-[var(--win-text)] truncate">{run.resourceName}</span>
-                  <Badge tone={run.status === 'success' ? 'success' : run.status === 'failed' ? 'danger' : 'warning'}>
-                    {run.status}
-                  </Badge>
-                  <Badge tone="neutral">{run.storageKind.toUpperCase()}</Badge>
-                  {run.sizeBytes > 0 ? <span className="panel-mono text-[11.5px] text-[var(--text-secondary)]">{formatBytes(run.sizeBytes)}</span> : null}
-                </div>
-                <p className="panel-mono text-[11.5px] text-[var(--text-secondary)] truncate">
-                  {new Date(run.startedAt).toLocaleString()}
-                  {run.sha256 ? ` · sha256:${run.sha256.slice(0, 12)}` : ''}
-                </p>
-                {run.errorMessage ? (
-                  <p className="mt-0.5 text-[11.5px] text-[var(--panel-danger-text)] break-words">{run.errorMessage}</p>
+            }
+            title={run.resourceName}
+            badges={
+              <>
+                <Badge tone={run.status === 'success' ? 'success' : run.status === 'failed' ? 'danger' : 'warning'} dot>
+                  {run.status}
+                </Badge>
+                <Badge tone="neutral">{run.storageKind.toUpperCase()}</Badge>
+                {run.sizeBytes > 0 ? <Badge tone="info">{formatBytes(run.sizeBytes)}</Badge> : null}
+              </>
+            }
+            subtitle={
+              <span className="panel-mono">
+                {new Date(run.startedAt).toLocaleString()}
+                {run.sha256 ? ` · sha256:${run.sha256.slice(0, 12)}` : ''}
+              </span>
+            }
+            description={
+              run.errorMessage ? (
+                <p className="mt-1 text-[0.75rem] text-[var(--panel-danger-text)] break-words">{run.errorMessage}</p>
+              ) : undefined
+            }
+            actions={
+              <>
+                {run.status === 'success' ? (
+                  <>
+                    <IconButton
+                      size="sm"
+                      variant="ghost"
+                      label={t('backups.download')}
+                      onClick={() => window.open(backupRunDownloadUrl(run.id), '_blank', 'noopener')}
+                    >
+                      <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </IconButton>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon={<RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                      loading={restoringRunId === run.id}
+                      onClick={() => void confirmRestoreRun(run)}
+                    >
+                      {t('backups.restoreNow')}
+                    </Button>
+                  </>
                 ) : null}
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {run.status === 'success' ? (
-                <>
-                  <a
-                    href={backupRunDownloadUrl(run.id)}
-                    download
-                    className="panel-btn panel-btn--ghost panel-btn--sm inline-flex items-center gap-1.5"
-                  >
-                    <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    <span>{t('backups.download')}</span>
-                  </a>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    loading={restoringRunId === run.id}
-                    onClick={() => void confirmRestoreRun(run)}
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    <span>{t('backups.restoreNow')}</span>
-                  </Button>
-                </>
-              ) : null}
-              <IconButton size="sm" variant="ghost" label={t('common.delete')} onClick={() => void confirmDeleteRun(run)}>
-                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </IconButton>
-            </div>
-          </div>
+                <IconButton size="sm" variant="ghost" tone="danger" label={t('common.delete')} onClick={() => void confirmDeleteRun(run)}>
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </IconButton>
+              </>
+            }
+          />
         ))}
       </div>
     )
@@ -237,9 +247,9 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
   )
   if (targets.length === 0) {
     return (
-      <div className="p-4 flex-1 flex flex-col items-center justify-center gap-3 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
         <EmptyState icon={<Cloud />}>{t('backups.emptyTargets')}</EmptyState>
-        <Button size="sm" variant="primary" onClick={() => setAddTargetOpen(true)}>
+        <Button variant="primary" onClick={() => setAddTargetOpen(true)}>
           {t('backups.addTarget')}
         </Button>
       </div>
@@ -247,13 +257,12 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
   }
 
   return (
-    <div className="p-3 space-y-2 overflow-y-auto flex-1">
+    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
       {targets.map((tg) => (
-        <div
+        <EntityRow
           key={tg.id}
-          className="flex flex-wrap items-center justify-between gap-2.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2.5"
-        >
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          centered
+          leading={
             <ListRowIcon>
               {tg.kind === 's3' ? (
                 <Cloud className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -261,33 +270,37 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
                 <HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} />
               )}
             </ListRowIcon>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[13px] font-semibold text-[var(--win-text)] truncate">{tg.name}</span>
-                <Badge tone={tg.kind === 's3' ? 'primary' : 'neutral'}>{tg.kind === 's3' ? 'S3 / R2' : t('backups.localStorage')}</Badge>
-              </div>
-              <p className="panel-mono text-[11.5px] text-[var(--text-secondary)] truncate">
-                {tg.kind === 's3'
-                  ? `${tg.s3Bucket}${tg.s3Prefix ? '/' + tg.s3Prefix : ''} · ${tg.s3Endpoint || tg.s3Region}`
-                  : tg.localDir}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Button
-              size="sm"
-              variant="ghost"
-              loading={testingTargetId === tg.id}
-              onClick={() => testTargetMut.mutate(tg)}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span>{t('backups.testConnection')}</span>
-            </Button>
-            <IconButton size="sm" variant="ghost" label={t('common.delete')} onClick={() => void confirmDeleteTarget(tg)}>
-              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </IconButton>
-          </div>
-        </div>
+          }
+          title={tg.name}
+          badges={
+            <Badge tone={tg.kind === 's3' ? 'primary' : 'neutral'}>
+              {tg.kind === 's3' ? 'S3 / R2' : t('backups.localStorage')}
+            </Badge>
+          }
+          subtitle={
+            <span className="panel-mono">
+              {tg.kind === 's3'
+                ? `${tg.s3Bucket}${tg.s3Prefix ? '/' + tg.s3Prefix : ''} · ${tg.s3Endpoint || tg.s3Region}`
+                : tg.localDir}
+            </span>
+          }
+          actions={
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                icon={<CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                loading={testingTargetId === tg.id}
+                onClick={() => testTargetMut.mutate(tg)}
+              >
+                {t('backups.testConnection')}
+              </Button>
+              <IconButton size="sm" variant="ghost" tone="danger" label={t('common.delete')} onClick={() => void confirmDeleteTarget(tg)}>
+                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </IconButton>
+            </>
+          }
+        />
       ))}
     </div>
   )
