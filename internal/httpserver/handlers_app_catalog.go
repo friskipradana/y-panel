@@ -75,6 +75,7 @@ type CatalogApp struct {
 	KeepPrefix      bool                `json:"keepPrefix"`
 	SuperadminOnly  bool                `json:"superadminOnly"`
 	Official        bool                `json:"official,omitempty"`
+	BuiltinWindow   string              `json:"builtinWindow,omitempty"`
 	NotesID         string              `json:"notesId,omitempty"`
 	NotesEN         string              `json:"notesEn,omitempty"`
 	Volumes         []catalogVolumeSpec `json:"volumes"`
@@ -435,6 +436,20 @@ var builtinCatalogApps = []CatalogApp{
 			{Key: "SESSION_SECRET", DefaultValue: "", LabelID: "Kunci Rahasia Sesi (acak)", LabelEN: "Session Secret Key", Secret: true},
 			{Key: "CORS_ORIGIN", DefaultValue: "*", LabelID: "Allowed Origin (CORS)", LabelEN: "Allowed Origin (CORS)"},
 		},
+	},
+	{
+		ID:            "reneo-devdesk",
+		Name:          "Reneo Dev Desk",
+		TaglineID:     "Penawaran, Invoice, URL Publik Bertoken, Checklist Developer & AI Generator",
+		TaglineEN:     "Quotations, Invoices, Tokenized Public Links, Developer Checklists & AI Generator",
+		DescriptionID: "Alat pencatatan developer bawaan Reneo: buat dan simpan riwayat penawaran serta invoice, generate otomatis dari catatan klien lewat integrasi AI di Pengaturan, bagikan tautan publik bertoken (/doc/<token>) siap cetak PDF, dan kelola checklist pengerjaan per proyek.",
+		DescriptionEN: "Built-in developer desk for Reneo: create and store quotation and invoice history, auto-generate from client briefs via Settings AI integration, share tokenized public print-ready URLs (/doc/<token>), and track per-project checklists.",
+		Category:      "dev",
+		IconKey:       "reneo-devdesk",
+		IconColor:     "blue",
+		Official:      true,
+		BuiltinWindow: "dev-desk",
+		Image:         "reneo-builtin/dev-desk",
 	},
 	{
 		ID:              "reneo-resto",

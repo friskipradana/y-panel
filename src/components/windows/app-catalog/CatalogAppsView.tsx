@@ -18,6 +18,8 @@ import { IconButton } from '@/components/ui/IconButton'
 import { ListState, ListTable } from '@/components/ui/ListTable'
 import { openInstalledAppWindow } from '@/hooks/useAppCatalog'
 import { useI18n } from '@/lib/i18n'
+import { useWindowStore } from '@/store/windowStore'
+import type { WindowKind } from '@/types'
 
 export type CatalogViewMode = 'list' | 'grid'
 
@@ -109,6 +111,7 @@ export function CatalogAppsView({
           <div className="app-catalog-card-grid">
             {items.map((app) => {
               const existing = installedByCatalogId.get(app.id)
+              const isBuiltin = Boolean(app.builtinWindow)
               const tagline = language === 'id' ? app.taglineId : app.taglineEn
               return (
                 <article key={app.id} className="app-catalog-card">
@@ -125,18 +128,28 @@ export function CatalogAppsView({
                               </Badge>
                             ) : null}
                           </div>
-                          <span className="docker-row__sub panel-mono" title={app.image}>{app.image}</span>
+                          <span className="docker-row__sub panel-mono" title={app.image || t('appCatalog.builtinSubtitle')}>
+                            {app.image || t('appCatalog.builtinSubtitle')}
+                          </span>
                         </div>
                       </div>
-                      <Badge tone={existing ? 'success' : 'neutral'} size="sm" dot={Boolean(existing)}>
-                        {existing ? t('appCatalog.installedBadge') : t(`appCatalog.cat.${app.category}`)}
+                      <Badge tone={isBuiltin || existing ? 'success' : 'neutral'} size="sm" dot={Boolean(isBuiltin || existing)}>
+                        {isBuiltin ? t('appCatalog.builtinBadge') : existing ? t('appCatalog.installedBadge') : t(`appCatalog.cat.${app.category}`)}
                       </Badge>
                     </div>
                     <p className="app-catalog-card__desc" title={tagline}>{tagline}</p>
                   </div>
 
                   <div className="app-catalog-card__footer">
-                    {existing ? (
+                    {isBuiltin ? (
+                      <Button
+                        variant="primary-soft"
+                        size="sm"
+                        onClick={() => useWindowStore.getState().openWindow(app.builtinWindow as WindowKind)}
+                      >
+                        {t('appCatalog.openWindow')}
+                      </Button>
+                    ) : existing ? (
                       <>
                         <IconButton
                           size="sm"
@@ -188,6 +201,7 @@ export function CatalogAppsView({
       <ListState {...stateProps}>
         {items.map((app, idx) => {
           const existing = installedByCatalogId.get(app.id)
+          const isBuiltin = Boolean(app.builtinWindow)
           const tagline = language === 'id' ? app.taglineId : app.taglineEn
           return (
             <div key={app.id} className="docker-row">
@@ -203,7 +217,9 @@ export function CatalogAppsView({
                       </Badge>
                     ) : null}
                   </div>
-                  <span className="docker-row__sub panel-mono" title={app.image}>{app.image}</span>
+                  <span className="docker-row__sub panel-mono" title={app.image || t('appCatalog.builtinSubtitle')}>
+                    {app.image || t('appCatalog.builtinSubtitle')}
+                  </span>
                   <span className="docker-row__meta font-sans" title={tagline}>
                     {tagline}
                   </span>
@@ -215,12 +231,20 @@ export function CatalogAppsView({
                 </span>
               </div>
               <div className="docker-cell docker-cell--keep">
-                <Badge tone={existing ? 'success' : 'neutral'} size="sm" dot={Boolean(existing)}>
-                  {existing ? t('appCatalog.installedBadge') : t(`appCatalog.cat.${app.category}`)}
+                <Badge tone={isBuiltin || existing ? 'success' : 'neutral'} size="sm" dot={Boolean(isBuiltin || existing)}>
+                  {isBuiltin ? t('appCatalog.builtinBadge') : existing ? t('appCatalog.installedBadge') : t(`appCatalog.cat.${app.category}`)}
                 </Badge>
               </div>
               <div className="docker-action-btns">
-                {existing ? (
+                {isBuiltin ? (
+                  <Button
+                    variant="primary-soft"
+                    size="sm"
+                    onClick={() => useWindowStore.getState().openWindow(app.builtinWindow as WindowKind)}
+                  >
+                    {t('appCatalog.openWindow')}
+                  </Button>
+                ) : existing ? (
                   <>
                     <Button
                       variant="primary-soft"

@@ -35,6 +35,7 @@ export interface CatalogApp {
   keepPrefix: boolean
   superadminOnly: boolean
   official?: boolean
+  builtinWindow?: string
   notesId?: string
   notesEn?: string
   volumes: CatalogVolumeSpec[]

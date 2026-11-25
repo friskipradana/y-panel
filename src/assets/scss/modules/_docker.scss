@@ -902,6 +902,14 @@
   &--k8s-helm {
     --docker-cols: 44px minmax(0, 1.6fr) minmax(0, 1.5fr) 108px 72px;
   }
+
+  &--devdesk-docs {
+    --docker-cols: 44px minmax(0, 1.9fr) minmax(130px, 1.1fr) 136px 116px 212px;
+  }
+
+  &--devdesk-todos {
+    --docker-cols: 44px minmax(0, 2.2fr) minmax(130px, 1fr) 96px 112px 52px;
+  }
 }
 
 .docker-primary-btn {

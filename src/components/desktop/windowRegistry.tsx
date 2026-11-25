@@ -32,6 +32,7 @@ const KubernetesWindow = lazyNamed(() => import('@/components/windows/Kubernetes
 const BackupsWindow = lazyNamed(() => import('@/components/windows/BackupsWindow'), 'BackupsWindow')
 const UptimeWindow = lazyNamed(() => import('@/components/windows/UptimeWindow'), 'UptimeWindow')
 const ServicesWindow = lazyNamed(() => import('@/components/windows/ServicesWindow'), 'ServicesWindow')
+const DevDeskWindow = lazyNamed(() => import('@/components/windows/DevDeskWindow'), 'DevDeskWindow')
 
 
 // Every account works in its own area (terminal as its own OS account, own files, containers,
@@ -119,6 +120,7 @@ export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authe
   backups: (win, auth) => <BackupsWindow win={win} authenticated={auth} />,
   uptime: (win, auth) => <UptimeWindow win={win} authenticated={auth} />,
   services: (win, auth) => <ServicesWindow win={win} authenticated={auth} />,
+  'dev-desk': (win, auth) => <DevDeskWindow win={win} authenticated={auth} />,
 }
 
 export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKind }[] = [
@@ -127,6 +129,7 @@ export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKin
   { id: 'backups', label: 'Backup & Restore', windowId: 'backups' },
   { id: 'uptime', label: 'Uptime & SSL', windowId: 'uptime' },
   { id: 'services', label: 'Cron & Systemd', windowId: 'services' },
+  { id: 'dev-desk', label: 'Dev Desk', windowId: 'dev-desk' },
   { id: 'app-catalog', label: 'App Catalog', windowId: 'app-catalog' },
   { id: 'app-licenses', label: 'Lisensi Aplikasi', windowId: 'app-licenses' },
   { id: 'host-terminal', label: 'Terminal', windowId: 'host-terminal' },

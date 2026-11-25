@@ -21,6 +21,7 @@ import { EmailServerTab } from "./settings/tabs/EmailServerTab";
 import { SecurityTab } from "./settings/tabs/SecurityTab";
 import { NotificationsTab } from "./settings/tabs/NotificationsTab";
 import { AuditTab } from "./settings/tabs/AuditTab";
+import { AiSettingsTab } from "./settings/tabs/AiSettingsTab";
 import { ReneoDatabaseTab } from "./settings/tabs/ReneoDatabaseTab";
 import { ReneoRuntimeTab } from "./settings/tabs/ReneoRuntimeTab";
 import { useAuthStore } from "@/store/authStore";
@@ -163,6 +164,8 @@ export function SettingsWindow({ win, authenticated }: { win?: WindowState; auth
                 {shownTab === "audit" && isSuperadmin && <AuditTab host={host} />}
 
                 {shownTab === "api_tokens" && <ApiTokensTab />}
+
+                {shownTab === "ai_integration" && <AiSettingsTab />}
 
                 {shownTab === "reneo_database" && isSuperadmin && <ReneoDatabaseTab authenticated={authenticated} active={pollingActive} />}
 

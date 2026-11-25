@@ -19,6 +19,7 @@ export const DEFAULTS: Record<
   'app-catalog': { title: 'App Catalog', width: 1040, height: 560, singleton: true },
   'installed-app': { title: 'Installed App', width: 1040, height: 620, singleton: false },
   'app-licenses': { title: 'Kelola Lisensi Aplikasi', width: 980, height: 580, singleton: true },
+  'dev-desk': { title: 'Dev Desk', width: 1080, height: 600, singleton: true },
 
   // L — Management & Monitoring (880 x 530)
   system: { title: 'System Info', width: 880, height: 530, singleton: true },

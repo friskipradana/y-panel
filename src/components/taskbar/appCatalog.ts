@@ -98,6 +98,12 @@ export const MENU_ITEMS: AppMenuItem[] = [
     category: 'dev',
   },
   {
+    kind: 'dev-desk',
+    descId: 'Catat penawaran, invoice, checklist proyek developer, tautan publik token, dan draf otomatis dengan AI',
+    descEn: 'Manage quotations, invoices, developer checklists, public token URLs, and AI-assisted drafts',
+    category: 'dev',
+  },
+  {
     kind: 'tunnels',
     descId: 'Kelola tunnel Cloudflare daemon dan public routing',
     descEn: 'Cloudflare ingress tunnels and public hostname routing',

@@ -76,6 +76,7 @@ const SETTINGS_TAB_WORDS: Record<SettingsTabKey, string[]> = {
   screensaver: ['kunci', 'lock', 'screensaver', 'layar'],
   sound: ['suara', 'audio', 'volume'],
   cloudflare: ['cloudflare', 'token', 'api'],
+  ai_integration: ['ai', 'openai', 'gemini', 'anthropic', 'openrouter', 'deepseek', 'ollama', 'llm', 'api key', 'dev desk'],
   network: ['jaringan', 'port', 'origin', 'host'],
   public_ip: ['ip publik', 'public ip', 'domain', 'sertifikat', 'certificate', 'https', 'letsencrypt', 'proxy', 'port forward', 'tanpa tunnel'],
   email_server: ['email', 'mail', 'smtp', 'imap', 'mx', 'spf', 'dkim', 'dmarc', 'cloudflare'],

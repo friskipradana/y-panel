@@ -44,6 +44,7 @@ const BRAND_ICON_MAP: Record<string, string> = {
   'reneo-skills': '/icons/apps/reneo-skills.svg?v=1',
   'reneo-icons': '/icons/apps/reneo-icons.svg?v=2',
   'reneo-resto': '/icons/apps/reneo-resto.svg?v=2',
+  'reneo-devdesk': '/icons/panel/dev-desk.svg?v=1',
   'adguard-home': '/icons/apps/adguard-home.svg',
   jellyfin: '/icons/apps/jellyfin.svg',
   nextcloud: '/icons/apps/nextcloud.svg',
@@ -257,6 +258,7 @@ const PANEL_ICON_MAP: Record<string, string> = {
   'app-catalog': '/icons/panel/app-catalog.svg?v=1',
   'installed-app': '/icons/panel/installed-app.svg?v=1',
   'app-licenses': '/icons/panel/app-licenses.svg?v=1',
+  'dev-desk': '/icons/panel/dev-desk.svg?v=1',
 }
 
 export function AppIcon({ kind, size = 24, className = '', style = {}, iconKey, iconColor }: AppIconProps) {

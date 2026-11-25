@@ -385,6 +385,24 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/uptime/monitors/{id}/check", s.requireAuthV2(http.HandlerFunc(s.handleCheckUptimeMonitorNow)))
 	s.mux.Handle("GET /api/v1/uptime/monitors/{id}/history", s.requireAuthV2(http.HandlerFunc(s.handleUptimeMonitorHistory)))
 
+	// AI Integration Settings
+	s.mux.Handle("GET /api/v1/settings/ai", s.requireAuthV2(http.HandlerFunc(s.handleGetAISettings)))
+	s.mux.Handle("PUT /api/v1/settings/ai", s.requireAuthV2(http.HandlerFunc(s.handleUpdateAISettings)))
+	s.mux.Handle("POST /api/v1/settings/ai/test", s.requireAuthV2(http.HandlerFunc(s.handleTestAISettings)))
+
+	// Dev Desk (Quotations, Invoices, Checklists & Public Token Links)
+	s.mux.Handle("GET /api/v1/devdesk/overview", s.requireAuthV2(http.HandlerFunc(s.handleDevDeskOverview)))
+	s.mux.Handle("POST /api/v1/devdesk/docs", s.requireAuthV2(http.HandlerFunc(s.handleCreateDevDoc)))
+	s.mux.Handle("PUT /api/v1/devdesk/docs/{id}", s.requireAuthV2(http.HandlerFunc(s.handleUpdateDevDoc)))
+	s.mux.Handle("DELETE /api/v1/devdesk/docs/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteDevDoc)))
+	s.mux.Handle("POST /api/v1/devdesk/docs/{id}/rotate-token", s.requireAuthV2(http.HandlerFunc(s.handleRotateDevDocToken)))
+	s.mux.Handle("POST /api/v1/devdesk/docs/{id}/convert-invoice", s.requireAuthV2(http.HandlerFunc(s.handleConvertDevDocToInvoice)))
+	s.mux.Handle("POST /api/v1/devdesk/ai-generate", s.requireAuthV2(http.HandlerFunc(s.handleDevDeskAIGenerate)))
+	s.mux.Handle("POST /api/v1/devdesk/todos", s.requireAuthV2(http.HandlerFunc(s.handleCreateDevTodo)))
+	s.mux.Handle("PATCH /api/v1/devdesk/todos/{id}", s.requireAuthV2(http.HandlerFunc(s.handleUpdateDevTodo)))
+	s.mux.Handle("DELETE /api/v1/devdesk/todos/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteDevTodo)))
+	s.mux.HandleFunc("GET /api/v1/public/devdesk/{token}", s.handlePublicDevDoc)
+
 	// ── Payment Gateway Settings ─────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/settings/payment", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetPaymentSettings)))
 	s.mux.Handle("POST /api/v1/settings/payment", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePaymentSettings))))
