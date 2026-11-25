@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.79] - 2026-11-25
+
+Add K8s live pod logs, events, MCP tools, auto-build project deploy, and scheduled S3/local backup & restore.
+
+### Fitur baru
+- Add K8s live pod logs, events, MCP tools, auto-build project deploy, and scheduled S3/local backup & restore ([`1b03b07`](https://github.com/friskipradana/y-panel/commit/1b03b07))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.78...v1.88.79
+
 ## [1.88.78] - 2026-11-25
 
 Add Kubernetes and K3s cluster manager window with Projects deploy and Cloudflare Tunnel integration.
