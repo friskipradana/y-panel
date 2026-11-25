@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.89] - 2026-11-25
+
+Fix proxy audio/AudioWorklet/WebSocket, add Desktop PiP, auto-hide app toolbar, Fit-to-Content, and ActionMenu iframe close.
+
+### Perbaikan
+- **apps:** Fix proxy audio/AudioWorklet/WebSocket, add Desktop PiP, auto-hide app toolbar, Fit-to-Content, and ActionMenu iframe close ([`e38f1e5`](https://github.com/friskipradana/y-panel/commit/e38f1e5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.88...v1.88.89
+
 ## [1.88.88] - 2026-11-25
 
 Add AI integration settings, Dev Desk quotations/invoices/checklists, public token URLs, and App Catalog entry.
