@@ -176,7 +176,7 @@ func (s *Server) handleTestAISettings(w http.ResponseWriter, r *http.Request) {
 
 	reply, err := ai.TestConnection(r.Context(), *cfg)
 	if err != nil {
-		s.writeError(w, http.StatusBadGateway, err)
+		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "reply": reply})
@@ -219,7 +219,7 @@ func (s *Server) handleListAIModels(w http.ResponseWriter, r *http.Request) {
 
 	models, err := ai.ListModels(r.Context(), *cfg)
 	if err != nil {
-		s.writeError(w, http.StatusBadGateway, err)
+		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "models": models})

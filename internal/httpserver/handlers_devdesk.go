@@ -455,7 +455,7 @@ Rules:
 
 	raw, err := ai.Complete(r.Context(), *aiCfg, sysPrompt, userPrompt)
 	if err != nil {
-		s.writeError(w, http.StatusBadGateway, err)
+		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
 	}
 	cleanJSON := ai.ExtractJSONObject(raw)
@@ -473,7 +473,7 @@ Rules:
 		} `json:"todos"`
 	}
 	if err := json.Unmarshal([]byte(cleanJSON), &generated); err != nil {
-		s.writeError(w, http.StatusBadGateway, fmt.Errorf("AI returned unreadable JSON: %w", err))
+		s.writeError(w, http.StatusUnprocessableEntity, fmt.Errorf("AI returned unreadable JSON: %w", err))
 		return
 	}
 	// Strip any accidental em dashes from generated text.

@@ -163,7 +163,7 @@ func fetchModelsEndpoint(ctx context.Context, client *http.Client, provider, end
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch models: %w", err)
+		return nil, formatTransportError("failed to fetch models", err)
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
@@ -236,7 +236,7 @@ func completeOpenAI(ctx context.Context, client *http.Client, baseURL, model, ap
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("AI request failed: %w", err)
+		return "", formatTransportError("AI request failed", err)
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
@@ -283,7 +283,7 @@ func completeAnthropic(ctx context.Context, client *http.Client, baseURL, model,
 	req.Header.Set("anthropic-version", "2023-06-01")
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Anthropic request failed: %w", err)
+		return "", formatTransportError("Anthropic request failed", err)
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
@@ -310,6 +310,23 @@ func completeAnthropic(ctx context.Context, client *http.Client, baseURL, model,
 		return "", errors.New("Anthropic returned empty content")
 	}
 	return text, nil
+}
+
+func formatTransportError(prefix string, err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "server gave HTTP response to HTTPS client") {
+		return errors.New("Endpoint merespons HTTP biasa, bukan HTTPS. Ubah Base URL dari https:// menjadi http://.")
+	}
+	if strings.Contains(msg, "connection refused") {
+		return fmt.Errorf("Koneksi ke endpoint AI ditolak (%s). Pastikan layanan aktif dan port benar.", msg)
+	}
+	if strings.Contains(msg, "context deadline exceeded") || strings.Contains(msg, "Client.Timeout") {
+		return errors.New("Koneksi ke endpoint AI timeout. Periksa URL endpoint atau coba model yang lebih cepat.")
+	}
+	return fmt.Errorf("%s: %w", prefix, err)
 }
 
 func extractProviderError(body []byte) string {
