@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Clock, Cpu, HardDrive, Package, Play, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Clock, Cpu, HardDrive, LoaderCircle, Package, Play, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getK8sHelmOverview,
@@ -13,11 +13,9 @@ import {
 import { alertLib } from '@/lib/alert'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { EntityRow } from '@/components/ui/EntityRow'
 import { Field, TextInput, Textarea } from '@/components/ui/Field'
-import { IconButton } from '@/components/ui/IconButton'
 import { KpiCard } from '@/components/ui/KpiCard'
-import { ListRowIcon } from '@/components/ui/ListTable'
+import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { Modal } from '@/components/ui/Modal'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
@@ -65,36 +63,23 @@ export function K8sAdvancedTab({ kw }: { kw: KubernetesWindowState }) {
   const installHelmMut = useMutation({
     mutationFn: () =>
       installK8sHelmChart(activeClusterId, {
-        release: release.trim(),
-        chart: chart.trim(),
-        repoName: repoName.trim() || undefined,
-        repoUrl: repoUrl.trim() || undefined,
-        namespace: helmNs.trim() || 'default',
-        valuesYaml: valuesYaml.trim() || undefined,
+        release: release.trim(), chart: chart.trim(),
+        repoName: repoName.trim() || undefined, repoUrl: repoUrl.trim() || undefined,
+        namespace: helmNs.trim() || 'default', valuesYaml: valuesYaml.trim() || undefined,
       }),
-    onSuccess: () => {
-      toast.success(t('k8s.helmInstalled'))
-      setHelmOpen(false)
-      void qc.invalidateQueries({ queryKey: ['k8s-helm', activeClusterId] })
-    },
+    onSuccess: () => { toast.success(t('k8s.helmInstalled')); setHelmOpen(false); void qc.invalidateQueries({ queryKey: ['k8s-helm', activeClusterId] }) },
     onError: (e: Error) => toast.error(e.message),
   })
 
   const rollbackHelmMut = useMutation({
     mutationFn: ({ ns, name }: { ns: string; name: string }) => rollbackK8sHelmRelease(activeClusterId, ns, name),
-    onSuccess: () => {
-      toast.success(t('k8s.helmRolledBack'))
-      void qc.invalidateQueries({ queryKey: ['k8s-helm', activeClusterId] })
-    },
+    onSuccess: () => { toast.success(t('k8s.helmRolledBack')); void qc.invalidateQueries({ queryKey: ['k8s-helm', activeClusterId] }) },
     onError: (e: Error) => toast.error(e.message),
   })
 
   const uninstallHelmMut = useMutation({
     mutationFn: ({ ns, name }: { ns: string; name: string }) => uninstallK8sHelmRelease(activeClusterId, ns, name),
-    onSuccess: () => {
-      toast.success(t('k8s.helmUninstalled'))
-      void qc.invalidateQueries({ queryKey: ['k8s-helm', activeClusterId] })
-    },
+    onSuccess: () => { toast.success(t('k8s.helmUninstalled')); void qc.invalidateQueries({ queryKey: ['k8s-helm', activeClusterId] }) },
     onError: (e: Error) => toast.error(e.message),
   })
 
@@ -129,67 +114,92 @@ export function K8sAdvancedTab({ kw }: { kw: KubernetesWindowState }) {
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3.5 sm:p-4">
         <section className="panel-shell-card settings-card flex flex-col gap-3 p-3.5">
           <SectionHeader icon={<HardDrive />} title={t('k8s.pvcsTitle')} tone="primary" className="mb-0" />
-          {pvcs.length === 0 ? (
-            <EmptyState icon={<HardDrive />}>{t('k8s.emptyPvcs')}</EmptyState>
-          ) : (
-            <div className="space-y-1.5">
-              {pvcs.map((p) => (
-                <EntityRow
-                  key={`${p.namespace}/${p.name}`}
-                  centered
-                  leading={<ListRowIcon><HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
-                  title={<span className="panel-mono">{p.name}</span>}
-                  badges={
-                    <>
-                      <Badge tone={p.status === 'Bound' ? 'success' : 'warning'} dot>{p.status}</Badge>
-                      <Badge tone="neutral">{p.namespace}</Badge>
-                    </>
-                  }
-                  subtitle={<span className="panel-mono">{p.capacity || '-'} · {p.storageClass || '-'} · {p.volume || '-'}</span>}
-                />
-              ))}
-            </div>
-          )}
+          <div className="widgets-section overflow-hidden rounded-lg border border-[var(--win-border)]">
+            <ListTable
+              variant="k8s-pvcs"
+              empty={pvcs.length === 0}
+              columns={[
+                { label: t('docker.colIndex') },
+                { label: t('k8s.col.volume') },
+                { label: t('docker.colStatus') },
+                { label: t('k8s.col.storageClass') },
+                { label: t('k8s.col.namespace') },
+              ]}
+            >
+              <ListState loading={false} error={false} errorTitle="" loadingText="" empty={pvcs.length === 0} emptyIcon={<HardDrive />} emptyTitle={t('k8s.emptyPvcs')}>
+                {pvcs.map((p, idx) => (
+                  <div key={`${p.namespace}/${p.name}`} className="docker-row">
+                    <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+                    <div className="docker-row__app">
+                      <ListRowIcon><HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+                      <div className="docker-row__text">
+                        <span className="docker-app-name docker-app-name--mono" title={p.name}>{p.name}</span>
+                        <span className="docker-row__sub panel-mono">{p.volume || '-'}</span>
+                        <span className="docker-row__meta panel-mono">{`${p.namespace} · ${p.capacity || '-'} · ${p.storageClass || '-'}`}</span>
+                      </div>
+                    </div>
+                    <div className="docker-cell--keep">
+                      <span className={`docker-status-pill docker-status-pill--${p.status === 'Bound' ? 'running' : 'paused'}`}>
+                        <span className="docker-status-dot" />
+                        <span>{p.status}</span>
+                      </span>
+                    </div>
+                    <div className="docker-cell docker-cell--mono">{`${p.capacity || '-'} · ${p.storageClass || '-'}`}</div>
+                    <div className="docker-cell docker-cell--mono">{p.namespace}</div>
+                  </div>
+                ))}
+              </ListState>
+            </ListTable>
+          </div>
         </section>
 
         <section className="panel-shell-card settings-card flex flex-col gap-3 p-3.5">
           <SectionHeader icon={<Clock />} title={t('k8s.cronJobsTitle')} tone="info" className="mb-0" />
-          {cjs.length === 0 ? (
-            <EmptyState icon={<Clock />}>{t('k8s.emptyCronJobs')}</EmptyState>
-          ) : (
-            <div className="space-y-1.5">
-              {cjs.map((cj) => (
-                <EntityRow
-                  key={`${cj.namespace}/${cj.name}`}
-                  centered
-                  leading={<ListRowIcon><Clock className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
-                  title={<span className="panel-mono">{cj.name}</span>}
-                  badges={
-                    <>
-                      <Badge tone="primary">{cj.schedule}</Badge>
-                      <Badge tone="neutral">{cj.namespace}</Badge>
-                    </>
-                  }
-                  subtitle={
-                    <span className="panel-mono">
-                      {t('k8s.cronMeta', { active: cj.active, last: cj.lastSchedule || '-' })}
-                    </span>
-                  }
-                  actions={
-                    <Button
-                      size="sm"
-                      variant="primary-soft"
-                      icon={<Play className="h-3.5 w-3.5" strokeWidth={1.75} />}
-                      loading={triggerCJMut.isPending}
-                      onClick={() => triggerCJMut.mutate({ ns: cj.namespace, name: cj.name })}
-                    >
-                      {t('k8s.runNow')}
-                    </Button>
-                  }
-                />
-              ))}
-            </div>
-          )}
+          <div className="widgets-section overflow-hidden rounded-lg border border-[var(--win-border)]">
+            <ListTable
+              variant="k8s-cronjobs"
+              empty={cjs.length === 0}
+              columns={[
+                { label: t('docker.colIndex') },
+                { label: t('k8s.col.cronJob') },
+                { label: t('services.col.schedule') },
+                { label: t('k8s.col.lastRun') },
+                { label: t('docker.colActions'), actions: true },
+              ]}
+            >
+              <ListState loading={false} error={false} errorTitle="" loadingText="" empty={cjs.length === 0} emptyIcon={<Clock />} emptyTitle={t('k8s.emptyCronJobs')}>
+                {cjs.map((cj, idx) => (
+                  <div key={`${cj.namespace}/${cj.name}`} className="docker-row">
+                    <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+                    <div className="docker-row__app">
+                      <ListRowIcon><Clock className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+                      <div className="docker-row__text">
+                        <div className="docker-row__title">
+                          <span className="docker-app-name docker-app-name--mono" title={cj.name}>{cj.name}</span>
+                          <Badge tone="neutral">{cj.namespace}</Badge>
+                        </div>
+                        <span className="docker-row__meta panel-mono">{`${cj.schedule} · ${cj.lastSchedule || '-'}`}</span>
+                      </div>
+                    </div>
+                    <div className="docker-cell docker-cell--mono">{cj.schedule}</div>
+                    <div className="docker-cell docker-cell--mono">{cj.lastSchedule || '-'}</div>
+                    <div className="docker-action-btns">
+                      <button
+                        type="button"
+                        className="docker-act-btn docker-act-btn--start"
+                        title={t('k8s.runNow')}
+                        aria-label={t('k8s.runNow')}
+                        disabled={triggerCJMut.isPending}
+                        onClick={() => triggerCJMut.mutate({ ns: cj.namespace, name: cj.name })}
+                      >
+                        {triggerCJMut.isPending ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Play className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </ListState>
+            </ListTable>
+          </div>
         </section>
 
         <section className="panel-shell-card settings-card flex flex-col gap-3 p-3.5">
@@ -211,118 +221,122 @@ export function K8sAdvancedTab({ kw }: { kw: KubernetesWindowState }) {
   }
 
   // Helm Manager
-  if (helmQ.isLoading) return <div className="p-6"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
-  if (helmQ.isError) {
-    return (
-      <div className="p-6">
-        <ErrorState
-          title={t('k8s.loadError')}
-          hint={(helmQ.error as Error)?.message}
-          action={<Button size="sm" variant="ghost" onClick={() => void helmQ.refetch()}>{t('common.refresh')}</Button>}
-        />
-      </div>
-    )
-  }
-
   const helm = helmQ.data
-  if (!helm?.installed) {
-    return (
-      <div className="p-6 flex-1">
-        <EmptyState icon={<Package />}>{t('k8s.helmNotInstalled')}</EmptyState>
-      </div>
-    )
-  }
-
-  const releases = (helm.releases ?? []).filter(
+  const releases = (helm?.releases ?? []).filter(
     (r) => !q || r.name.toLowerCase().includes(q) || r.chart.toLowerCase().includes(q) || r.namespace.toLowerCase().includes(q),
   )
 
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3.5 sm:p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {HELM_PRESETS.map((p) => (
-            <Button
-              key={p.name}
-              size="sm"
-              variant="outline"
-              icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.75} />}
-              onClick={() => {
-                setRelease(p.name)
-                setChart(p.chart)
-                setRepoName(p.repoName)
-                setRepoUrl(p.repoUrl)
-                setHelmNs(p.namespace)
-                setValuesYaml('')
-                setHelmOpen(true)
-              }}
-            >
-              {p.name}
-            </Button>
-          ))}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      {helm?.installed ? (
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {HELM_PRESETS.map((p) => (
+              <button
+                key={p.name}
+                type="button"
+                className="docker-secondary-btn"
+                onClick={() => {
+                  setRelease(p.name)
+                  setChart(p.chart)
+                  setRepoName(p.repoName)
+                  setRepoUrl(p.repoUrl)
+                  setHelmNs(p.namespace)
+                  setValuesYaml('')
+                  setHelmOpen(true)
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span>{p.name}</span>
+              </button>
+            ))}
+          </div>
+          <button type="button" className="docker-primary-btn" onClick={() => setHelmOpen(true)}>
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <span>{t('k8s.helmInstallBtn')}</span>
+          </button>
         </div>
-        <Button
-          variant="primary-soft"
-          icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.75} />}
-          onClick={() => setHelmOpen(true)}
-        >
-          {t('k8s.helmInstallBtn')}
-        </Button>
-      </div>
+      ) : null}
 
-      {releases.length === 0 ? (
-        <EmptyState icon={<Package />}>{t('k8s.emptyHelm')}</EmptyState>
-      ) : (
-        <div className="space-y-1.5">
-          {releases.map((rel) => (
-            <EntityRow
-              key={`${rel.namespace}/${rel.name}`}
-              centered
-              leading={<ListRowIcon><Package className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
-              title={<span className="panel-mono">{rel.name}</span>}
-              badges={
-                <>
-                  <Badge tone={rel.status === 'deployed' ? 'success' : 'warning'} dot>{rel.status}</Badge>
-                  <Badge tone="neutral">{rel.namespace}</Badge>
-                  <Badge tone="info">{t('k8s.helmRevision', { rev: rel.revision })}</Badge>
-                </>
-              }
-              subtitle={<span className="panel-mono">{rel.chart}{rel.app_version ? ` (${rel.app_version})` : ''}</span>}
-              actions={
-                <>
-                  <IconButton
-                    size="sm"
-                    variant="ghost"
-                    label={t('k8s.helmRollback')}
-                    onClick={() => rollbackHelmMut.mutate({ ns: rel.namespace, name: rel.name })}
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </IconButton>
-                  <IconButton
-                    size="sm"
-                    variant="ghost"
-                    tone="danger"
-                    label={t('common.delete')}
-                    onClick={async () => {
-                      const ok = await alertLib.confirm(
-                        t('k8s.helmUninstallTitle'),
-                        t('k8s.helmUninstallConfirm', { name: `${rel.namespace}/${rel.name}` }),
-                        t('common.delete'),
-                        t('common.cancel'),
-                        'warning',
-                        'kubernetes',
-                      )
-                      if (ok) uninstallHelmMut.mutate({ ns: rel.namespace, name: rel.name })
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </IconButton>
-                </>
-              }
-            />
+      <ListTable
+        variant="k8s-helm"
+        empty={helmQ.isLoading || helmQ.isError || !helm?.installed || releases.length === 0}
+        columns={[
+          { label: t('docker.colIndex') },
+          { label: t('k8s.col.release') },
+          { label: t('k8s.col.chart') },
+          { label: t('docker.colStatus') },
+          { label: t('docker.colActions'), actions: true },
+        ]}
+      >
+        <ListState
+          loading={helmQ.isLoading}
+          error={helmQ.isError}
+          errorTitle={t('k8s.loadError')}
+          errorHint={(helmQ.error as Error)?.message}
+          loadingText={t('k8s.loadingCluster')}
+          empty={!helm?.installed || releases.length === 0}
+          emptyIcon={<Package />}
+          emptyTitle={!helm?.installed ? t('k8s.helmNotInstalled') : t('k8s.emptyHelm')}
+        >
+          {releases.map((rel, idx) => (
+            <div key={`${rel.namespace}/${rel.name}`} className="docker-row">
+              <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+              <div className="docker-row__app">
+                <ListRowIcon><Package className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+                <div className="docker-row__text">
+                  <div className="docker-row__title">
+                    <span className="docker-app-name docker-app-name--mono" title={rel.name}>{rel.name}</span>
+                    <Badge tone="neutral">{rel.namespace}</Badge>
+                    <Badge tone="info">{t('k8s.helmRevision', { rev: rel.revision })}</Badge>
+                  </div>
+                  <span className="docker-row__meta panel-mono">{`${rel.chart}${rel.app_version ? ` (${rel.app_version})` : ''}`}</span>
+                </div>
+              </div>
+              <div className="docker-cell docker-cell--mono" title={rel.chart}>
+                <span>{rel.chart}</span>
+                {rel.app_version ? <span className="text-[0.6875rem] text-[var(--text-secondary)]">{rel.app_version}</span> : null}
+              </div>
+              <div className="docker-cell--keep">
+                <span className={`docker-status-pill docker-status-pill--${rel.status === 'deployed' ? 'running' : 'paused'}`}>
+                  <span className="docker-status-dot" />
+                  <span>{rel.status}</span>
+                </span>
+              </div>
+              <div className="docker-action-btns">
+                <button
+                  type="button"
+                  className="docker-act-btn docker-act-btn--restart"
+                  title={t('k8s.helmRollback')}
+                  aria-label={t('k8s.helmRollback')}
+                  onClick={() => rollbackHelmMut.mutate({ ns: rel.namespace, name: rel.name })}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+                <button
+                  type="button"
+                  className="docker-act-btn docker-act-btn--danger"
+                  title={t('common.delete')}
+                  aria-label={t('common.delete')}
+                  onClick={async () => {
+                    const ok = await alertLib.confirm(
+                      t('k8s.helmUninstallTitle'),
+                      t('k8s.helmUninstallConfirm', { name: `${rel.namespace}/${rel.name}` }),
+                      t('common.delete'),
+                      t('common.cancel'),
+                      'warning',
+                      'kubernetes',
+                    )
+                    if (ok) uninstallHelmMut.mutate({ ns: rel.namespace, name: rel.name })
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+              </div>
+            </div>
           ))}
-        </div>
-      )}
+        </ListState>
+      </ListTable>
 
       <Modal
         open={helmOpen}

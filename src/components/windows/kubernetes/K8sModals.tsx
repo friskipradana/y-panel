@@ -150,6 +150,7 @@ function PodLogsModal({ kw }: { kw: KubernetesWindowState }) {
           {logsPod && logsPod.containers.length > 1 ? (
             <Select
               size="sm"
+              className="panel-toolbar-select"
               value={container}
               onChange={setContainer}
               options={logsPod.containers.map((c) => ({ value: c, label: c }))}
@@ -157,6 +158,7 @@ function PodLogsModal({ kw }: { kw: KubernetesWindowState }) {
           ) : null}
           <Select
             size="sm"
+            className="panel-toolbar-select"
             value={tail}
             onChange={setTail}
             options={[
@@ -166,7 +168,7 @@ function PodLogsModal({ kw }: { kw: KubernetesWindowState }) {
               { value: '1000', label: '1000' },
             ]}
           />
-          <SearchInput value={query} onChange={setQuery} placeholder={t('k8s.filterLogs')} />
+          <SearchInput className="docker-log-search" value={query} onChange={setQuery} placeholder={t('k8s.filterLogs')} />
           <div className="ml-auto flex flex-wrap items-center gap-1.5">
             <Button
               variant="outline"

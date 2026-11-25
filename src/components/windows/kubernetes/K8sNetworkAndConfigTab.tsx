@@ -2,11 +2,9 @@ import { useState } from 'react'
 import { Activity, Code2, FileCode2, Globe2, KeyRound, Network, Server } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { EntityRow } from '@/components/ui/EntityRow'
 import { Field, Textarea } from '@/components/ui/Field'
-import { IconButton } from '@/components/ui/IconButton'
-import { ListRowIcon } from '@/components/ui/ListTable'
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
+import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
+import { EmptyState } from '@/components/ui/states'
 import type { KubernetesWindowState } from './useKubernetesWindow'
 
 export function K8sNetworkAndConfigTab({ kw }: { kw: KubernetesWindowState }) {
@@ -53,11 +51,7 @@ export function K8sNetworkAndConfigTab({ kw }: { kw: KubernetesWindowState }) {
           />
         </Field>
         <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="ghost"
-            disabled={!yamlDraft.trim() || applyYamlMut.isPending}
-            onClick={() => setYamlDraft('')}
-          >
+          <Button variant="ghost" disabled={!yamlDraft.trim() || applyYamlMut.isPending} onClick={() => setYamlDraft('')}>
             {t('common.clear')}
           </Button>
           <Button
@@ -75,107 +69,101 @@ export function K8sNetworkAndConfigTab({ kw }: { kw: KubernetesWindowState }) {
   }
 
   if (section === 'services') {
-    if (servicesQ.isLoading) return <div className="p-6"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
-    if (servicesQ.isError) {
-      return (
-        <div className="p-6">
-          <ErrorState
-            title={t('k8s.loadError')}
-            hint={(servicesQ.error as Error)?.message}
-            action={<Button size="sm" variant="ghost" onClick={() => void servicesQ.refetch()}>{t('common.refresh')}</Button>}
-          />
-        </div>
-      )
-    }
     const svcs = (servicesQ.data?.services ?? []).filter(
       (s) => !q || s.name.toLowerCase().includes(q) || s.namespace.toLowerCase().includes(q) || s.type.toLowerCase().includes(q),
     )
     const ingresses = (servicesQ.data?.ingresses ?? []).filter(
       (ig) => !q || ig.name.toLowerCase().includes(q) || ig.hosts.some((h) => h.toLowerCase().includes(q)),
     )
-    if (svcs.length === 0 && ingresses.length === 0) return <div className="p-6"><EmptyState icon={<Network />}>{t('k8s.emptyServices')}</EmptyState></div>
+    const totalEmpty = svcs.length === 0 && ingresses.length === 0
 
     return (
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-        <div className="space-y-1.5">
-          {svcs.map((svc) => {
+      <ListTable
+        variant="k8s-services"
+        empty={servicesQ.isLoading || servicesQ.isError || totalEmpty}
+        columns={[
+          { label: t('docker.colIndex') },
+          { label: t('k8s.col.service') },
+          { label: t('k8s.col.typeNs') },
+          { label: t('k8s.col.endpoint') },
+          { label: t('docker.colActions'), actions: true },
+        ]}
+      >
+        <ListState
+          loading={servicesQ.isLoading}
+          error={servicesQ.isError}
+          errorTitle={t('k8s.loadError')}
+          errorHint={(servicesQ.error as Error)?.message}
+          loadingText={t('k8s.loadingCluster')}
+          empty={totalEmpty}
+          emptyIcon={<Network />}
+          emptyTitle={t('k8s.emptyServices')}
+        >
+          {svcs.map((svc, idx) => {
             const portSummary = svc.ports
               .map((p) => (p.nodePort > 0 ? `${p.port}:${p.nodePort}/${p.protocol}` : `${p.port}/${p.protocol}`))
               .join(', ')
             return (
-              <EntityRow
-                key={`${svc.namespace}/${svc.name}`}
-                centered
-                leading={<ListRowIcon><Network className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
-                title={<span className="panel-mono">{svc.name}</span>}
-                badges={
-                  <>
+              <div key={`svc:${svc.namespace}/${svc.name}`} className="docker-row">
+                <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+                <div className="docker-row__app">
+                  <ListRowIcon><Network className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+                  <div className="docker-row__text">
+                    <span className="docker-app-name docker-app-name--mono" title={svc.name}>{svc.name}</span>
+                    <span className="docker-row__meta panel-mono">{`${svc.namespace} · ${svc.clusterIp || '-'} · ${portSummary || '-'}`}</span>
+                  </div>
+                </div>
+                <div className="docker-cell--keep">
+                  <div className="flex flex-wrap items-center gap-1">
                     <Badge tone={svc.type === 'NodePort' || svc.type === 'LoadBalancer' ? 'primary' : 'neutral'}>{svc.type}</Badge>
                     <Badge tone="neutral">{svc.namespace}</Badge>
-                  </>
-                }
-                subtitle={<span className="panel-mono">{svc.clusterIp || '-'} · {portSummary || '-'}</span>}
-                actions={
-                  <>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon={<Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
-                      onClick={() => openTunnelForService(svc)}
-                    >
-                      {t('k8s.exposeTunnel')}
-                    </Button>
-                    <IconButton size="sm" variant="ghost" label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: 'service', namespace: svc.namespace, name: svc.name })}>
-                      <Code2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    </IconButton>
-                  </>
-                }
-              />
+                  </div>
+                </div>
+                <div className="docker-cell docker-cell--mono" title={`${svc.clusterIp || '-'} · ${portSummary || '-'}`}>
+                  <span>{svc.clusterIp || '-'}</span>
+                  <span className="text-[0.6875rem] text-[var(--text-secondary)]">{portSummary || '-'}</span>
+                </div>
+                <div className="docker-action-btns">
+                  <button type="button" className="docker-act-btn" title={t('k8s.exposeTunnel')} aria-label={t('k8s.exposeTunnel')} onClick={() => openTunnelForService(svc)}>
+                    <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                  <button type="button" className="docker-act-btn" title={t('k8s.viewYaml')} aria-label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: 'service', namespace: svc.namespace, name: svc.name })}>
+                    <Code2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                </div>
+              </div>
             )
           })}
-        </div>
-
-        {ingresses.length > 0 ? (
-          <div className="space-y-1.5 border-t border-[var(--win-border)] pt-2.5">
-            <p className="panel-section-label">{t('k8s.ingressesTitle')}</p>
-            {ingresses.map((ig) => (
-              <EntityRow
-                key={`${ig.namespace}/${ig.name}`}
-                centered
-                title={<span className="panel-mono">{ig.name}</span>}
-                badges={
-                  <>
-                    <Badge tone="info">{ig.className || 'ingress'}</Badge>
-                    <Badge tone="neutral">{ig.namespace}</Badge>
-                  </>
-                }
-                subtitle={<span className="panel-mono">{ig.hosts.join(', ') || '-'}</span>}
-                actions={
-                  <IconButton size="sm" variant="ghost" label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: 'ingress', namespace: ig.namespace, name: ig.name })}>
-                    <Code2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </IconButton>
-                }
-              />
-            ))}
-          </div>
-        ) : null}
-      </div>
+          {ingresses.map((ig, idx) => (
+            <div key={`ing:${ig.namespace}/${ig.name}`} className="docker-row">
+              <div className="docker-row__num">{String(svcs.length + idx + 1).padStart(2, '0')}</div>
+              <div className="docker-row__app">
+                <ListRowIcon><Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+                <div className="docker-row__text">
+                  <span className="docker-app-name docker-app-name--mono" title={ig.name}>{ig.name}</span>
+                  <span className="docker-row__meta panel-mono">{`${ig.namespace} · ${ig.hosts.join(', ') || '-'}`}</span>
+                </div>
+              </div>
+              <div className="docker-cell--keep">
+                <div className="flex flex-wrap items-center gap-1">
+                  <Badge tone="info">{ig.className || 'ingress'}</Badge>
+                  <Badge tone="neutral">{ig.namespace}</Badge>
+                </div>
+              </div>
+              <div className="docker-cell docker-cell--mono" title={ig.hosts.join(', ') || '-'}>{ig.hosts.join(', ') || '-'}</div>
+              <div className="docker-action-btns">
+                <button type="button" className="docker-act-btn" title={t('k8s.viewYaml')} aria-label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: 'ingress', namespace: ig.namespace, name: ig.name })}>
+                  <Code2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </ListState>
+      </ListTable>
     )
   }
 
   if (section === 'events') {
-    if (eventsQ.isLoading) return <div className="p-6"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
-    if (eventsQ.isError) {
-      return (
-        <div className="p-6">
-          <ErrorState
-            title={t('k8s.loadError')}
-            hint={(eventsQ.error as Error)?.message}
-            action={<Button size="sm" variant="ghost" onClick={() => void eventsQ.refetch()}>{t('common.refresh')}</Button>}
-          />
-        </div>
-      )
-    }
     const evs = (eventsQ.data ?? []).filter(
       (e) =>
         !q ||
@@ -184,76 +172,115 @@ export function K8sNetworkAndConfigTab({ kw }: { kw: KubernetesWindowState }) {
         e.objectName.toLowerCase().includes(q) ||
         e.namespace.toLowerCase().includes(q),
     )
-    if (evs.length === 0) return <div className="p-6"><EmptyState icon={<Activity />}>{t('k8s.emptyEvents')}</EmptyState></div>
 
     return (
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-        {evs.map((ev, idx) => (
-          <EntityRow
-            key={`${ev.namespace}/${ev.objectName}/${ev.reason}/${idx}`}
-            leading={<ListRowIcon><Activity className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
-            title={<span className="panel-mono">{ev.objectKind}/{ev.objectName}</span>}
-            badges={
-              <>
-                <Badge tone={ev.type === 'Warning' ? 'warning' : 'success'}>{ev.reason || ev.type}</Badge>
-                {ev.namespace ? <Badge tone="neutral">{ev.namespace}</Badge> : null}
-                {ev.count > 1 ? <Badge tone="info">x{ev.count}</Badge> : null}
-              </>
-            }
-            subtitle={ev.message}
-            actions={
-              ev.lastSeen ? (
-                <span className="panel-mono text-[0.75rem] text-[var(--text-secondary)]">
-                  {new Date(ev.lastSeen).toLocaleTimeString()}
+      <ListTable
+        variant="k8s-events"
+        empty={eventsQ.isLoading || eventsQ.isError || evs.length === 0}
+        columns={[
+          { label: t('docker.colIndex') },
+          { label: t('k8s.col.event') },
+          { label: t('k8s.col.reason') },
+          { label: t('k8s.col.time'), actions: true },
+        ]}
+      >
+        <ListState
+          loading={eventsQ.isLoading}
+          error={eventsQ.isError}
+          errorTitle={t('k8s.loadError')}
+          errorHint={(eventsQ.error as Error)?.message}
+          loadingText={t('k8s.loadingCluster')}
+          empty={evs.length === 0}
+          emptyIcon={<Activity />}
+          emptyTitle={t('k8s.emptyEvents')}
+        >
+          {evs.map((ev, idx) => (
+            <div key={`${ev.namespace}/${ev.objectName}/${ev.reason}/${idx}`} className="docker-row">
+              <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+              <div className="docker-row__app">
+                <ListRowIcon><Activity className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+                <div className="docker-row__text">
+                  <div className="docker-row__title">
+                    <span className="docker-app-name docker-app-name--mono" title={`${ev.objectKind}/${ev.objectName}`}>
+                      {ev.objectKind}/{ev.objectName}
+                    </span>
+                    {ev.namespace ? <Badge tone="neutral">{ev.namespace}</Badge> : null}
+                    {ev.count > 1 ? <Badge tone="info">x{ev.count}</Badge> : null}
+                  </div>
+                  <span className="docker-row__sub" title={ev.message}>{ev.message}</span>
+                  <span className="docker-row__meta">{ev.message}</span>
+                </div>
+              </div>
+              <div className="docker-cell--keep">
+                <span className={`docker-status-pill docker-status-pill--${ev.type === 'Warning' ? 'paused' : 'running'}`}>
+                  <span className="docker-status-dot" />
+                  <span>{ev.reason || ev.type}</span>
                 </span>
-              ) : null
-            }
-          />
-        ))}
-      </div>
+              </div>
+              <div className="docker-cell docker-cell--mono items-end text-right">
+                {ev.lastSeen ? new Date(ev.lastSeen).toLocaleTimeString() : '-'}
+              </div>
+            </div>
+          ))}
+        </ListState>
+      </ListTable>
     )
   }
 
   // ConfigMaps & Secrets
-  if (configsQ.isLoading) return <div className="p-6"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
-  if (configsQ.isError) {
-    return (
-      <div className="p-6">
-        <ErrorState
-          title={t('k8s.loadError')}
-          hint={(configsQ.error as Error)?.message}
-          action={<Button size="sm" variant="ghost" onClick={() => void configsQ.refetch()}>{t('common.refresh')}</Button>}
-        />
-      </div>
-    )
-  }
   const cfgs = (configsQ.data ?? []).filter(
     (c) => !q || c.name.toLowerCase().includes(q) || c.namespace.toLowerCase().includes(q) || c.kind.toLowerCase().includes(q),
   )
-  if (cfgs.length === 0) return <div className="p-6"><EmptyState icon={<KeyRound />}>{t('k8s.emptyConfigs')}</EmptyState></div>
 
   return (
-    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-      {cfgs.map((c) => (
-        <EntityRow
-          key={`${c.kind}/${c.namespace}/${c.name}`}
-          centered
-          leading={<ListRowIcon><KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
-          title={<span className="panel-mono">{c.name}</span>}
-          badges={
-            <>
-              <Badge tone={c.kind === 'Secret' ? 'warning' : 'info'}>{c.kind}</Badge>
-              <Badge tone="neutral">{c.namespace}</Badge>
-            </>
-          }
-          subtitle={<span className="panel-mono">{c.keys.length > 0 ? c.keys.join(', ') : t('k8s.noDataKeys')}</span>}
-          actions={
-            <IconButton size="sm" variant="ghost" label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: c.kind.toLowerCase(), namespace: c.namespace, name: c.name })}>
-              <Code2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </IconButton>
-          }
-        />
-      ))}
-    </div>
+    <ListTable
+      variant="k8s-configs"
+      empty={configsQ.isLoading || configsQ.isError || cfgs.length === 0}
+      columns={[
+        { label: t('docker.colIndex') },
+        { label: t('k8s.col.config') },
+        { label: t('k8s.col.typeNs') },
+        { label: t('k8s.col.keys') },
+        { label: t('docker.colActions'), actions: true },
+      ]}
+    >
+      <ListState
+        loading={configsQ.isLoading}
+        error={configsQ.isError}
+        errorTitle={t('k8s.loadError')}
+        errorHint={(configsQ.error as Error)?.message}
+        loadingText={t('k8s.loadingCluster')}
+        empty={cfgs.length === 0}
+        emptyIcon={<KeyRound />}
+        emptyTitle={t('k8s.emptyConfigs')}
+      >
+        {cfgs.map((c, idx) => (
+          <div key={`${c.kind}/${c.namespace}/${c.name}`} className="docker-row">
+            <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+            <div className="docker-row__app">
+              <ListRowIcon><KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+              <div className="docker-row__text">
+                <span className="docker-app-name docker-app-name--mono" title={c.name}>{c.name}</span>
+                <span className="docker-row__meta panel-mono">{c.keys.length > 0 ? c.keys.join(', ') : t('k8s.noDataKeys')}</span>
+              </div>
+            </div>
+            <div className="docker-cell--keep">
+              <div className="flex flex-wrap items-center gap-1">
+                <Badge tone={c.kind === 'Secret' ? 'warning' : 'info'}>{c.kind}</Badge>
+                <Badge tone="neutral">{c.namespace}</Badge>
+              </div>
+            </div>
+            <div className="docker-cell docker-cell--mono" title={c.keys.join(', ')}>
+              {c.keys.length > 0 ? c.keys.join(', ') : t('k8s.noDataKeys')}
+            </div>
+            <div className="docker-action-btns">
+              <button type="button" className="docker-act-btn" title={t('k8s.viewYaml')} aria-label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: c.kind.toLowerCase(), namespace: c.namespace, name: c.name })}>
+                <Code2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </ListState>
+    </ListTable>
   )
 }

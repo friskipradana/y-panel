@@ -7,6 +7,7 @@ import {
   Download,
   FolderCode,
   HardDrive,
+  LoaderCircle,
   Play,
   RotateCcw,
   Settings,
@@ -14,12 +15,8 @@ import {
 } from 'lucide-react'
 import { backupRunDownloadUrl } from '@/api/backups'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { EntityRow } from '@/components/ui/EntityRow'
-import { IconButton } from '@/components/ui/IconButton'
-import { ListRowIcon } from '@/components/ui/ListTable'
+import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import type { BackupsWindowState } from './useBackupsWindow'
 
 function formatBytes(n: number) {
@@ -41,6 +38,13 @@ function scopeIcon(scope: string) {
   return <FolderCode className="h-3.5 w-3.5" strokeWidth={1.75} />
 }
 
+function statusPill(status: string): 'running' | 'dead' | 'paused' | 'exited' {
+  if (status === 'success') return 'running'
+  if (status === 'failed') return 'dead'
+  if (status === 'running') return 'paused'
+  return 'exited'
+}
+
 export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
   const {
     t,
@@ -57,33 +61,7 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
     confirmDeleteJob,
     confirmRestoreRun,
     confirmDeleteRun,
-    setAddTargetOpen,
-    setAddJobOpen,
   } = bw
-
-  if (overviewQ.isLoading) {
-    return (
-      <div className="p-6 flex-1">
-        <LoadingState>{t('backups.loading')}</LoadingState>
-      </div>
-    )
-  }
-
-  if (overviewQ.isError) {
-    return (
-      <div className="p-6 flex-1">
-        <ErrorState
-          title={t('backups.loadFailed')}
-          hint={(overviewQ.error as Error)?.message}
-          action={
-            <Button size="sm" variant="ghost" onClick={() => void overviewQ.refetch()}>
-              {t('common.refresh')}
-            </Button>
-          }
-        />
-      </div>
-    )
-  }
 
   const data = overviewQ.data
   const q = search.trim().toLowerCase()
@@ -92,70 +70,85 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
     const jobs = (data?.jobs ?? []).filter(
       (j) => !q || j.name.toLowerCase().includes(q) || j.resourceName.toLowerCase().includes(q) || j.targetName.toLowerCase().includes(q),
     )
-    if (jobs.length === 0) {
-      return (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          <EmptyState icon={<Archive />}>{t('backups.emptyJobs')}</EmptyState>
-          {(data?.targets.length ?? 0) === 0 ? (
-            <Button variant="primary" onClick={() => setAddTargetOpen(true)}>
-              {t('backups.addTarget')}
-            </Button>
-          ) : (
-            <Button variant="primary" onClick={() => setAddJobOpen(true)}>
-              {t('backups.addJob')}
-            </Button>
-          )}
-        </div>
-      )
-    }
 
     return (
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-        {jobs.map((job) => (
-          <EntityRow
-            key={job.id}
-            centered
-            leading={<ListRowIcon>{scopeIcon(job.scope)}</ListRowIcon>}
-            title={job.name}
-            badges={
-              <>
-                <Badge tone={job.scope === 'database' ? 'primary' : 'info'}>{job.scope}</Badge>
-                <Badge tone={job.lastStatus === 'success' ? 'success' : job.lastStatus === 'failed' ? 'danger' : 'neutral'} dot>
-                  {job.lastStatus}
-                </Badge>
-              </>
-            }
-            subtitle={
-              <span className="panel-mono">
-                {job.resourceName} · {job.targetName || '-'} ({job.targetKind || 'local'}) ·{' '}
-                {job.intervalHours > 0 ? t('backups.everyHours', { hours: job.intervalHours }) : t('backups.manualOnly')} ·{' '}
-                {t('backups.keepCount', { count: job.retentionCount })}
-              </span>
-            }
-            actions={
-              <>
-                <ToggleSwitch
-                  checked={job.enabled}
-                  onChange={() => toggleJobMut.mutate(job)}
-                  label={t('backups.toggleJob')}
-                />
-                <Button
-                  size="sm"
-                  variant="primary-soft"
-                  icon={<Play className="h-3.5 w-3.5" strokeWidth={1.75} />}
-                  loading={runningJobId === job.id}
-                  onClick={() => runJobMut.mutate(job)}
-                >
-                  {t('backups.runNow')}
-                </Button>
-                <IconButton size="sm" variant="ghost" tone="danger" label={t('common.delete')} onClick={() => void confirmDeleteJob(job)}>
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </IconButton>
-              </>
-            }
-          />
-        ))}
-      </div>
+      <ListTable
+        variant="backups-jobs"
+        empty={overviewQ.isLoading || overviewQ.isError || jobs.length === 0}
+        columns={[
+          { label: t('docker.colIndex') },
+          { label: t('backups.col.job') },
+          { label: t('backups.col.target') },
+          { label: t('docker.colStatus') },
+          { label: t('docker.colActions'), actions: true },
+        ]}
+      >
+        <ListState
+          loading={overviewQ.isLoading}
+          error={overviewQ.isError}
+          errorTitle={t('backups.loadFailed')}
+          errorHint={(overviewQ.error as Error)?.message}
+          loadingText={t('backups.loading')}
+          empty={jobs.length === 0}
+          emptyIcon={<Archive />}
+          emptyTitle={t('backups.emptyJobs')}
+        >
+          {jobs.map((job, idx) => {
+            const running = runningJobId === job.id
+            const scheduleText = job.intervalHours > 0 ? t('backups.everyHours', { hours: job.intervalHours }) : t('backups.manualOnly')
+            const retentionText = t('backups.keepCount', { count: job.retentionCount })
+            return (
+              <div key={job.id} className="docker-row">
+                <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+                <div className="docker-row__app">
+                  <ListRowIcon>{scopeIcon(job.scope)}</ListRowIcon>
+                  <div className="docker-row__text">
+                    <div className="docker-row__title">
+                      <span className="docker-app-name" title={job.name}>{job.name}</span>
+                      <Badge tone={job.scope === 'database' ? 'primary' : 'info'}>{job.scope}</Badge>
+                    </div>
+                    <span className="docker-row__sub panel-mono" title={job.resourceName}>{job.resourceName}</span>
+                    <span className="docker-row__meta panel-mono">{`${job.targetName || '-'} · ${scheduleText} · ${retentionText}`}</span>
+                  </div>
+                </div>
+                <div className="docker-cell" title={`${job.targetName || '-'} · ${scheduleText} · ${retentionText}`}>
+                  <span className="docker-cell__strong">{job.targetName || '-'} ({job.targetKind || 'local'})</span>
+                  <span className="panel-mono text-[0.6875rem]">{scheduleText} · {retentionText}</span>
+                </div>
+                <div className="docker-cell--keep">
+                  <span className={`docker-status-pill docker-status-pill--${statusPill(job.lastStatus)}`}>
+                    <span className="docker-status-dot" />
+                    <span>{job.lastStatus}</span>
+                  </span>
+                </div>
+                <div className="docker-action-btns">
+                  <ToggleSwitch checked={job.enabled} onChange={() => toggleJobMut.mutate(job)} label={t('backups.toggleJob')} />
+                  <button
+                    type="button"
+                    className="docker-act-btn docker-act-btn--start"
+                    title={t('backups.runNow')}
+                    aria-label={t('backups.runNow')}
+                    disabled={running}
+                    aria-busy={running}
+                    onClick={() => runJobMut.mutate(job)}
+                  >
+                    {running ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Play className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                  </button>
+                  <button
+                    type="button"
+                    className="docker-act-btn docker-act-btn--danger"
+                    title={t('common.delete')}
+                    aria-label={t('common.delete')}
+                    onClick={() => void confirmDeleteJob(job)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </ListState>
+      </ListTable>
     )
   }
 
@@ -163,81 +156,99 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
     const runs = (data?.runs ?? []).filter(
       (r) => !q || r.resourceName.toLowerCase().includes(q) || r.jobName.toLowerCase().includes(q) || r.storageKey.toLowerCase().includes(q),
     )
-    if (runs.length === 0) {
-      return (
-        <div className="p-6 flex-1">
-          <EmptyState icon={<Archive />}>{t('backups.emptyRuns')}</EmptyState>
-        </div>
-      )
-    }
 
     return (
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-        {runs.map((run) => (
-          <EntityRow
-            key={run.id}
-            centered
-            leading={
-              <ListRowIcon>
-                {run.storageKind === 's3' ? (
-                  <Cloud className="h-3.5 w-3.5" strokeWidth={1.75} />
-                ) : (
-                  <HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} />
-                )}
-              </ListRowIcon>
-            }
-            title={run.resourceName}
-            badges={
-              <>
-                <Badge tone={run.status === 'success' ? 'success' : run.status === 'failed' ? 'danger' : 'warning'} dot>
-                  {run.status}
-                </Badge>
-                <Badge tone="neutral">{run.storageKind.toUpperCase()}</Badge>
-                {run.sizeBytes > 0 ? <Badge tone="info">{formatBytes(run.sizeBytes)}</Badge> : null}
-              </>
-            }
-            subtitle={
-              <span className="panel-mono">
-                {new Date(run.startedAt).toLocaleString()}
-                {run.sha256 ? ` · sha256:${run.sha256.slice(0, 12)}` : ''}
-              </span>
-            }
-            description={
-              run.errorMessage ? (
-                <p className="mt-1 text-[0.75rem] text-[var(--panel-danger-text)] break-words">{run.errorMessage}</p>
-              ) : undefined
-            }
-            actions={
-              <>
-                {run.status === 'success' ? (
-                  <>
-                    <IconButton
-                      size="sm"
-                      variant="ghost"
-                      label={t('backups.download')}
-                      onClick={() => window.open(backupRunDownloadUrl(run.id), '_blank', 'noopener')}
-                    >
-                      <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    </IconButton>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon={<RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />}
-                      loading={restoringRunId === run.id}
-                      onClick={() => void confirmRestoreRun(run)}
-                    >
-                      {t('backups.restoreNow')}
-                    </Button>
-                  </>
-                ) : null}
-                <IconButton size="sm" variant="ghost" tone="danger" label={t('common.delete')} onClick={() => void confirmDeleteRun(run)}>
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </IconButton>
-              </>
-            }
-          />
-        ))}
-      </div>
+      <ListTable
+        variant="backups-runs"
+        empty={overviewQ.isLoading || overviewQ.isError || runs.length === 0}
+        columns={[
+          { label: t('docker.colIndex') },
+          { label: t('backups.col.run') },
+          { label: t('docker.col.size') },
+          { label: t('docker.colStatus') },
+          { label: t('docker.colActions'), actions: true },
+        ]}
+      >
+        <ListState
+          loading={overviewQ.isLoading}
+          error={overviewQ.isError}
+          errorTitle={t('backups.loadFailed')}
+          errorHint={(overviewQ.error as Error)?.message}
+          loadingText={t('backups.loading')}
+          empty={runs.length === 0}
+          emptyIcon={<Archive />}
+          emptyTitle={t('backups.emptyRuns')}
+        >
+          {runs.map((run, idx) => {
+            const restoring = restoringRunId === run.id
+            const started = new Date(run.startedAt).toLocaleString()
+            return (
+              <div key={run.id} className="docker-row">
+                <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+                <div className="docker-row__app">
+                  <ListRowIcon>
+                    {run.storageKind === 's3' ? <Cloud className="h-3.5 w-3.5" strokeWidth={1.75} /> : <HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                  </ListRowIcon>
+                  <div className="docker-row__text">
+                    <div className="docker-row__title">
+                      <span className="docker-app-name" title={run.resourceName}>{run.resourceName}</span>
+                      <Badge tone="neutral">{run.storageKind.toUpperCase()}</Badge>
+                    </div>
+                    <span className="docker-row__sub panel-mono" title={run.errorMessage || run.storageKey}>
+                      {started}
+                      {run.sha256 ? ` · sha256:${run.sha256.slice(0, 10)}` : ''}
+                      {run.errorMessage ? ` · ${run.errorMessage}` : ''}
+                    </span>
+                    <span className="docker-row__meta panel-mono">{`${formatBytes(run.sizeBytes)} · ${started}`}</span>
+                  </div>
+                </div>
+                <div className="docker-cell docker-cell--mono">{run.sizeBytes > 0 ? formatBytes(run.sizeBytes) : '-'}</div>
+                <div className="docker-cell--keep">
+                  <span className={`docker-status-pill docker-status-pill--${statusPill(run.status)}`}>
+                    <span className="docker-status-dot" />
+                    <span>{run.status}</span>
+                  </span>
+                </div>
+                <div className="docker-action-btns">
+                  {run.status === 'success' ? (
+                    <>
+                      <button
+                        type="button"
+                        className="docker-act-btn"
+                        title={t('backups.download')}
+                        aria-label={t('backups.download')}
+                        onClick={() => window.open(backupRunDownloadUrl(run.id), '_blank', 'noopener')}
+                      >
+                        <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      </button>
+                      <button
+                        type="button"
+                        className="docker-act-btn docker-act-btn--restart"
+                        title={t('backups.restoreNow')}
+                        aria-label={t('backups.restoreNow')}
+                        disabled={restoring}
+                        aria-busy={restoring}
+                        onClick={() => void confirmRestoreRun(run)}
+                      >
+                        {restoring ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                      </button>
+                    </>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="docker-act-btn docker-act-btn--danger"
+                    title={t('common.delete')}
+                    aria-label={t('common.delete')}
+                    onClick={() => void confirmDeleteRun(run)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </ListState>
+      </ListTable>
     )
   }
 
@@ -245,63 +256,78 @@ export function BackupsSections({ bw }: { bw: BackupsWindowState }) {
   const targets = (data?.targets ?? []).filter(
     (tg) => !q || tg.name.toLowerCase().includes(q) || (tg.s3Bucket ?? '').toLowerCase().includes(q) || (tg.localDir ?? '').toLowerCase().includes(q),
   )
-  if (targets.length === 0) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <EmptyState icon={<Cloud />}>{t('backups.emptyTargets')}</EmptyState>
-        <Button variant="primary" onClick={() => setAddTargetOpen(true)}>
-          {t('backups.addTarget')}
-        </Button>
-      </div>
-    )
-  }
 
   return (
-    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-      {targets.map((tg) => (
-        <EntityRow
-          key={tg.id}
-          centered
-          leading={
-            <ListRowIcon>
-              {tg.kind === 's3' ? (
-                <Cloud className="h-3.5 w-3.5" strokeWidth={1.75} />
-              ) : (
-                <HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} />
-              )}
-            </ListRowIcon>
-          }
-          title={tg.name}
-          badges={
-            <Badge tone={tg.kind === 's3' ? 'primary' : 'neutral'}>
-              {tg.kind === 's3' ? 'S3 / R2' : t('backups.localStorage')}
-            </Badge>
-          }
-          subtitle={
-            <span className="panel-mono">
-              {tg.kind === 's3'
-                ? `${tg.s3Bucket}${tg.s3Prefix ? '/' + tg.s3Prefix : ''} · ${tg.s3Endpoint || tg.s3Region}`
-                : tg.localDir}
-            </span>
-          }
-          actions={
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                icon={<CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
-                loading={testingTargetId === tg.id}
-                onClick={() => testTargetMut.mutate(tg)}
-              >
-                {t('backups.testConnection')}
-              </Button>
-              <IconButton size="sm" variant="ghost" tone="danger" label={t('common.delete')} onClick={() => void confirmDeleteTarget(tg)}>
-                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </IconButton>
-            </>
-          }
-        />
-      ))}
-    </div>
+    <ListTable
+      variant="backups-targets"
+      empty={overviewQ.isLoading || overviewQ.isError || targets.length === 0}
+      columns={[
+        { label: t('docker.colIndex') },
+        { label: t('backups.col.storage') },
+        { label: t('backups.col.type') },
+        { label: t('backups.col.location') },
+        { label: t('docker.colActions'), actions: true },
+      ]}
+    >
+      <ListState
+        loading={overviewQ.isLoading}
+        error={overviewQ.isError}
+        errorTitle={t('backups.loadFailed')}
+        errorHint={(overviewQ.error as Error)?.message}
+        loadingText={t('backups.loading')}
+        empty={targets.length === 0}
+        emptyIcon={<Cloud />}
+        emptyTitle={t('backups.emptyTargets')}
+      >
+        {targets.map((tg, idx) => {
+          const testing = testingTargetId === tg.id
+          const loc = tg.kind === 's3'
+            ? `${tg.s3Bucket}${tg.s3Prefix ? '/' + tg.s3Prefix : ''} · ${tg.s3Endpoint || tg.s3Region}`
+            : tg.localDir || '-'
+          return (
+            <div key={tg.id} className="docker-row">
+              <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+              <div className="docker-row__app">
+                <ListRowIcon>
+                  {tg.kind === 's3' ? <Cloud className="h-3.5 w-3.5" strokeWidth={1.75} /> : <HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                </ListRowIcon>
+                <div className="docker-row__text">
+                  <span className="docker-app-name" title={tg.name}>{tg.name}</span>
+                  <span className="docker-row__meta panel-mono">{loc}</span>
+                </div>
+              </div>
+              <div className="docker-cell--keep">
+                <Badge tone={tg.kind === 's3' ? 'primary' : 'neutral'}>
+                  {tg.kind === 's3' ? 'S3 / R2' : t('backups.localStorage')}
+                </Badge>
+              </div>
+              <div className="docker-cell docker-cell--mono" title={loc}>{loc}</div>
+              <div className="docker-action-btns">
+                <button
+                  type="button"
+                  className="docker-act-btn docker-act-btn--start"
+                  title={t('backups.testConnection')}
+                  aria-label={t('backups.testConnection')}
+                  disabled={testing}
+                  aria-busy={testing}
+                  onClick={() => testTargetMut.mutate(tg)}
+                >
+                  {testing ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                </button>
+                <button
+                  type="button"
+                  className="docker-act-btn docker-act-btn--danger"
+                  title={t('common.delete')}
+                  aria-label={t('common.delete')}
+                  onClick={() => void confirmDeleteTarget(tg)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </ListState>
+    </ListTable>
   )
 }

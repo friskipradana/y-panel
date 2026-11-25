@@ -471,6 +471,12 @@
     opacity: 0.6;
   }
 
+  &--danger:hover {
+    color: var(--panel-danger-text);
+    background: var(--panel-danger-bg);
+    border-color: var(--panel-danger-border);
+  }
+
   &:hover {
     background: var(--tb-hover);
   }
@@ -835,6 +841,66 @@
 
   &--files {
     --docker-cols: 40px minmax(0, 2.4fr) minmax(72px, 0.6fr) minmax(76px, 0.6fr) 104px minmax(140px, 1fr);
+  }
+
+  &--services-systemd {
+    --docker-cols: 44px minmax(0, 1.8fr) 136px minmax(0, 1.8fr) 100px;
+  }
+
+  &--services-cron {
+    --docker-cols: 44px minmax(0, 2.2fr) 128px 96px 140px;
+  }
+
+  &--uptime-monitors {
+    --docker-cols: 44px minmax(0, 1.9fr) 92px 136px minmax(136px, 1.1fr) 136px;
+  }
+
+  &--backups-jobs {
+    --docker-cols: 44px minmax(0, 2fr) minmax(130px, 1.2fr) 104px 128px;
+  }
+
+  &--backups-runs {
+    --docker-cols: 44px minmax(0, 2.2fr) 92px 104px 104px;
+  }
+
+  &--backups-targets {
+    --docker-cols: 44px minmax(0, 1.6fr) 96px minmax(0, 1.8fr) 96px;
+  }
+
+  &--k8s-nodes {
+    --docker-cols: 44px minmax(0, 1.6fr) 100px minmax(136px, 1.1fr) minmax(110px, 0.9fr) 52px;
+  }
+
+  &--k8s-pods {
+    --docker-cols: 44px minmax(0, 1.8fr) 112px 112px minmax(116px, 1fr) 156px;
+  }
+
+  &--k8s-deployments {
+    --docker-cols: 44px minmax(0, 1.7fr) 112px 88px minmax(0, 1.5fr) 128px;
+  }
+
+  &--k8s-services {
+    --docker-cols: 44px minmax(0, 1.6fr) 124px minmax(0, 1.6fr) 136px;
+  }
+
+  &--k8s-events {
+    --docker-cols: 44px minmax(0, 2.5fr) 124px 96px;
+  }
+
+  &--k8s-configs {
+    --docker-cols: 44px minmax(0, 1.6fr) 120px minmax(0, 1.7fr) 52px;
+  }
+
+  &--k8s-pvcs {
+    --docker-cols: 44px minmax(0, 1.8fr) 104px minmax(128px, 1.2fr) 104px;
+  }
+
+  &--k8s-cronjobs {
+    --docker-cols: 44px minmax(0, 1.8fr) 124px 120px 88px;
+  }
+
+  &--k8s-helm {
+    --docker-cols: 44px minmax(0, 1.6fr) minmax(0, 1.5fr) 108px 72px;
   }
 }
 

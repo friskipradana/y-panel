@@ -13,17 +13,15 @@ import {
 import { alertLib } from '@/lib/alert'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { EntityRow } from '@/components/ui/EntityRow'
-import { IconButton } from '@/components/ui/IconButton'
-import { ListRowIcon } from '@/components/ui/ListTable'
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
+import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
+import { EmptyState } from '@/components/ui/states'
 import type { KubernetesWindowState } from './useKubernetesWindow'
 
-function podTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
-  if (status === 'Running' || status === 'Succeeded') return 'success'
-  if (status === 'Pending' || status === 'ContainerCreating') return 'warning'
-  if (!status) return 'neutral'
-  return 'danger'
+function podPill(status: string): 'running' | 'paused' | 'dead' | 'exited' {
+  if (status === 'Running' || status === 'Succeeded') return 'running'
+  if (status === 'Pending' || status === 'ContainerCreating') return 'paused'
+  if (!status) return 'exited'
+  return 'dead'
 }
 
 export function K8sWorkloadsTab({ kw }: { kw: KubernetesWindowState }) {
@@ -61,103 +59,138 @@ export function K8sWorkloadsTab({ kw }: { kw: KubernetesWindowState }) {
   }
 
   if (section === 'nodes') {
-    if (nodesQ.isLoading) return <div className="p-6"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
-    if (nodesQ.isError) {
-      return (
-        <div className="p-6">
-          <ErrorState
-            title={t('k8s.loadError')}
-            hint={(nodesQ.error as Error)?.message}
-            action={<Button size="sm" variant="ghost" onClick={() => void nodesQ.refetch()}>{t('common.refresh')}</Button>}
-          />
-        </div>
-      )
-    }
     const items = (nodesQ.data ?? []).filter((n) => !q || n.name.toLowerCase().includes(q) || n.internalIp.includes(q))
-    if (items.length === 0) return <div className="p-6"><EmptyState icon={<Server />}>{t('k8s.emptyNodes')}</EmptyState></div>
-
     return (
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-        {items.map((n) => (
-          <EntityRow
-            key={n.name}
-            centered
-            leading={<ListRowIcon><Server className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
-            title={<span className="panel-mono">{n.name}</span>}
-            badges={
-              <>
-                <Badge tone={n.status === 'Ready' ? 'success' : 'danger'} dot>{n.status}</Badge>
-                <Badge tone="neutral">{n.roles}</Badge>
-              </>
-            }
-            subtitle={<span className="panel-mono">{n.internalIp} · {n.version} · CPU {n.cpu} · RAM {n.memory}</span>}
-            actions={
-              <IconButton size="sm" variant="ghost" label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: 'node', namespace: '', name: n.name })}>
-                <Code2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </IconButton>
-            }
-          />
-        ))}
-      </div>
+      <ListTable
+        variant="k8s-nodes"
+        empty={nodesQ.isLoading || nodesQ.isError || items.length === 0}
+        columns={[
+          { label: t('docker.colIndex') },
+          { label: t('k8s.col.node') },
+          { label: t('docker.colStatus') },
+          { label: t('docker.colIpAddress') },
+          { label: t('k8s.col.capacity') },
+          { label: t('docker.colActions'), actions: true },
+        ]}
+      >
+        <ListState
+          loading={nodesQ.isLoading}
+          error={nodesQ.isError}
+          errorTitle={t('k8s.loadError')}
+          errorHint={(nodesQ.error as Error)?.message}
+          loadingText={t('k8s.loadingCluster')}
+          empty={items.length === 0}
+          emptyIcon={<Server />}
+          emptyTitle={t('k8s.emptyNodes')}
+        >
+          {items.map((n, idx) => (
+            <div key={n.name} className="docker-row">
+              <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+              <div className="docker-row__app">
+                <ListRowIcon><Server className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+                <div className="docker-row__text">
+                  <div className="docker-row__title">
+                    <span className="docker-app-name docker-app-name--mono" title={n.name}>{n.name}</span>
+                    <Badge tone="neutral">{n.roles}</Badge>
+                  </div>
+                  <span className="docker-row__meta panel-mono">{`${n.internalIp} · ${n.version} · CPU ${n.cpu} · RAM ${n.memory}`}</span>
+                </div>
+              </div>
+              <div className="docker-cell--keep">
+                <span className={`docker-status-pill docker-status-pill--${n.status === 'Ready' ? 'running' : 'dead'}`}>
+                  <span className="docker-status-dot" />
+                  <span>{n.status}</span>
+                </span>
+              </div>
+              <div className="docker-cell docker-cell--mono" title={`${n.internalIp} · ${n.version}`}>
+                <span>{n.internalIp}</span>
+                <span className="text-[0.6875rem] text-[var(--text-secondary)]">{n.version}</span>
+              </div>
+              <div className="docker-cell docker-cell--mono">
+                <span>CPU {n.cpu}</span>
+                <span className="text-[0.6875rem] text-[var(--text-secondary)]">RAM {n.memory}</span>
+              </div>
+              <div className="docker-action-btns">
+                <button type="button" className="docker-act-btn" title={t('k8s.viewYaml')} aria-label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: 'node', namespace: '', name: n.name })}>
+                  <Code2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </ListState>
+      </ListTable>
     )
   }
 
   if (section === 'pods') {
-    if (podsQ.isLoading) return <div className="p-6"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
-    if (podsQ.isError) {
-      return (
-        <div className="p-6">
-          <ErrorState
-            title={t('k8s.loadError')}
-            hint={(podsQ.error as Error)?.message}
-            action={<Button size="sm" variant="ghost" onClick={() => void podsQ.refetch()}>{t('common.refresh')}</Button>}
-          />
-        </div>
-      )
-    }
     const items = (podsQ.data ?? []).filter(
       (p) => !q || p.name.toLowerCase().includes(q) || p.namespace.toLowerCase().includes(q) || p.status.toLowerCase().includes(q),
     )
-    if (items.length === 0) return <div className="p-6"><EmptyState icon={<Box />}>{t('k8s.emptyPods')}</EmptyState></div>
-
     return (
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-        {items.map((pod) => (
-          <EntityRow
-            key={`${pod.namespace}/${pod.name}`}
-            centered
-            leading={<ListRowIcon><Box className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
-            title={<span className="panel-mono">{pod.name}</span>}
-            badges={
-              <>
-                <Badge tone={podTone(pod.status)} dot>{pod.status}</Badge>
-                <Badge tone="neutral">{pod.namespace}</Badge>
-              </>
-            }
-            subtitle={
-              <span className="panel-mono">
-                {t('k8s.podMeta', { ready: pod.ready, restarts: pod.restarts, ip: pod.podIp || '-', node: pod.nodeName || '-' })}
-              </span>
-            }
-            actions={
-              <>
-                <IconButton size="sm" variant="ghost" label={t('k8s.logs')} onClick={() => setLogsPod(pod)}>
+      <ListTable
+        variant="k8s-pods"
+        empty={podsQ.isLoading || podsQ.isError || items.length === 0}
+        columns={[
+          { label: t('docker.colIndex') },
+          { label: t('k8s.col.pod') },
+          { label: t('k8s.col.namespace') },
+          { label: t('docker.colStatus') },
+          { label: t('k8s.col.readyIp') },
+          { label: t('docker.colActions'), actions: true },
+        ]}
+      >
+        <ListState
+          loading={podsQ.isLoading}
+          error={podsQ.isError}
+          errorTitle={t('k8s.loadError')}
+          errorHint={(podsQ.error as Error)?.message}
+          loadingText={t('k8s.loadingCluster')}
+          empty={items.length === 0}
+          emptyIcon={<Box />}
+          emptyTitle={t('k8s.emptyPods')}
+        >
+          {items.map((pod, idx) => (
+            <div key={`${pod.namespace}/${pod.name}`} className="docker-row">
+              <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+              <div className="docker-row__app">
+                <ListRowIcon><Box className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+                <div className="docker-row__text">
+                  <span className="docker-app-name docker-app-name--mono" title={pod.name}>{pod.name}</span>
+                  <span className="docker-row__sub panel-mono">{pod.nodeName || '-'}</span>
+                  <span className="docker-row__meta panel-mono">
+                    {`${pod.namespace} · ${pod.ready} · ${pod.podIp || '-'}`}
+                  </span>
+                </div>
+              </div>
+              <div className="docker-cell docker-cell--mono">{pod.namespace}</div>
+              <div className="docker-cell--keep">
+                <span className={`docker-status-pill docker-status-pill--${podPill(pod.status)}`}>
+                  <span className="docker-status-dot" />
+                  <span>{pod.status}</span>
+                </span>
+              </div>
+              <div className="docker-cell docker-cell--mono" title={t('k8s.podMeta', { ready: pod.ready, restarts: pod.restarts, ip: pod.podIp || '-', node: pod.nodeName || '-' })}>
+                <span>{pod.ready} (R:{pod.restarts})</span>
+                <span className="text-[0.6875rem] text-[var(--text-secondary)]">{pod.podIp || '-'}</span>
+              </div>
+              <div className="docker-action-btns">
+                <button type="button" className="docker-act-btn" title={t('k8s.logs')} aria-label={t('k8s.logs')} onClick={() => setLogsPod(pod)}>
                   <FileText className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </IconButton>
-                <IconButton size="sm" variant="ghost" label={t('k8s.shell')} onClick={() => setShellPod(pod)}>
+                </button>
+                <button type="button" className="docker-act-btn" title={t('k8s.shell')} aria-label={t('k8s.shell')} onClick={() => setShellPod(pod)}>
                   <SquareTerminal className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </IconButton>
-                <IconButton size="sm" variant="ghost" label={t('k8s.exec')} onClick={() => setExecPod(pod)}>
+                </button>
+                <button type="button" className="docker-act-btn" title={t('k8s.exec')} aria-label={t('k8s.exec')} onClick={() => setExecPod(pod)}>
                   <Terminal className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </IconButton>
-                <IconButton size="sm" variant="ghost" label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: 'pod', namespace: pod.namespace, name: pod.name })}>
+                </button>
+                <button type="button" className="docker-act-btn" title={t('k8s.viewYaml')} aria-label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: 'pod', namespace: pod.namespace, name: pod.name })}>
                   <Code2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </IconButton>
-                <IconButton
-                  size="sm"
-                  variant="ghost"
-                  tone="danger"
-                  label={t('common.delete')}
+                </button>
+                <button
+                  type="button"
+                  className="docker-act-btn docker-act-btn--danger"
+                  title={t('common.delete')}
+                  aria-label={t('common.delete')}
                   onClick={async () => {
                     const ok = await alertLib.confirm(
                       t('k8s.deletePodTitle'),
@@ -171,66 +204,76 @@ export function K8sWorkloadsTab({ kw }: { kw: KubernetesWindowState }) {
                   }}
                 >
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </IconButton>
-              </>
-            }
-          />
-        ))}
-      </div>
+                </button>
+              </div>
+            </div>
+          ))}
+        </ListState>
+      </ListTable>
     )
   }
 
   // Deployments
-  if (deploymentsQ.isLoading) return <div className="p-6"><LoadingState>{t('k8s.loadingCluster')}</LoadingState></div>
-  if (deploymentsQ.isError) {
-    return (
-      <div className="p-6">
-        <ErrorState
-          title={t('k8s.loadError')}
-          hint={(deploymentsQ.error as Error)?.message}
-          action={<Button size="sm" variant="ghost" onClick={() => void deploymentsQ.refetch()}>{t('common.refresh')}</Button>}
-        />
-      </div>
-    )
-  }
   const items = (deploymentsQ.data ?? []).filter(
     (d) => !q || d.name.toLowerCase().includes(q) || d.namespace.toLowerCase().includes(q) || d.image.toLowerCase().includes(q),
   )
-  if (items.length === 0) return <div className="p-6"><EmptyState icon={<Layers />}>{t('k8s.emptyDeployments')}</EmptyState></div>
 
   return (
-    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-      {items.map((dep) => (
-        <EntityRow
-          key={`${dep.namespace}/${dep.name}`}
-          centered
-          leading={<ListRowIcon><Layers className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>}
-          title={<span className="panel-mono">{dep.name}</span>}
-          badges={
-            <>
-              <Badge tone={dep.readyReplicas === dep.replicas && dep.replicas > 0 ? 'success' : 'warning'} dot>
-                {dep.readyReplicas}/{dep.replicas}
-              </Badge>
-              <Badge tone="neutral">{dep.namespace}</Badge>
-            </>
-          }
-          subtitle={<span className="panel-mono">{dep.image || '-'}</span>}
-          actions={
-            <>
-              <IconButton size="sm" variant="ghost" label={t('k8s.scale')} onClick={() => setScaleDep(dep)}>
+    <ListTable
+      variant="k8s-deployments"
+      empty={deploymentsQ.isLoading || deploymentsQ.isError || items.length === 0}
+      columns={[
+        { label: t('docker.colIndex') },
+        { label: t('k8s.col.deployment') },
+        { label: t('k8s.col.namespace') },
+        { label: t('k8s.col.replicas') },
+        { label: t('docker.col.image') },
+        { label: t('docker.colActions'), actions: true },
+      ]}
+    >
+      <ListState
+        loading={deploymentsQ.isLoading}
+        error={deploymentsQ.isError}
+        errorTitle={t('k8s.loadError')}
+        errorHint={(deploymentsQ.error as Error)?.message}
+        loadingText={t('k8s.loadingCluster')}
+        empty={items.length === 0}
+        emptyIcon={<Layers />}
+        emptyTitle={t('k8s.emptyDeployments')}
+      >
+        {items.map((dep, idx) => (
+          <div key={`${dep.namespace}/${dep.name}`} className="docker-row">
+            <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+            <div className="docker-row__app">
+              <ListRowIcon><Layers className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
+              <div className="docker-row__text">
+                <span className="docker-app-name docker-app-name--mono" title={dep.name}>{dep.name}</span>
+                <span className="docker-row__meta panel-mono">{`${dep.namespace} · ${dep.image || '-'}`}</span>
+              </div>
+            </div>
+            <div className="docker-cell docker-cell--mono">{dep.namespace}</div>
+            <div className="docker-cell--keep">
+              <span className={`docker-status-pill docker-status-pill--${dep.readyReplicas === dep.replicas && dep.replicas > 0 ? 'running' : 'paused'}`}>
+                <span className="docker-status-dot" />
+                <span>{dep.readyReplicas}/{dep.replicas}</span>
+              </span>
+            </div>
+            <div className="docker-cell docker-cell--mono" title={dep.image || '-'}>{dep.image || '-'}</div>
+            <div className="docker-action-btns">
+              <button type="button" className="docker-act-btn" title={t('k8s.scale')} aria-label={t('k8s.scale')} onClick={() => setScaleDep(dep)}>
                 <Scaling className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </IconButton>
-              <IconButton size="sm" variant="ghost" label={t('k8s.rolloutRestart')} onClick={() => restartDepMut.mutate(dep)}>
+              </button>
+              <button type="button" className="docker-act-btn docker-act-btn--restart" title={t('k8s.rolloutRestart')} aria-label={t('k8s.rolloutRestart')} onClick={() => restartDepMut.mutate(dep)}>
                 <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </IconButton>
-              <IconButton size="sm" variant="ghost" label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: 'deployment', namespace: dep.namespace, name: dep.name })}>
+              </button>
+              <button type="button" className="docker-act-btn" title={t('k8s.viewYaml')} aria-label={t('k8s.viewYaml')} onClick={() => setYamlTarget({ kind: 'deployment', namespace: dep.namespace, name: dep.name })}>
                 <Code2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </IconButton>
-              <IconButton
-                size="sm"
-                variant="ghost"
-                tone="danger"
-                label={t('common.delete')}
+              </button>
+              <button
+                type="button"
+                className="docker-act-btn docker-act-btn--danger"
+                title={t('common.delete')}
+                aria-label={t('common.delete')}
                 onClick={async () => {
                   const ok = await alertLib.confirm(
                     t('k8s.deleteResourceTitle'),
@@ -244,11 +287,11 @@ export function K8sWorkloadsTab({ kw }: { kw: KubernetesWindowState }) {
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </IconButton>
-            </>
-          }
-        />
-      ))}
-    </div>
+              </button>
+            </div>
+          </div>
+        ))}
+      </ListState>
+    </ListTable>
   )
 }
