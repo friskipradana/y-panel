@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.81] - 2026-11-25
+
+Add Git webhook auto-deploy, Uptime & SSL monitor, and Docker volume/panel config backups.
+
+### Fitur baru
+- Add Git webhook auto-deploy, Uptime & SSL monitor, and Docker volume/panel config backups ([`597467a`](https://github.com/friskipradana/y-panel/commit/597467a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.80...v1.88.81
+
 ## [1.88.80] - 2026-11-25
 
 Simplify tool registration and method hint logic.
