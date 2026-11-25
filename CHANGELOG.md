@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.95] - 2026-11-25
+
+Set stream:false and parse SSE data: responses for routers like 9router.
+
+### Perbaikan
+- **ai:** Set stream:false and parse SSE data: responses for routers like 9router ([`2a4a45f`](https://github.com/friskipradana/y-panel/commit/2a4a45f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.94...v1.88.95
+
 ## [1.88.94] - 2026-11-25
 
 Add permanent Static IPv4 assignment with reneo-static network and 1-click auto-assign.
