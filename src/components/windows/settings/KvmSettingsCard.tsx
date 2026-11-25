@@ -162,9 +162,9 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
         />
 
         {kvmEnabled ? (
-          <div className="flex flex-col gap-3 p-3 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-card-bg)] text-xs">
+          <div className="flex flex-col gap-3 p-3 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-xs">
             {/* ── Status header & actions ── */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[var(--panel-border)]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[var(--win-border)]">
               <div className="flex items-center gap-2">
                 <span
                   className={`w-2 h-2 rounded-full shrink-0 ${
@@ -378,7 +378,7 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
               </button>
 
               {showManualCmd ? (
-                <div className="flex flex-col gap-1.5 mt-2 p-2 rounded border border-[var(--panel-border)] bg-[var(--panel-bg)]">
+                <div className="flex flex-col gap-1.5 mt-2 p-2 rounded border border-[var(--win-border)] bg-[var(--panel-surface-strong)]">
                   <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-[var(--win-text)]">
                     <span className="truncate select-all">{exampleCommand}</span>
                     <IconButton

@@ -147,7 +147,7 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
                 const deleting = deleteMut.isPending && deleteMut.variables === p.id
 
                 return (
-                  <article key={p.id} className={`app-catalog-card${highlightedProjectId === p.id ? ' border-[var(--color-primary)]' : ''}`}>
+                  <article key={p.id} className={`app-catalog-card${highlightedProjectId === p.id ? ' border-[var(--panel-primary-solid)]' : ''}`}>
                     <div className="space-y-2.5 min-w-0">
                       <div className="app-catalog-card__head">
                         <div className="app-catalog-card__identity">

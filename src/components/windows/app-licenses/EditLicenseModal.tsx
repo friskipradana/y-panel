@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { updateAppLicense, type AppLicense } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { useI18n } from '@/lib/i18n'
 
 interface EditLicenseModalProps {
   open: boolean
@@ -25,6 +26,7 @@ export function EditLicenseModal({
   onClose,
   onSuccess,
 }: EditLicenseModalProps) {
+  const { t } = useI18n()
   const [appName, setAppName] = useState('')
   const [status, setStatus] = useState<'ACTIVE' | 'TRIAL' | 'EXPIRED' | 'SUSPENDED'>('ACTIVE')
   const [planName, setPlanName] = useState('')
@@ -169,7 +171,7 @@ export function EditLicenseModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Edit Lisensi Aplikasi"
+      title={t('appLicenses.editLicenseTitle')}
       subtitle={`${license.catalogId} · ${license.licenseKey}`}
       icon={<Pencil className="text-emerald-500" size={20} />}
       size="md"
@@ -201,7 +203,7 @@ export function EditLicenseModal({
               value={appName}
               onChange={(e) => setAppName(e.target.value)}
               className="panel-input w-full text-xs"
-              placeholder="Reneo CRM Services"
+              placeholder={t('appLicenses.editAppNamePlaceholder')}
               required
             />
           </div>
@@ -233,7 +235,7 @@ export function EditLicenseModal({
               value={planName}
               onChange={(e) => setPlanName(e.target.value)}
               className="panel-input w-full text-xs"
-              placeholder="Bulanan (Pro)"
+              placeholder={t('appLicenses.editPlanNamePlaceholder')}
               required
             />
           </div>
@@ -286,7 +288,7 @@ export function EditLicenseModal({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={liveChat}
@@ -296,7 +298,7 @@ export function EditLicenseModal({
               <span>Live Chat CRM (Conversation)</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={multiSession}
@@ -306,7 +308,7 @@ export function EditLicenseModal({
               <span>Multi-Sesi WhatsApp</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={unlimitedBroadcast}
@@ -316,7 +318,7 @@ export function EditLicenseModal({
               <span>Broadcast WA Tanpa Batas</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={wahaSync}
@@ -326,7 +328,7 @@ export function EditLicenseModal({
               <span>Integrasi WAHA</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={birthdayBot}
@@ -336,7 +338,7 @@ export function EditLicenseModal({
               <span>Bot Ulang Tahun</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={customRoles}
@@ -346,7 +348,7 @@ export function EditLicenseModal({
               <span>Role CS Kustom Granular</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={omnichannel}
@@ -356,7 +358,7 @@ export function EditLicenseModal({
               <span>Omnichannel Sosial</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={scheduledPosts}
@@ -366,7 +368,7 @@ export function EditLicenseModal({
               <span>Jadwal Post &amp; Story WA</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={autoReply}
@@ -376,7 +378,7 @@ export function EditLicenseModal({
               <span>Auto-Reply &amp; Jam Kerja</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={aiAgent}
@@ -386,7 +388,7 @@ export function EditLicenseModal({
               <span>Agent AI Multi-Model</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={mcpTools}
@@ -396,7 +398,7 @@ export function EditLicenseModal({
               <span>MCP Tool Servers</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={exportReports}
@@ -406,7 +408,7 @@ export function EditLicenseModal({
               <span>Ekspor Laporan CSV</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={apiAccess}

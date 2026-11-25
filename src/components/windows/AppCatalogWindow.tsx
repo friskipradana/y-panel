@@ -601,9 +601,9 @@ export function AppCatalogWindow() {
               {progressModal.phase === 'running' ? (
                 <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[var(--panel-primary)] mt-0.5" />
               ) : progressModal.phase === 'success' ? (
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-[var(--panel-success)] mt-0.5" />
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-[var(--panel-success-text)] mt-0.5" />
               ) : (
-                <AlertCircle className="h-5 w-5 shrink-0 text-[var(--panel-danger)] mt-0.5" />
+                <AlertCircle className="h-5 w-5 shrink-0 text-[var(--panel-danger-text)] mt-0.5" />
               )}
               <div className="min-w-0 space-y-1">
                 <p className="text-[var(--win-text)] leading-relaxed">
@@ -658,7 +658,7 @@ export function AppCatalogWindow() {
       >
         {upgradeTarget && (
           <div className="space-y-4 text-[13px]">
-            <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-[var(--panel-surface-subtle)] border border-[var(--panel-border)]">
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-[var(--panel-surface-subtle)] border border-[var(--win-border)]">
               <div className="min-w-0">
                 <span className="text-[11px] font-medium text-[var(--text-secondary)] block mb-1">
                   {t('appCatalog.currentVersionLabel')}
@@ -745,8 +745,8 @@ export function AppCatalogWindow() {
               />
             </Field>
 
-            <div className="p-2.5 rounded text-[12px] text-[var(--text-secondary)] bg-[var(--panel-surface-subtle)] border border-[var(--panel-border)] flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-[var(--panel-success)] shrink-0 mt-0.5" />
+            <div className="p-2.5 rounded text-[12px] text-[var(--text-secondary)] bg-[var(--panel-surface-subtle)] border border-[var(--win-border)] flex items-start gap-2">
+              <CheckCircle2 className="h-4 w-4 text-[var(--panel-success-text)] shrink-0 mt-0.5" />
               <span>{t('appCatalog.upgradeDataSafeNotice')}</span>
             </div>
           </div>

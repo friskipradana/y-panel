@@ -263,7 +263,7 @@ export function InstalledAppsView({
                         <Badge tone="neutral" size="sm">{kindLabel(app.kind)}</Badge>
                         {versionText ? (
                           <span
-                            className="panel-mono text-[11px] text-[var(--panel-text-muted)] truncate"
+                            className="panel-mono text-[11px] text-[var(--text-muted)] truncate"
                             title={t('appCatalog.installedVersionTitle', { version: versionText })}
                           >
                             {versionText}

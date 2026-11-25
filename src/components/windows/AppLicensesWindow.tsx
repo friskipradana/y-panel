@@ -543,7 +543,7 @@ export function AppLicensesWindow() {
             <SearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Cari lisensi atau key..."
+              placeholder={t('appLicenses.searchPlaceholder')}
               className="w-full sm:w-64"
             />
 
@@ -1690,7 +1690,7 @@ export function AppLicensesWindow() {
           open={renewModalOpen}
           onClose={() => setRenewModalOpen(false)}
           title={`Perpanjang Lisensi ${selectedLicense.appName}`}
-          subtitle="Pilih durasi paket langganan dan metode pembayaran untuk memperpanjang masa aktif."
+          subtitle={t('appLicenses.renewSubtitle')}
           icon={<KeyRound className="text-[var(--panel-primary-text)]" size={20} />}
           size="md"
           footer={

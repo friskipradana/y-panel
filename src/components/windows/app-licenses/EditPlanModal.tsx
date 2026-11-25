@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { createAppLicensePlan, updateAppLicensePlan, type AppLicensePlan } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { useI18n } from '@/lib/i18n'
 
 interface EditPlanModalProps {
   open: boolean
@@ -20,6 +21,7 @@ export function EditPlanModal({
   onClose,
   onSuccess,
 }: EditPlanModalProps) {
+  const { t } = useI18n()
   const [name, setName] = useState('')
   const [tagline, setTagline] = useState('')
   const [period, setPeriod] = useState<'monthly' | 'annual'>('monthly')
@@ -263,7 +265,7 @@ export function EditPlanModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Edit Paket & Tarif"
+      title={t('appLicenses.editPlanTitle')}
       subtitle={`${plan.catalogId} · ${plan.slug}`}
       icon={<Pencil className="text-[var(--panel-primary-text)]" size={20} />}
       size="md"
@@ -295,7 +297,7 @@ export function EditPlanModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="panel-input w-full text-xs"
-              placeholder="Pro Bulanan"
+              placeholder={t('appLicenses.editPlanShortPlaceholder')}
               required
             />
           </div>
@@ -323,7 +325,7 @@ export function EditPlanModal({
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
               className="panel-input w-full text-xs"
-              placeholder="Cocok untuk UMKM..."
+              placeholder={t('appLicenses.planTaglinePlaceholder')}
             />
           </div>
 
@@ -368,7 +370,7 @@ export function EditPlanModal({
               value={promoValidUntil}
               onChange={(e) => setPromoValidUntil(e.target.value)}
               className="panel-input w-full text-xs"
-              placeholder="Contoh: 30 November 2026"
+              placeholder={t('appLicenses.promoUntilPlaceholder')}
             />
           </div>
 
@@ -482,7 +484,7 @@ export function EditPlanModal({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={liveChat}
@@ -492,7 +494,7 @@ export function EditPlanModal({
               <span>Live Chat CRM (Conversation)</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={multiSession}
@@ -502,7 +504,7 @@ export function EditPlanModal({
               <span>Multi-Sesi WhatsApp</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={unlimitedBroadcast}
@@ -512,7 +514,7 @@ export function EditPlanModal({
               <span>Broadcast WA Tanpa Batas</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={wahaSync}
@@ -522,7 +524,7 @@ export function EditPlanModal({
               <span>Integrasi WAHA</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={birthdayBot}
@@ -532,7 +534,7 @@ export function EditPlanModal({
               <span>Bot Ulang Tahun</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={customRoles}
@@ -542,7 +544,7 @@ export function EditPlanModal({
               <span>Role CS Kustom Granular</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={omnichannel}
@@ -552,7 +554,7 @@ export function EditPlanModal({
               <span>Omnichannel Sosial</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={scheduledPosts}
@@ -562,7 +564,7 @@ export function EditPlanModal({
               <span>Jadwal Post &amp; Story WA</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={autoReply}
@@ -572,7 +574,7 @@ export function EditPlanModal({
               <span>Auto-Reply &amp; Jam Kerja</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={aiAgent}
@@ -582,7 +584,7 @@ export function EditPlanModal({
               <span>Agent AI Multi-Model</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={mcpTools}
@@ -592,7 +594,7 @@ export function EditPlanModal({
               <span>MCP Tool Servers</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={exportReports}
@@ -602,7 +604,7 @@ export function EditPlanModal({
               <span>Ekspor Laporan CSV</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--panel-surface-hover)]">
               <input
                 type="checkbox"
                 checked={apiAccess}

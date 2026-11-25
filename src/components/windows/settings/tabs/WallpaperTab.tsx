@@ -121,6 +121,7 @@ export function WallpaperTab() {
                   void removeCustom();
                 }}
                 title={t("common.delete")}
+                aria-label={t("common.delete")}
                 className="absolute top-2 right-2 p-1 rounded-md bg-black/60 text-white hover:bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <Trash2 size={12} />

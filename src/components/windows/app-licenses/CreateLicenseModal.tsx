@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { createAppLicense, type AvailableApp, type CreateAppLicensePayload } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { useI18n } from '@/lib/i18n'
 
 interface CreateLicenseModalProps {
   open: boolean
@@ -30,6 +31,7 @@ export function CreateLicenseModal({
   availableApps,
   onSuccess,
 }: CreateLicenseModalProps) {
+  const { t } = useI18n()
   const [selectedApp, setSelectedApp] = useState<string>('reneo-crm')
   const [isCustom, setIsCustom] = useState(false)
   const [customAppName, setCustomAppName] = useState('')
@@ -152,8 +154,8 @@ export function CreateLicenseModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Buat Lisensi Aplikasi Baru"
-      subtitle="Terbitkan lisensi baru untuk aplikasi katalog, proyek server, atau aplikasi kustom."
+      title={t('appLicenses.createTitle')}
+      subtitle={t('appLicenses.createSubtitle')}
       icon={<KeyRound className="text-[var(--panel-primary-text)]" size={20} />}
       size="md"
     >
@@ -198,7 +200,7 @@ export function CreateLicenseModal({
                     setCustomCatalogId(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'))
                   }
                 }}
-                placeholder="Contoh: Sistem POS Resto, WA Blast Bot, Inventory ERP"
+                placeholder={t('appLicenses.appNamePlaceholder')}
                 className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
               />
             </div>
@@ -211,7 +213,7 @@ export function CreateLicenseModal({
                 required
                 value={customCatalogId}
                 onChange={(e) => setCustomCatalogId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                placeholder="Contoh: pos-resto, wa-blast, inventory-erp"
+                placeholder={t('appLicenses.appSlugPlaceholder')}
                 className="w-full px-3 py-1.5 font-mono rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
               />
               <span className="text-[10px] text-[var(--text-secondary)] mt-0.5 block">
@@ -267,7 +269,7 @@ export function CreateLicenseModal({
                 required
                 value={licenseKey}
                 onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
-                placeholder="RN-APP-XXXX-XXXX"
+                placeholder={t('appLicenses.keyPlaceholder')}
                 className="w-full pl-8 pr-3 py-1.5 font-mono font-bold text-xs rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-[var(--panel-primary-text)]"
               />
             </div>
@@ -276,7 +278,7 @@ export function CreateLicenseModal({
               variant="outline"
               size="sm"
               onClick={handleRegenerateKey}
-              title="Acak Ulang Key"
+              title={t('appLicenses.regenerateKey')}
               className="gap-1 text-xs shrink-0"
             >
               <RefreshCw size={12} />

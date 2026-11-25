@@ -71,7 +71,7 @@ export function UpgradeDatabaseModal({ dbw }: { dbw: DatabasesWindowState }) {
       }
     >
       <div className="space-y-3.5">
-        <div className="flex items-center justify-between rounded border border-[var(--panel-border)] bg-[var(--card-bg)] px-3 py-2 text-xs">
+        <div className="flex items-center justify-between rounded border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-xs">
           <span className="text-[var(--text-secondary)]">{t('databases.upgradeCurrentLabel')}</span>
           <span className="panel-mono font-medium text-[var(--win-text)]">{target?.version || engine?.defaultVersion || '-'}</span>
         </div>
@@ -84,7 +84,7 @@ export function UpgradeDatabaseModal({ dbw }: { dbw: DatabasesWindowState }) {
           />
         </Field>
 
-        <div className="rounded border border-[var(--panel-border)] bg-[var(--card-bg)] p-3 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
+        <div className="rounded border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
           <div className="flex items-center gap-1.5 font-medium text-[var(--win-text)]">
             <ShieldCheck className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
             <span>{t('databases.upgradeDataSafeTitle')}</span>

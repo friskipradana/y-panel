@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { type AppLicense } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { useI18n } from '@/lib/i18n'
 
 interface LicenseIntegrationModalProps {
   open: boolean
@@ -16,6 +17,7 @@ export function LicenseIntegrationModal({
   onClose,
   license,
 }: LicenseIntegrationModalProps) {
+  const { t } = useI18n()
   const [lang, setLang] = useState<'js' | 'python' | 'curl' | 'php'>('js')
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -141,7 +143,8 @@ if ($license) {
                 type="button"
                 onClick={() => handleCopy(license.licenseKey, 'key')}
                 className="p-1 text-[var(--text-secondary)] hover:text-emerald-500 rounded transition"
-                title="Salin Key"
+                title={t('appLicenses.copyKey')}
+                aria-label={t('appLicenses.copyKey')}
               >
                 {copied === 'key' ? <Check size={13} /> : <Copy size={13} />}
               </button>
@@ -170,7 +173,8 @@ if ($license) {
               type="button"
               onClick={() => handleCopy(verifyEndpoint, 'url')}
               className="p-1 text-[var(--text-secondary)] hover:text-emerald-500 rounded transition shrink-0"
-              title="Salin URL"
+              title={t('appLicenses.copyUrl')}
+              aria-label={t('appLicenses.copyUrl')}
             >
               {copied === 'url' ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
             </button>
@@ -237,7 +241,8 @@ if ($license) {
               type="button"
               onClick={() => handleCopy(codeSnippets[lang], 'code')}
               className="absolute top-3 right-3 p-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--win-bg)] text-[var(--text-secondary)] hover:text-emerald-500 shadow-sm transition"
-              title="Salin Kode"
+              title={t('appLicenses.copyCode')}
+              aria-label={t('appLicenses.copyCode')}
             >
               {copied === 'code' ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
             </button>

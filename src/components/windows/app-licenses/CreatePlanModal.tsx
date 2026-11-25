@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { createAppLicensePlan, type AvailableApp, type CreateAppPlanPayload } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { useI18n } from '@/lib/i18n'
 
 interface CreatePlanModalProps {
   open: boolean
@@ -20,6 +21,7 @@ export function CreatePlanModal({
   defaultCatalogId = 'reneo-crm',
   onSuccess,
 }: CreatePlanModalProps) {
+  const { t } = useI18n()
   const [catalogId, setCatalogId] = useState(defaultCatalogId)
   const [isCustomApp, setIsCustomApp] = useState(false)
   const [customCatalogId, setCustomCatalogId] = useState('')
@@ -225,8 +227,8 @@ export function CreatePlanModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Tambah Paket & Tarif Lisensi"
-      subtitle="Definisikan tier harga, durasi langganan, dan fitur aplikasi untuk pelanggan."
+      title={t('appLicenses.createPlanTitle')}
+      subtitle={t('appLicenses.createPlanSubtitle')}
       icon={<Boxes className="text-[var(--panel-primary-text)]" size={20} />}
       size="md"
     >
@@ -271,7 +273,7 @@ export function CreatePlanModal({
               required
               value={customCatalogId}
               onChange={(e) => setCustomCatalogId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-              placeholder="contoh: pos-resto, wa-bot, erp-gudang"
+              placeholder={t('appLicenses.planSlugPlaceholder')}
               className="w-full px-3 py-1.5 font-mono rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
             />
           </div>
@@ -288,7 +290,7 @@ export function CreatePlanModal({
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Contoh: Pro Bulanan, Enterprise Tahunan"
+              placeholder={t('appLicenses.planNamePlaceholder')}
               className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
             />
           </div>
@@ -300,7 +302,7 @@ export function CreatePlanModal({
               type="text"
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
-              placeholder="Cocok untuk UMKM atau tim operasional"
+              placeholder={t('appLicenses.planTaglinePlaceholder')}
               className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
             />
           </div>
@@ -403,7 +405,7 @@ export function CreatePlanModal({
               type="text"
               value={promoValidUntil}
               onChange={(e) => setPromoValidUntil(e.target.value)}
-              placeholder="Contoh: 30 November 2026"
+              placeholder={t('appLicenses.promoUntilPlaceholder')}
               className="panel-input w-full text-xs"
             />
           </div>

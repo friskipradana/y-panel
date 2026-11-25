@@ -603,7 +603,7 @@ export function InstallAppModal({
         ) : null}
 
         {isCatalogApp ? (
-          <div className="rounded-md border border-[var(--card-border)] bg-[var(--card-bg)] p-3 space-y-1.5">
+          <div className="rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 space-y-1.5">
             <div className="text-[13px] font-semibold text-[var(--win-text)]">
               {catalogApp?.name || editingCatalogApp?.name || name}
             </div>
@@ -857,7 +857,7 @@ export function InstallAppModal({
               mono
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
-              placeholder="https://app.example.com"
+              placeholder={t('appCatalog.targetUrlPlaceholder')}
               required
             />
           </Field>

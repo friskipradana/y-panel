@@ -78,7 +78,10 @@
 
 .panel-card {
   border-radius: 14px;
-  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
 }
 
 .panel-table-container {
@@ -164,7 +167,9 @@
     background: var(--panel-field-focus);
     border-color: var(--focus-ring);
   }
-  transition: background 140ms ease, border-color 140ms ease;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
 }
 
 .panel-textarea {
@@ -176,7 +181,11 @@
 .panel-input:hover:not(:disabled),
 .panel-select:hover:not(:disabled),
 .panel-textarea:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--text-secondary) 55%, var(--win-border));
+  border-color: color-mix(
+    in srgb,
+    var(--text-secondary) 55%,
+    var(--win-border)
+  );
 }
 
 .panel-input:disabled,
@@ -242,7 +251,13 @@ select optgroup,
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
-  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+  transition:
+    transform 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
 }
 
 .panel-btn:focus-visible,
@@ -343,7 +358,11 @@ button:focus-visible,
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease, opacity 140ms ease;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    opacity 140ms ease;
 }
 
 .panel-icon-btn:hover:not(:disabled) {
@@ -428,7 +447,10 @@ button:focus-visible,
   font-weight: 500;
   line-height: 1.2;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease;
 
   svg {
     width: 14px;
@@ -448,7 +470,11 @@ button:focus-visible,
   }
 
   &--active {
-    border-color: color-mix(in srgb, var(--panel-primary-text) 24%, transparent);
+    border-color: color-mix(
+      in srgb,
+      var(--panel-primary-text) 24%,
+      transparent
+    );
     background: var(--panel-primary-bg);
     color: var(--panel-primary-text);
     font-weight: 600;
@@ -555,12 +581,16 @@ button:focus-visible,
   height: 16px;
   margin: 1px 0 0;
   border-radius: 5px;
-  border: 1px solid color-mix(in srgb, var(--text-secondary) 55%, var(--win-border));
+  border: 1px solid
+    color-mix(in srgb, var(--text-secondary) 55%, var(--win-border));
   background: var(--panel-field-bg);
   cursor: pointer;
   display: inline-grid;
   place-content: center;
-  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .panel-check--bare .panel-check__box {
@@ -568,7 +598,7 @@ button:focus-visible,
 }
 
 .panel-check__box::after {
-  content: '';
+  content: "";
   width: 9px;
   height: 9px;
   background: var(--color-white);
@@ -604,7 +634,8 @@ button:focus-visible,
     background: var(--panel-field-focus);
     border-color: var(--focus-ring);
   }
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--panel-primary-text) 25%, transparent);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--panel-primary-text) 25%, transparent);
 }
 
 .panel-check__box:disabled {
@@ -739,7 +770,8 @@ button:focus-visible,
   align-items: flex-start;
   gap: 10px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--panel-warning-text) 20%, var(--win-border));
+  border: 1px solid
+    color-mix(in srgb, var(--panel-warning-text) 20%, var(--win-border));
   background: var(--panel-warning-bg);
   padding: 12px 14px;
   color: var(--panel-warning-text);
@@ -751,7 +783,11 @@ button:focus-visible,
   border: 1px solid var(--win-border);
   border-radius: 22px;
   padding: 20px;
-  background: linear-gradient(145deg, var(--panel-primary-bg), var(--panel-surface));
+  background: linear-gradient(
+    145deg,
+    var(--panel-primary-bg),
+    var(--panel-surface)
+  );
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
@@ -831,7 +867,11 @@ button:focus-visible,
   flex-direction: column;
   color: var(--panel-danger-text);
   background: var(--panel-danger-bg);
-  border-color: color-mix(in srgb, var(--panel-danger-text) 16%, var(--win-border));
+  border-color: color-mix(
+    in srgb,
+    var(--panel-danger-text) 16%,
+    var(--win-border)
+  );
 }
 
 .panel-kpi-grid {
@@ -914,7 +954,11 @@ button:focus-visible,
 .panel-progress__bar {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--panel-primary-text), color-mix(in srgb, var(--panel-info-text) 76%, white));
+  background: linear-gradient(
+    90deg,
+    var(--panel-primary-text),
+    color-mix(in srgb, var(--panel-info-text) 76%, white)
+  );
 }
 
 .panel-shell-card {
@@ -985,8 +1029,13 @@ button:focus-visible,
   height: 12px;
   margin-top: 6px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--panel-primary-text), color-mix(in srgb, var(--panel-info-text) 72%, white));
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-primary-text) 14%, transparent);
+  background: linear-gradient(
+    135deg,
+    var(--panel-primary-text),
+    color-mix(in srgb, var(--panel-info-text) 72%, white)
+  );
+  box-shadow: 0 0 0 4px
+    color-mix(in srgb, var(--panel-primary-text) 14%, transparent);
 }
 
 .panel-timeline__line {
@@ -1024,7 +1073,7 @@ button:focus-visible,
 }
 
 .panel-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   -webkit-user-select: text;
   user-select: text;
 }
@@ -1053,7 +1102,10 @@ button:focus-visible,
   border: 1px solid var(--win-border);
   background: var(--panel-surface-strong);
   color: var(--text-secondary);
-  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    background 150ms ease;
 }
 
 .panel-search:focus-within {
@@ -1104,11 +1156,13 @@ button:focus-visible,
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  transition: color 160ms ease, transform 160ms ease;
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
 }
 
 .docker-tab::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 14px;
   right: 14px;
@@ -1142,7 +1196,11 @@ button:focus-visible,
   width: 32px;
   height: 32px;
   border-radius: 14px;
-  background: linear-gradient(180deg, var(--panel-primary-bg), color-mix(in srgb, var(--panel-surface) 82%, transparent));
+  background: linear-gradient(
+    180deg,
+    var(--panel-primary-bg),
+    color-mix(in srgb, var(--panel-surface) 82%, transparent)
+  );
   color: var(--panel-primary-text);
 }
 
@@ -1436,7 +1494,8 @@ button:focus-visible,
 .settings-nav__search-wrap {
   padding: 10px 10px 8px;
   flex-shrink: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--win-border) 40%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--win-border) 40%, transparent);
 }
 
 .settings-nav__search {
@@ -1571,7 +1630,8 @@ button:focus-visible,
   border-radius: 11px;
   flex-shrink: 0;
   background: var(--panel-primary-bg);
-  border: 1px solid color-mix(in srgb, var(--panel-primary-text) 22%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--panel-primary-text) 22%, transparent);
   color: var(--panel-primary-text);
 }
 
@@ -1665,7 +1725,9 @@ button:focus-visible,
     font-size: 0.75rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
 
     &:hover {
       background: var(--tb-hover);
@@ -1689,7 +1751,10 @@ button:focus-visible,
     background: var(--panel-surface-strong);
     color: var(--text-secondary);
     cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    transition:
+      background 0.15s,
+      color 0.15s,
+      border-color 0.15s;
 
     &:hover,
     &--active {
@@ -1816,7 +1881,9 @@ button:focus-visible,
 
   &--active &__preview {
     border-color: var(--panel-primary-bg);
-    box-shadow: 0 0 0 1px var(--panel-primary-bg), 0 4px 14px rgba(0, 0, 0, 0.15);
+    box-shadow:
+      0 0 0 1px var(--panel-primary-bg),
+      0 4px 14px rgba(0, 0, 0, 0.15);
   }
 
   &__label {
@@ -1840,11 +1907,11 @@ button:focus-visible,
   overflow: hidden;
 
   &--light {
-    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+    background: var(--adw-mockup-light-grad);
   }
 
   &--dark {
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #172554 100%);
+    background: var(--adw-mockup-dark-grad);
   }
 
   &__back-win {
@@ -1854,7 +1921,7 @@ button:focus-visible,
     width: 52%;
     height: 52%;
     border-radius: 6px;
-    background: #202020;
+    background: var(--adw-mockup-back-bg);
     border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
     display: flex;
@@ -1863,7 +1930,7 @@ button:focus-visible,
 
     .adw-mockup__bar {
       height: 10px;
-      background: #181818;
+      background: var(--adw-mockup-back-bar);
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
   }
@@ -1883,23 +1950,23 @@ button:focus-visible,
   }
 
   &--light &__front-win {
-    background: #ffffff;
+    background: var(--adw-mockup-front-light-bg);
     border: 1px solid rgba(0, 0, 0, 0.15);
 
     .adw-mockup__bar {
       height: 10px;
-      background: #e5e5e5;
+      background: var(--adw-mockup-front-light-bar);
       border-bottom: 1px solid rgba(0, 0, 0, 0.08);
     }
   }
 
   &--dark &__front-win {
-    background: #2a2a2a;
+    background: var(--adw-mockup-front-dark-bg);
     border: 1px solid rgba(255, 255, 255, 0.15);
 
     .adw-mockup__bar {
       height: 10px;
-      background: #202020;
+      background: var(--adw-mockup-front-dark-bar);
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
   }
@@ -1931,10 +1998,16 @@ button:focus-visible,
   color: var(--win-text);
   cursor: pointer;
   text-align: left;
-  transition: border-color 140ms ease, background-color 140ms ease;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease;
 
   &:hover {
-    border-color: color-mix(in srgb, var(--text-secondary) 45%, var(--win-border));
+    border-color: color-mix(
+      in srgb,
+      var(--text-secondary) 45%,
+      var(--win-border)
+    );
     background: var(--panel-surface-hover);
   }
 
@@ -2015,12 +2088,28 @@ button:focus-visible,
   }
 
   &--custom {
-    background: color-mix(in srgb, var(--theme-custom-preview, var(--panel-primary-solid)) 12%, var(--win-content-bg));
-    border-color: color-mix(in srgb, var(--theme-custom-preview, var(--panel-primary-solid)) 45%, var(--win-border));
+    background: color-mix(
+      in srgb,
+      var(--theme-custom-preview, var(--panel-primary-solid)) 12%,
+      var(--win-content-bg)
+    );
+    border-color: color-mix(
+      in srgb,
+      var(--theme-custom-preview, var(--panel-primary-solid)) 45%,
+      var(--win-border)
+    );
 
     .theme-color-card__bar {
-      background: color-mix(in srgb, var(--theme-custom-preview, var(--panel-primary-solid)) 22%, var(--win-content-bg));
-      border-bottom-color: color-mix(in srgb, var(--theme-custom-preview, var(--panel-primary-solid)) 35%, transparent);
+      background: color-mix(
+        in srgb,
+        var(--theme-custom-preview, var(--panel-primary-solid)) 22%,
+        var(--win-content-bg)
+      );
+      border-bottom-color: color-mix(
+        in srgb,
+        var(--theme-custom-preview, var(--panel-primary-solid)) 35%,
+        transparent
+      );
     }
 
     .theme-color-card__pill {
@@ -2093,7 +2182,9 @@ button:focus-visible,
   cursor: pointer;
   background-size: cover;
   background-position: center;
-  transition: transform 0.14s ease, box-shadow 0.14s ease;
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.14s ease;
 
   &:hover {
     transform: scale(1.02);
@@ -2119,7 +2210,6 @@ button:focus-visible,
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   }
 }
-
 
 // GNOME Style Theme Preview Window Mockups
 .adw-preview {
@@ -2378,7 +2468,12 @@ button:focus-visible,
 
 // Phones: any text field is 16px, so iOS does not zoom the page when it takes focus (the code editors keep their own size)
 .layout-mobile {
-  input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']):not(.monaco-editor *, .xterm *),
+  input:not(
+      [type="checkbox"],
+      [type="radio"],
+      [type="range"],
+      [type="file"]
+    ):not(.monaco-editor *, .xterm *),
   select,
   textarea:not(.monaco-editor *, .xterm *) {
     font-size: 1rem;
@@ -2454,7 +2549,7 @@ button:focus-visible,
   color: var(--panel-primary-text);
 }
 
-.panel-kpi-card[data-level='warn'] {
+.panel-kpi-card[data-level="warn"] {
   .panel-kpi-card__percent {
     color: var(--panel-warning-text);
   }
@@ -2464,7 +2559,7 @@ button:focus-visible,
   }
 }
 
-.panel-kpi-card[data-level='crit'] {
+.panel-kpi-card[data-level="crit"] {
   .panel-kpi-card__percent {
     color: var(--panel-danger-text);
   }

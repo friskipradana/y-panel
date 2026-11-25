@@ -29,7 +29,7 @@ export function StaticUploadOverlay({ pw }: { pw: ProjectsWindowState }) {
 
   return (
     <div className="absolute inset-0 z-[80] mobile:fixed flex items-center justify-center bg-[var(--win-bg)]/82 px-6 backdrop-blur-md">
-      <div className="w-full max-w-[420px] rounded-[18px] border border-[var(--win-border)] bg-[var(--card-bg)]/95 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.22)]">
+      <div className="w-full max-w-[420px] rounded-[18px] border border-[var(--win-border)] bg-[var(--win-content-bg)]/95 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.22)]">
         <div className="mb-4 flex items-center gap-3">
           <IconBadge size="lg" tone="primary">
             {staticUpload.phase === 'done' ? <FolderCode /> : staticUpload.phase === 'installing' || staticUpload.phase === 'building' ? <Hammer className="animate-pulse" /> : <Upload className={`${staticUpload.phase === 'uploading' || staticUpload.phase === 'extracting' ? 'animate-pulse' : ''}`} />}
