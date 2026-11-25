@@ -90,3 +90,21 @@ func TestListModelsOpenAICompatible(t *testing.T) {
 		t.Fatalf("unexpected models: %#v", models)
 	}
 }
+
+func TestCompleteOpenAISSEFallback(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"O\"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"K\"}}]}\n\ndata: [DONE]\n"))
+	}))
+	defer srv.Close()
+
+	out, err := Complete(context.Background(), Config{
+		Provider: "custom",
+		BaseURL:  srv.URL + "/v1",
+		Model:    "ag/gemini-3.8-flash-medium",
+		APIKey:   "sk-9router",
+	}, "sys", "usr")
+	if err != nil || out != "OK" {
+		t.Fatalf("got %q err=%v", out, err)
+	}
+}

@@ -220,6 +220,7 @@ func completeOpenAI(ctx context.Context, client *http.Client, baseURL, model, ap
 	payload := map[string]any{
 		"model":       model,
 		"temperature": temp,
+		"stream":      false,
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
@@ -243,20 +244,104 @@ func completeOpenAI(ctx context.Context, client *http.Client, baseURL, model, ap
 	if resp.StatusCode/100 != 2 {
 		return "", fmt.Errorf("AI provider HTTP %d: %s", resp.StatusCode, extractProviderError(body))
 	}
+	trimmedBody := bytes.TrimSpace(body)
+	if strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") || bytes.HasPrefix(trimmedBody, []byte("data:")) {
+		text, sseErr := parseOpenAISSE(trimmedBody)
+		if sseErr != nil {
+			return "", sseErr
+		}
+		return text, nil
+	}
 	var out struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content any `json:"content"`
 			} `json:"message"`
+			Delta struct {
+				Content string `json:"content"`
+			} `json:"delta"`
 		} `json:"choices"`
 	}
-	if err := json.Unmarshal(body, &out); err != nil {
+	if err := json.Unmarshal(trimmedBody, &out); err != nil {
 		return "", fmt.Errorf("invalid AI response JSON: %w", err)
 	}
-	if len(out.Choices) == 0 || strings.TrimSpace(out.Choices[0].Message.Content) == "" {
+	if len(out.Choices) == 0 {
 		return "", errors.New("AI provider returned empty content")
 	}
-	return out.Choices[0].Message.Content, nil
+	content := extractOpenAIContent(out.Choices[0].Message.Content)
+	if content == "" {
+		content = strings.TrimSpace(out.Choices[0].Delta.Content)
+	}
+	if content == "" {
+		return "", errors.New("AI provider returned empty content")
+	}
+	return content, nil
+}
+
+func extractOpenAIContent(v any) string {
+	switch val := v.(type) {
+	case string:
+		return strings.TrimSpace(val)
+	case []any:
+		var b strings.Builder
+		for _, item := range val {
+			if m, ok := item.(map[string]any); ok {
+				if txt, ok := m["text"].(string); ok {
+					b.WriteString(txt)
+				}
+			}
+		}
+		return strings.TrimSpace(b.String())
+	}
+	return ""
+}
+
+// parseOpenAISSE reassembles text from SSE `data: {...}` chunks when a router forces streaming.
+func parseOpenAISSE(body []byte) (string, error) {
+	var b strings.Builder
+	for _, rawLine := range strings.Split(string(body), "\n") {
+		line := strings.TrimSpace(rawLine)
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		chunk := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if chunk == "" || chunk == "[DONE]" {
+			continue
+		}
+		var ev struct {
+			Choices []struct {
+				Delta struct {
+					Content any `json:"content"`
+				} `json:"delta"`
+				Message struct {
+					Content any `json:"content"`
+				} `json:"message"`
+			} `json:"choices"`
+			Error *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(chunk), &ev); err != nil {
+			continue
+		}
+		if ev.Error != nil && strings.TrimSpace(ev.Error.Message) != "" {
+			return "", errors.New(strings.TrimSpace(ev.Error.Message))
+		}
+		if len(ev.Choices) > 0 {
+			if s, ok := ev.Choices[0].Delta.Content.(string); ok {
+				b.WriteString(s)
+			} else if s := extractOpenAIContent(ev.Choices[0].Delta.Content); s != "" {
+				b.WriteString(s)
+			} else if s := extractOpenAIContent(ev.Choices[0].Message.Content); s != "" {
+				b.WriteString(s)
+			}
+		}
+	}
+	res := strings.TrimSpace(b.String())
+	if res == "" {
+		return "", errors.New("AI provider returned empty stream content")
+	}
+	return res, nil
 }
 
 func completeAnthropic(ctx context.Context, client *http.Client, baseURL, model, apiKey string, temp float64, systemPrompt, userPrompt string) (string, error) {
