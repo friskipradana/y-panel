@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bot, CheckCircle2, KeyRound, Pencil, RefreshCw, Save, Trash2 } from 'lucide-react'
+import { Bot, CheckCircle2, KeyRound, Pencil, RefreshCw, Save, Trash2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAISettings, listAIModels, saveAISettings, testAISettings } from '@/api/ai'
 import { Badge } from '@/components/ui/Badge'
@@ -28,6 +28,7 @@ export function AiSettingsTab() {
   const [temperature, setTemperature] = useState('0.3')
   const [models, setModels] = useState<string[]>([])
   const [manualModel, setManualModel] = useState(false)
+  const [lastLatencyMs, setLastLatencyMs] = useState<number | null>(null)
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
@@ -96,8 +97,18 @@ export function AiSettingsTab() {
         apiKey: apiKey.trim() || undefined,
         temperature: Number(temperature) || 0.3,
       }),
-    onSuccess: (res) => toast.success(t('settings.ai.testOk', { reply: res.reply })),
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: (res) => {
+      setLastLatencyMs(typeof res.latencyMs === 'number' ? res.latencyMs : null)
+      toast.success(
+        typeof res.latencyMs === 'number'
+          ? t('settings.ai.testOkLatency', { reply: res.reply, ms: res.latencyMs })
+          : t('settings.ai.testOk', { reply: res.reply }),
+      )
+    },
+    onError: (e: Error) => {
+      setLastLatencyMs(null)
+      toast.error(e.message)
+    },
   })
 
   if (q.isLoading) return <LoadingState>{t('common.loading')}</LoadingState>
@@ -115,6 +126,7 @@ export function AiSettingsTab() {
   const currentPreset = presets.find((p) => p.id === provider)
   const hasSavedKey = Boolean(q.data?.hasApiKey) && !clearApiKey
   const canFetchModels = Boolean(baseUrl.trim() || currentPreset?.defaultBaseUrl) && (!currentPreset?.keyRequired || hasSavedKey || Boolean(apiKey.trim()))
+  const isLocalHttpsUrl = /^https:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/i.test(baseUrl.trim())
 
   const handleProviderChange = (nextId: string) => {
     setProvider(nextId)
@@ -169,6 +181,21 @@ export function AiSettingsTab() {
               onChange={(e) => setBaseUrl(e.target.value)}
               placeholder={currentPreset?.defaultBaseUrl || 'https://api.openai.com/v1'}
             />
+            {isLocalHttpsUrl ? (
+              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--panel-warning-border)] bg-[var(--panel-warning-bg)] px-2.5 py-1.5 text-[11px] text-[var(--panel-warning-text)]">
+                <span className="flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                  {t('settings.ai.localHttpsWarn')}
+                </span>
+                <button
+                  type="button"
+                  className="font-semibold underline underline-offset-2"
+                  onClick={() => setBaseUrl((v) => v.replace(/^https:\/\//i, 'http://'))}
+                >
+                  {t('settings.ai.switchToHttp')}
+                </button>
+              </div>
+            ) : null}
           </Field>
         </div>
 
@@ -270,6 +297,11 @@ export function AiSettingsTab() {
             <span>{t('settings.ai.securityNote')}</span>
           </div>
           <div className="flex items-center gap-2">
+            {lastLatencyMs !== null ? (
+              <Badge tone="success" size="sm">
+                <span className="panel-mono">{lastLatencyMs} ms</span>
+              </Badge>
+            ) : null}
             <Button
               type="button"
               variant="outline"

@@ -3,6 +3,7 @@ import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
 import { Boxes, Plus, Box, Code, X, Check, ChevronDown, Pencil, Lock } from 'lucide-react'
 import { suggestDockerStaticIP } from '@/api/docker'
+import { injectComposeStaticIP } from './composeStaticIp'
 import { EMPTY_ENV_ROW, toRawEnv, toEnvRows } from './constants'
 import { DeployStep } from './DockerComponents'
 import { DockerProgressOverlay } from './DockerProgressOverlay'
@@ -607,7 +608,33 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
         /* Compose YAML editor */
         <div className="mt-4 space-y-4">
           <div>
-            <label className="panel-section-label">{t('docker.composeYamlRequired')}</label>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label className="panel-section-label mb-0">{t('docker.composeYamlRequired')}</label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                icon={<Lock className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                loading={suggestingIp}
+                onClick={async () => {
+                  setSuggestingIp(true)
+                  try {
+                    const res = await suggestDockerStaticIP()
+                    setDeployForm((prev) => ({
+                      ...prev,
+                      composeYaml: injectComposeStaticIP(prev.composeYaml, res.network, res.ip),
+                    }))
+                    toast.success(t('docker.composeStaticIpInserted', { ip: res.ip, network: res.network }))
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : t('docker.unknownError'))
+                  } finally {
+                    setSuggestingIp(false)
+                  }
+                }}
+              >
+                {t('docker.composeInsertStaticIp')}
+              </Button>
+            </div>
             <textarea
               className="panel-input docker-modal__yaml"
               rows={16}

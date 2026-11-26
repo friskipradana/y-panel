@@ -1,35 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import RFB from '@novnc/novnc'
-import {
-  Check,
-  Copy,
-  ExternalLink,
-  Maximize2,
-  Minimize2,
-  Monitor,
-  MonitorOff,
-  Power,
-  RefreshCw,
-  Scale,
-  ShieldAlert,
-} from 'lucide-react'
 import { toast } from 'sonner'
 import { createKvmToken, getKvmStatus, installKvm, resolveKvmWsUrl, setKvmResolution, startKvm, type KvmQualityMode } from '@/api/kvm'
-import { Button } from '@/components/ui/Button'
-import { IconButton } from '@/components/ui/IconButton'
-import { Select } from '@/components/ui/Select'
 import { LoadingState } from '@/components/ui/states'
 import { useI18n } from '@/lib/i18n'
 import { useWindowStore } from '@/store/windowStore'
 import type { WindowState } from '@/types'
 import { KvmFloatingHud } from './KvmFloatingHud'
+import { KvmEmptyState } from './KvmEmptyStates'
+import { KvmDesktopToolbar } from './KvmDesktopToolbar'
 import {
   applyRfbQualityPreset,
   extractKvmErrorMessage,
   KVM_QUALITY_PRESETS,
   KVM_RESOLUTION_VALUES,
-  launchTokenizedKvmTab,
   readStoredKvmQualityMode,
   writeStoredKvmQualityMode,
 } from './kvmHelpers'
@@ -66,21 +51,14 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
   )
 
   useEffect(() => {
-    const handler = () => {
-      setIsBrowserFullscreen(Boolean(document.fullscreenElement))
-    }
+    const handler = () => setIsBrowserFullscreen(Boolean(document.fullscreenElement))
     document.addEventListener('fullscreenchange', handler)
-    return () => {
-      document.removeEventListener('fullscreenchange', handler)
-    }
+    return () => document.removeEventListener('fullscreenchange', handler)
   }, [])
 
   const handleToggleBrowserFullscreen = () => {
-    if (!document.fullscreenElement) {
-      void document.documentElement.requestFullscreen().catch(() => {})
-    } else {
-      void document.exitFullscreen().catch(() => {})
-    }
+    const op = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
+    void op.catch(() => {})
   }
 
   const qc = useQueryClient()
@@ -102,34 +80,27 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
 
   const [actionError, setActionError] = useState<string | null>(null)
 
+  const handleActionResult = (msg: string) => {
+    setActionError(null)
+    void qc.invalidateQueries({ queryKey: ['kvm-status'] })
+    toast.success(msg)
+  }
+  const handleActionErr = (err: Error, fallback: string) => {
+    const msg = err.message || fallback
+    setActionError(msg)
+    toast.error(msg)
+  }
   const installMutation = useMutation({
     mutationFn: installKvm,
     onMutate: () => setActionError(null),
-    onSuccess: (data) => {
-      setActionError(null)
-      void qc.invalidateQueries({ queryKey: ['kvm-status'] })
-      toast.success(data?.message || t('kvm.installedSuccess'))
-    },
-    onError: (err: Error) => {
-      const msg = err.message || t('kvm.installFailed')
-      setActionError(msg)
-      toast.error(msg)
-    },
+    onSuccess: (data) => handleActionResult(data?.message || t('kvm.installedSuccess')),
+    onError: (err: Error) => handleActionErr(err, t('kvm.installFailed')),
   })
-
   const startMutation = useMutation({
     mutationFn: startKvm,
     onMutate: () => setActionError(null),
-    onSuccess: (data) => {
-      setActionError(null)
-      void qc.invalidateQueries({ queryKey: ['kvm-status'] })
-      toast.success(data?.message || t('kvm.serviceStarted'))
-    },
-    onError: (err: Error) => {
-      const msg = err.message || t('kvm.startFailed')
-      setActionError(msg)
-      toast.error(msg)
-    },
+    onSuccess: (data) => handleActionResult(data?.message || t('kvm.serviceStarted')),
+    onError: (err: Error) => handleActionErr(err, t('kvm.startFailed')),
   })
 
   const kvmActionError = actionError || ''
@@ -327,128 +298,28 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
   }))
   const exampleCommand = `x11vnc -display ${display} -rfbport ${port} -shared -forever`
 
-  if (standalone && (!accessToken || isStatusError)) {
-    return (
-      <div className="kvm-empty">
-        <ShieldAlert className="h-10 w-10 text-[var(--panel-danger-text)] mb-3" strokeWidth={1.5} />
-        <h3 className="text-sm font-semibold text-[var(--win-text)] mb-1">{t('kvm.tokenInvalidTitle')}</h3>
-        <p className="text-xs text-[var(--text-secondary)] max-w-md mb-4">{t('kvm.tokenInvalidDesc')}</p>
-        {onBack ? (
-          <Button variant="primary" size="sm" onClick={onBack}>
-            {t('kvm.backToPanel')}
-          </Button>
-        ) : null}
-      </div>
-    )
+  const emptyShared = {
+    standalone,
+    port,
+    exampleCommand,
+    copied,
+    kvmActionError,
+    installing: installMutation.isPending,
+    starting: startMutation.isPending,
+    t,
+    onBack,
+    onOpenWindow: openWindow,
+    onInstall: () => installMutation.mutate(),
+    onStart: () => startMutation.mutate(),
+    onRetry: () => void refetch(),
+    onCopyCommand: copyCommand,
   }
 
-  if (isLoading) {
-    return <LoadingState>{t('kvm.connecting')}</LoadingState>
-  }
-
-  if (status && !status.enabled) {
-    return (
-      <div className="kvm-empty">
-        <MonitorOff className="h-10 w-10 text-[var(--panel-warning-text)] mb-3" strokeWidth={1.5} />
-        <h3 className="text-sm font-semibold text-[var(--win-text)] mb-1">{t('kvm.disabledTitle')}</h3>
-        <p className="text-xs text-[var(--text-secondary)] max-w-md mb-4">{t('kvm.disabledDesc')}</p>
-        {standalone && onBack ? (
-          <Button variant="primary" size="sm" onClick={onBack}>
-            {t('kvm.backToPanel')}
-          </Button>
-        ) : (
-          <Button variant="primary" size="sm" onClick={() => openWindow('settings')}>
-            {t('kvm.openSettings')}
-          </Button>
-        )}
-      </div>
-    )
-  }
-
-  if (status && status.enabled && !status.installed) {
-    return (
-      <div className="kvm-empty">
-        <MonitorOff className="h-10 w-10 text-[var(--panel-warning-text)] mb-3" strokeWidth={1.5} />
-        <h3 className="text-sm font-semibold text-[var(--win-text)] mb-1">{t('kvm.notInstalledTitle')}</h3>
-        <p className="text-xs text-[var(--text-secondary)] max-w-md mb-4">{t('kvm.notInstalledDesc')}</p>
-        {kvmActionError ? (
-          <div className="panel-error-state !min-h-0 max-w-lg w-full !py-2 !px-3 mb-3 text-[11px]" role="alert">
-            <span className="font-mono break-all select-text">{kvmActionError}</span>
-          </div>
-        ) : null}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            loading={installMutation.isPending}
-            disabled={installMutation.isPending}
-            onClick={() => installMutation.mutate()}
-          >
-            {installMutation.isPending ? t('kvm.installing') : t('kvm.installBtn')}
-          </Button>
-          {standalone && onBack ? (
-            <Button variant="outline" size="sm" onClick={onBack}>
-              {t('kvm.backToPanel')}
-            </Button>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => openWindow('settings')}>
-              {t('kvm.openSettings')}
-            </Button>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  if (status && !status.available && !connected) {
-    return (
-      <div className="kvm-empty">
-        <Monitor className="h-10 w-10 text-[var(--text-secondary)] mb-3" strokeWidth={1.5} />
-        <h3 className="text-sm font-semibold text-[var(--win-text)] mb-1">{t('kvm.notRunningTitle')}</h3>
-        <p className="text-xs text-[var(--text-secondary)] max-w-md mb-2">{t('kvm.notRunningDesc', { port })}</p>
-
-        <div className="kvm-code-box">
-          <span className="truncate select-all font-mono">{exampleCommand}</span>
-          <IconButton
-            label={t('kvm.copyCmd')}
-            onClick={() => copyCommand(exampleCommand)}
-          >
-            {copied ? <Check className="h-3.5 w-3.5 text-[var(--panel-success-text)]" /> : <Copy className="h-3.5 w-3.5" />}
-          </IconButton>
-        </div>
-
-        {kvmActionError ? (
-          <div className="panel-error-state !min-h-0 max-w-lg w-full !py-2 !px-3 mt-2 text-[11px]" role="alert">
-            <span className="font-mono break-all select-text">{kvmActionError}</span>
-          </div>
-        ) : null}
-
-        <div className="flex items-center gap-2 mt-2">
-          <Button
-            variant="primary"
-            size="sm"
-            loading={startMutation.isPending}
-            disabled={startMutation.isPending}
-            onClick={() => startMutation.mutate()}
-          >
-            {startMutation.isPending ? t('kvm.startingService') : t('kvm.startService')}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => void refetch()}>
-            {t('kvm.retry')}
-          </Button>
-          {standalone && onBack ? (
-            <Button variant="outline" size="sm" onClick={onBack}>
-              {t('kvm.backToPanel')}
-            </Button>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => openWindow('host-terminal')}>
-              {t('kvm.openTerminal')}
-            </Button>
-          )}
-        </div>
-      </div>
-    )
-  }
+  if (standalone && (!accessToken || isStatusError)) return <KvmEmptyState kind="token-invalid" {...emptyShared} />
+  if (isLoading) return <LoadingState>{t('kvm.connecting')}</LoadingState>
+  if (status && !status.enabled) return <KvmEmptyState kind="disabled" {...emptyShared} />
+  if (status && status.enabled && !status.installed) return <KvmEmptyState kind="not-installed" {...emptyShared} />
+  if (status && !status.available && !connected) return <KvmEmptyState kind="not-running" {...emptyShared} />
 
   if (standalone) {
     const connState: 'connecting' | 'connected' | 'disconnected' = connected
@@ -493,122 +364,31 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
 
   return (
     <div className="kvm-container">
-      <div className="kvm-toolbar flex-wrap">
-        <div className="kvm-toolbar__group">
-          <div className="kvm-status-badge">
-            <span
-              className={`kvm-status-dot ${
-                connected
-                  ? 'kvm-status-dot--online'
-                  : connecting
-                    ? 'kvm-status-dot--busy kvm-status-dot--pulse'
-                    : ''
-              }`}
-            />
-            <span>{connected ? t('kvm.connected') : connecting ? t('kvm.connecting') : t('kvm.disconnected')}</span>
-            <span className="font-mono text-[10px] text-[var(--text-secondary)]">({display})</span>
-          </div>
-
-          {connectionError ? (
-            <span className="text-[11px] text-[var(--panel-danger-text)] font-medium truncate max-w-[200px]" title={connectionError}>
-              {connectionError}
-            </span>
-          ) : null}
-        </div>
-
-        <div className="kvm-toolbar__group flex-wrap">
-          <Select
-            size="sm"
-            value={qualityMode}
-            onChange={(val) => handleQualityModeChange(val as KvmQualityMode)}
-            options={qualityOptions}
-            placeholder={t('kvm.modeLabel')}
-            buttonClassName="kvm-hud__select"
-            dropdownWidth={168}
-          />
-          <Select
-            size="sm"
-            value={currentResolution}
-            onChange={(nextRes) => resolutionMutation.mutate(nextRes)}
-            options={resolutionOptions}
-            disabled={resolutionMutation.isPending}
-            placeholder={t('kvm.resolutionLabel')}
-            buttonClassName="kvm-hud__select kvm-hud__select--mono"
-            dropdownWidth={148}
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            className="kvm-key-btn"
-            disabled={!connected}
-            onClick={handleSendCad}
-            title={t('kvm.cad')}
-            aria-label={t('kvm.cad')}
-          >
-            {t('kvm.cadShort')}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="kvm-key-btn"
-            disabled={!connected}
-            onClick={handleSendSuper}
-            title={t('kvm.superKey')}
-            aria-label={t('kvm.superKey')}
-          >
-            {t('kvm.superShort')}
-          </Button>
-          <div className="kvm-toolbar__divider" />
-          <IconButton
-            tone={scaleToFit ? 'primary' : 'default'}
-            className={scaleToFit ? 'kvm-icon-btn--active' : ''}
-            label={t('kvm.scale')}
-            aria-pressed={scaleToFit}
-            onClick={handleToggleScale}
-          >
-            <Scale className="h-3.5 w-3.5" />
-          </IconButton>
-          {connected ? (
-            <IconButton tone="danger" label={t('kvm.disconnect')} onClick={handleDisconnect}>
-              <Power className="h-3.5 w-3.5" />
-            </IconButton>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              icon={<RefreshCw className={`h-3 w-3 ${connecting ? 'animate-spin' : ''}`} />}
-              disabled={connecting}
-              onClick={() => void connectRfb(true)}
-              title={t('kvm.reconnect')}
-              aria-label={t('kvm.reconnect')}
-            >
-              {t('kvm.reconnect')}
-            </Button>
-          )}
-          <IconButton
-            label={t('kvm.openInNewTab')}
-            onClick={() =>
-              void launchTokenizedKvmTab(
-                () => toast.error(t('kvm.popupBlocked')),
-                (msg) => toast.error(msg),
-                t('kvm.tokenFailed'),
-              )
-            }
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </IconButton>
-          {win ? (
-            <IconButton
-              label={t('kvm.fullscreen')}
-              aria-pressed={isFullscreen}
-              onClick={() => toggleFullscreen(win.id)}
-            >
-              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            </IconButton>
-          ) : null}
-        </div>
-      </div>
-
+      <KvmDesktopToolbar
+        connected={connected}
+        connecting={connecting}
+        display={display}
+        connectionError={connectionError}
+        qualityMode={qualityMode}
+        qualityOptions={qualityOptions}
+        currentResolution={currentResolution}
+        resolutionOptions={resolutionOptions}
+        resolvingResolution={resolutionMutation.isPending}
+        scaleToFit={scaleToFit}
+        hasWindow={Boolean(win)}
+        isFullscreen={isFullscreen}
+        t={t}
+        onQualityModeChange={handleQualityModeChange}
+        onResolutionChange={(nextRes) => resolutionMutation.mutate(nextRes)}
+        onSendCad={handleSendCad}
+        onSendSuper={handleSendSuper}
+        onToggleScale={handleToggleScale}
+        onDisconnect={handleDisconnect}
+        onReconnect={() => void connectRfb(true)}
+        onToggleFullscreen={() => {
+          if (win) toggleFullscreen(win.id)
+        }}
+      />
       <div ref={viewportRef} className="kvm-viewport" tabIndex={0} aria-label={t('kvm.title')} />
     </div>
   )

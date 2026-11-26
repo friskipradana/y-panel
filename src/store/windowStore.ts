@@ -294,6 +294,10 @@ export const useWindowStore = create<WindowStore>()(
           win.y = Math.max(52, window.innerHeight - pipH - 88);
           delete win.prefWidth;
           delete win.prefHeight;
+          delete win.prefX;
+          delete win.prefY;
+          delete win.prefViewportW;
+          delete win.prefViewportH;
           bringToFront(state.windows, id);
           state.focusedId = id;
         }),
@@ -319,6 +323,10 @@ export const useWindowStore = create<WindowStore>()(
           }
           delete win.prefWidth;
           delete win.prefHeight;
+          delete win.prefX;
+          delete win.prefY;
+          delete win.prefViewportW;
+          delete win.prefViewportH;
           bringToFront(state.windows, id);
           state.focusedId = id;
         }),
@@ -329,6 +337,10 @@ export const useWindowStore = create<WindowStore>()(
           if (win) {
             win.x = x;
             win.y = y;
+            delete win.prefX;
+            delete win.prefY;
+            delete win.prefViewportW;
+            delete win.prefViewportH;
           }
         }),
 
@@ -340,6 +352,10 @@ export const useWindowStore = create<WindowStore>()(
             win.height = height;
             delete win.prefWidth;
             delete win.prefHeight;
+            delete win.prefX;
+            delete win.prefY;
+            delete win.prefViewportW;
+            delete win.prefViewportH;
           }
         }),
 
@@ -377,19 +393,54 @@ export const useWindowStore = create<WindowStore>()(
             if (win.isMaximized || win.isFullscreen) continue;
             const wantW = win.prefWidth ?? win.width;
             const wantH = win.prefHeight ?? win.height;
+            const wantX = win.prefX ?? win.x;
+            const wantY = win.prefY ?? win.y;
+            const refW = win.prefViewportW ?? Math.max(vw, wantX + wantW + 12);
+            const refH = win.prefViewportH ?? Math.max(vh, wantY + wantH + 20);
+
             win.width = Math.min(wantW, Math.max(320, vw - 16));
             win.height = Math.min(wantH, Math.max(220, vh - 44 - 24));
-            if (win.width < wantW || win.height < wantH) {
+
+            const maxFullX = Math.max(8, vw - win.width - 8);
+            const maxFullY = Math.max(44, vh - win.height - 16);
+            let nextX = wantX;
+            let nextY = wantY;
+
+            if (win.isPip) {
+              const distRight = Math.max(12, refW - (wantX + wantW));
+              const distBottom = Math.max(20, refH - (wantY + wantH));
+              nextX = Math.max(8, Math.min(maxFullX, Math.round(vw - win.width - distRight)));
+              nextY = Math.max(44, Math.min(maxFullY, Math.round(vh - win.height - distBottom)));
+            } else {
+              if (wantX + win.width + 8 > vw || wantX < 8) {
+                const ratioX = refW > 0 ? vw / refW : 1;
+                nextX = Math.max(8, Math.min(maxFullX, Math.round(wantX * ratioX)));
+              }
+              if (wantY + win.height + 16 > vh || wantY < 44) {
+                const ratioY = refH > 44 ? (vh - 44) / (refH - 44) : 1;
+                nextY = Math.max(44, Math.min(maxFullY, Math.round(44 + Math.max(0, wantY - 44) * ratioY)));
+              }
+            }
+
+            win.x = nextX;
+            win.y = nextY;
+
+            const altered = win.width < wantW || win.height < wantH || nextX !== wantX || nextY !== wantY;
+            if (altered) {
               win.prefWidth = wantW;
               win.prefHeight = wantH;
+              win.prefX = wantX;
+              win.prefY = wantY;
+              win.prefViewportW = refW;
+              win.prefViewportH = refH;
             } else {
               delete win.prefWidth;
               delete win.prefHeight;
+              delete win.prefX;
+              delete win.prefY;
+              delete win.prefViewportW;
+              delete win.prefViewportH;
             }
-            const minX = 8 - (win.width - 180);
-            const maxX = vw - 180 - 8;
-            win.x = Math.min(Math.max(win.x, minX), Math.max(minX, maxX));
-            win.y = Math.min(Math.max(win.y, 44), Math.max(44, vh - 96));
           }
         }),
 

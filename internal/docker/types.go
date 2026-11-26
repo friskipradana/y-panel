@@ -18,6 +18,7 @@ type Container struct {
 	Ports        []ContainerPort        `json:"Ports"`
 	Networks     []string               `json:"Networks"`
 	IPAddresses  []string               `json:"IpAddresses"`
+	StaticIPs    []string               `json:"StaticIps,omitempty"`
 	Created      int64                  `json:"Created"`
 	Labels       map[string]string      `json:"Labels,omitempty"`
 	ProjectName  string                 `json:"ProjectName,omitempty"`

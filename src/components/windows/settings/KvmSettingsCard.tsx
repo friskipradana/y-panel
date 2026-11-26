@@ -1,25 +1,23 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Download, ExternalLink, Monitor, Play, RefreshCw, ShieldOff, Square, Terminal } from 'lucide-react'
+import { Download, ExternalLink, Monitor, Play, RefreshCw, ShieldOff, Square } from 'lucide-react'
 import { toast } from 'sonner'
 import { getSiteSettings, setSiteSettings, type SiteSettings } from '@/api/system'
 import { getKvmStatus, installKvm, revokeKvmTokens, setKvmResolution, startKvm, stopKvm } from '@/api/kvm'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { Button } from '@/components/ui/Button'
-import { IconButton } from '@/components/ui/IconButton'
 import { TextInput } from '@/components/ui/Field'
 import { Select } from '@/components/ui/Select'
 import { KVM_RESOLUTION_VALUES, launchTokenizedKvmTab } from '../kvmHelpers'
 import { useI18n } from '@/lib/i18n'
 import { useWindowStore } from '@/store/windowStore'
+import { KvmManualCommand } from './KvmManualCommand'
 
 export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolean; active?: boolean } = {}) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const openWindow = useWindowStore((s) => s.openWindow)
-  const [copied, setCopied] = useState(false)
-  const [showManualCmd, setShowManualCmd] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const siteQuery = useQuery({ queryKey: ['settings', 'site'], queryFn: getSiteSettings, retry: 0 })
@@ -124,14 +122,6 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
   const isInstalled = kvmQuery.data?.installed ?? false
   const isAvailable = kvmQuery.data?.available ?? false
   const displayError = actionError || (kvmQuery.error instanceof Error ? kvmQuery.error.message : '')
-
-  const copyCommand = (cmd: string) => {
-    void navigator.clipboard.writeText(cmd)
-    setCopied(true)
-    toast.success(t('kvm.cmdCopied'))
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   const exampleCommand = `x11vnc -display ${kvmDisplay} -rfbport ${kvmPort} -shared -forever`
 
   return (
@@ -367,40 +357,12 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
               </div>
             ) : null}
 
-            {/* ── Manual Command toggle for terminal users ── */}
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={() => setShowManualCmd(!showManualCmd)}
-                className="text-[11px] text-[var(--text-secondary)] hover:text-[var(--win-text)] underline cursor-pointer"
-              >
-                {showManualCmd ? t('kvm.hideManualCmd') : t('kvm.showManualCmd')}
-              </button>
-
-              {showManualCmd ? (
-                <div className="flex flex-col gap-1.5 mt-2 p-2 rounded border border-[var(--win-border)] bg-[var(--panel-surface-strong)]">
-                  <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-[var(--win-text)]">
-                    <span className="truncate select-all">{exampleCommand}</span>
-                    <IconButton
-                      label={t('kvm.copyCmd')}
-                      onClick={() => copyCommand(exampleCommand)}
-                    >
-                      {copied ? <Check className="h-3.5 w-3.5 text-[var(--panel-success-text)]" /> : <Copy className="h-3.5 w-3.5" />}
-                    </IconButton>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon={<Terminal className="h-3 w-3" />}
-                      onClick={() => openWindow('host-terminal')}
-                    >
-                      {t('kvm.openTerminal')}
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
-            </div>
+            {/* Manual command toggle for terminal users */}
+            <KvmManualCommand
+              command={exampleCommand}
+              t={t}
+              onOpenTerminal={() => openWindow('host-terminal')}
+            />
           </div>
         ) : null}
       </div>

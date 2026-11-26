@@ -1,126 +1,38 @@
-import { useState, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  AlertTriangle,
-  Boxes,
-  Check,
-  CheckCircle2,
-  Copy,
-  KeyRound,
-  ReceiptText,
-  RefreshCw,
-  XCircle,
-} from 'lucide-react'
-import { ActionMenu } from '@/components/ui/ActionMenu'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  fetchAppLicenses,
-  renewAppLicense,
-  fetchAppLicensePlans,
-  fetchAppLicenseOrders,
-  fetchAppLicenseOrderDetail,
-  createAppLicenseOrder,
-  payAppLicenseOrder,
-  cancelAppLicenseOrder,
-  fetchAvailableApps,
-  updateAppLicense,
-  deleteAppLicense,
-  deleteAppLicensePlan,
   type AppLicense,
   type AppLicensePlan,
   type AppLicenseOrder,
 } from '@/api/appLicenses'
 import { installedAppWindowParams } from '@/api/appCatalog'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
-import { Modal } from '@/components/ui/Modal'
-import { SearchInput } from '@/components/ui/SearchInput'
 import { Tabs } from '@/components/ui/Tabs'
-import { ListTable, ListRowIcon, ListState } from '@/components/ui/ListTable'
-import { ViewModeToggle, type ViewMode } from '@/components/ui/ViewModeToggle'
+import { type ViewMode } from '@/components/ui/ViewModeToggle'
 import { useAppCatalog } from '@/hooks/useAppCatalog'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useWindowStore } from '@/store/windowStore'
-import { alertLib } from '@/lib/alert'
-import { useI18n } from '@/lib/i18n'
 import { CreateLicenseModal } from './app-licenses/CreateLicenseModal'
 import { EditLicenseModal } from './app-licenses/EditLicenseModal'
 import { CreatePlanModal } from './app-licenses/CreatePlanModal'
 import { EditPlanModal } from './app-licenses/EditPlanModal'
 import { LicenseIntegrationModal } from './app-licenses/LicenseIntegrationModal'
-
-type LicenseTab = 'licenses' | 'plans' | 'invoices'
-
-function indexLabel(index: number): string {
-  return String(index + 1).padStart(2, '0')
-}
-
-function formatFeatureBadge(key: string, value: unknown): string | null {
-  if (value === false || value === null || value === undefined) return null
-  const k = key.toLowerCase()
-  if (k === 'wahasync') return 'Integrasi WAHA'
-  if (k === 'birthdaybot' || k === 'botbirthday' || k === 'birthdayautomation') return 'Bot Ulang Tahun'
-  if (k === 'livechat' || k === 'livechatcrm') return 'Live Chat CRM'
-  if (k === 'multisession') return 'Multi-Sesi WA'
-  if (k === 'maxsessions') return `${Number(value).toLocaleString('id-ID')} Sesi WA`
-  if (k === 'maxsessionidentityswitches') return `Maks ${Number(value).toLocaleString('id-ID')}x Ganti Nomor/Sesi`
-  if (k === 'multiagent') return 'Multi-Agent'
-  if (k === 'maxagents') return `${Number(value).toLocaleString('id-ID')} Agen CS`
-  if (k === 'customroles') return 'Role Kustom Granular'
-  if (k === 'omnichannel') return 'Omnichannel Sosial'
-  if (k === 'maxchannels') {
-    const n = Number(value)
-    return n === 0 ? null : `${n.toLocaleString('id-ID')} Kanal Sosial`
-  }
-  if (k === 'scheduledposts') return 'Jadwal Post & Story WA'
-  if (k === 'autoreply') return 'Auto-Reply & Jam Kerja'
-  if (k === 'aiagent') return 'Agent AI Multi-Model'
-  if (k === 'mcptools') return 'MCP Tool Servers'
-  if (k === 'exportreports') return 'Ekspor CSV'
-  if (k === 'unlimitedcontacts') return value === true ? 'Kontak Tanpa Batas' : null
-  if (k === 'broadcast' || k === 'unlimitedbroadcast') {
-    return value === true ? 'Broadcast WA Tanpa Batas' : 'Broadcast WA Terjadwal'
-  }
-  if (k === 'maxbroadcastpermonth') {
-    const n = Number(value)
-    return n > 0 ? `${n.toLocaleString('id-ID')} Broadcast/bln` : null
-  }
-  if (k === 'maxtemplates') {
-    const n = Number(value)
-    return n > 0 ? `${n.toLocaleString('id-ID')} Template` : null
-  }
-  if (k === 'maxusers') {
-    const n = Number(value)
-    return n > 0 ? `${n.toLocaleString('id-ID')} User/Agent` : null
-  }
-  if (k === 'apiaccess') return 'Akses API'
-  if (k === 'multiuser') return 'Multi-User'
-  if (k === 'fullmodules') return 'Semua Modul'
-  if (k === 'maxcontacts') {
-    const n = Number(value)
-    return n === 0 ? 'Kontak Tanpa Batas' : `${n.toLocaleString('id-ID')} Kontak`
-  }
-  if (k === 'maxstoragemb') {
-    const n = Number(value)
-    if (n <= 0) return null
-    if (n >= 1024 && n % 1024 === 0) return `Storage: ${n / 1024} GB`
-    return `Storage: ${n.toLocaleString('id-ID')} MB`
-  }
-  if (k === 'maxattachmentsizemb') {
-    const n = Number(value)
-    return n > 0 ? `Maks File: ${n} MB` : null
-  }
-  if (k === 'allowedmenus') return null
-  if (k === 'supportpriority') return `Support: ${String(value).toUpperCase()}`
-  if (typeof value === 'boolean') {
-    return key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()).trim()
-  }
-  return `${key}: ${String(value)}`
-}
+import {
+  type LicenseStatusFilter,
+  type LicenseTab,
+} from './app-licenses/tabs/licenseFormatters'
+import { useAppLicensesData } from './app-licenses/tabs/useAppLicensesData'
+import { useAppLicenseMutations } from './app-licenses/tabs/useAppLicenseMutations'
+import { LicensesTab } from './app-licenses/tabs/LicensesTab'
+import { PlansTab } from './app-licenses/tabs/PlansTab'
+import { InvoicesTab } from './app-licenses/tabs/InvoicesTab'
+import { InvoiceDetailModal } from './app-licenses/tabs/InvoiceDetailModal'
+import { RenewLicenseModal } from './app-licenses/tabs/RenewLicenseModal'
 
 export function AppLicensesWindow() {
-  const { t } = useI18n()
   const isMobile = useIsMobileLayout()
   const queryClient = useQueryClient()
   const openWindow = useWindowStore((s) => s.openWindow)
@@ -129,7 +41,7 @@ export function AppLicensesWindow() {
   const [activeTab, setActiveTab] = useState<LicenseTab>('licenses')
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED' | 'EXPIRED'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<LicenseStatusFilter>('ALL')
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   // Modals
@@ -141,208 +53,56 @@ export function AppLicensesWindow() {
   const [editingPlan, setEditingPlan] = useState<AppLicensePlan | null>(null)
   const [integrationModalOpen, setIntegrationModalOpen] = useState(false)
   const [integrationLicense, setIntegrationLicense] = useState<AppLicense | null>(null)
-
   const [renewModalOpen, setRenewModalOpen] = useState(false)
   const [selectedLicense, setSelectedLicense] = useState<AppLicense | null>(null)
-  const [months, setMonths] = useState<number>(1)
-  const [paymentMethod] = useState<'transfer'>('transfer')
-
-  // Invoice & Order modal
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<AppLicenseOrder | null>(null)
 
-  // Queries (reneo-crm)
   const {
-    data: licenses = [],
-    isLoading: licensesLoading,
-    isError: licensesError,
-    isRefetching: licensesRefetching,
-    refetch: refetchLicenses,
-  } = useQuery({
-    queryKey: ['app-licenses'],
-    queryFn: () => fetchAppLicenses(),
-    staleTime: 30_000,
-  })
-
-  const {
-    data: availableApps = [],
-    refetch: refetchApps,
-  } = useQuery({
-    queryKey: ['app-licenses-available-apps'],
-    queryFn: fetchAvailableApps,
-    staleTime: 60_000,
-  })
-
-  const {
-    data: plans = [],
-    isLoading: plansLoading,
-    isError: plansError,
-    refetch: refetchPlans,
-  } = useQuery({
-    queryKey: ['app-license-plans', 'reneo-crm'],
-    queryFn: () => fetchAppLicensePlans('reneo-crm'),
-    staleTime: 60_000,
-  })
+    licenses,
+    licensesLoading,
+    licensesError,
+    licensesRefetching,
+    refetchLicenses,
+    availableApps,
+    refetchApps,
+    plans,
+    plansLoading,
+    plansError,
+    refetchPlans,
+    orders,
+    ordersLoading,
+    ordersError,
+    filteredLicenses,
+    activeCount,
+    suspendedCount,
+    expiredCount,
+    pendingOrdersCount,
+    refetchAll,
+  } = useAppLicensesData(search, statusFilter)
 
   const {
-    data: orders = [],
-    isLoading: ordersLoading,
-    isError: ordersError,
-    refetch: refetchOrders,
-  } = useQuery({
-    queryKey: ['app-license-orders'],
-    queryFn: () => fetchAppLicenseOrders(),
-    staleTime: 15_000,
-  })
-
-  const { data: orderDetail, isLoading: orderDetailLoading } = useQuery({
-    queryKey: ['app-license-order-detail', selectedOrder?.publicId],
-    queryFn: () => fetchAppLicenseOrderDetail(selectedOrder!.publicId),
-    enabled: invoiceModalOpen && !!selectedOrder?.publicId && selectedOrder.status === 'pending',
-    staleTime: 30_000,
-  })
-
-  const activePaymentMethods = useMemo(
-    () => (orderDetail?.paymentMethods ?? []).filter((m) => m.enabled !== false),
-    [orderDetail]
-  )
-
-  // Mutations
-  const deleteLicenseMutation = useMutation({
-    mutationFn: deleteAppLicense,
-    onSuccess: (_data, deletedId) => {
-      toast.success('Lisensi berhasil dihapus.')
-      queryClient.setQueryData<AppLicense[]>(['app-licenses'], (prev) =>
-        (prev || []).filter((item) => item.id !== deletedId),
-      )
-      queryClient.invalidateQueries({ queryKey: ['app-licenses'] })
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || 'Gagal menghapus lisensi.')
-    },
-  })
-
-  const deletePlanMutation = useMutation({
-    mutationFn: deleteAppLicensePlan,
-    onSuccess: () => {
-      toast.success('Paket tarif berhasil dihapus.')
-      queryClient.invalidateQueries({ queryKey: ['app-license-plans'] })
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || 'Gagal menghapus paket tarif.')
-    },
-  })
-
-  const renewMutation = useMutation({
-    mutationFn: renewAppLicense,
-    onSuccess: (data) => {
-      toast.success(
-        t('appLicenses.renewSuccess') ||
-          `Lisensi untuk ${data.appName || selectedLicense?.appName || 'aplikasi'} berhasil diperpanjang!`
-      )
-      queryClient.invalidateQueries({ queryKey: ['app-licenses'] })
-      queryClient.invalidateQueries({ queryKey: ['app-license-orders'] })
-      setRenewModalOpen(false)
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || 'Gagal memperpanjang lisensi.')
-    },
-  })
-
-  const orderMutation = useMutation({
-    mutationFn: createAppLicenseOrder,
-    onSuccess: (data) => {
-      toast.success('Invoice pesanan baru berhasil diterbitkan!')
-      if (data.paymentMethods?.length) {
-        queryClient.setQueryData(['app-license-order-detail', data.order.publicId], {
-          order: data.order,
-          paymentMethods: data.paymentMethods,
-        })
-      }
-      queryClient.invalidateQueries({ queryKey: ['app-license-orders'] })
-      setSelectedOrder(data.order)
+    renewMutation,
+    orderMutation,
+    payMutation,
+    cancelOrderMutation,
+    handleCancelOrder,
+    handleToggleSuspend,
+    handleDeleteLicense,
+    handleDeletePlan,
+    handleOrderPlan,
+  } = useAppLicenseMutations({
+    selectedLicenseAppName: selectedLicense?.appName,
+    onRenewSuccess: () => setRenewModalOpen(false),
+    onOrderCreated: (order) => {
+      setSelectedOrder(order)
       setInvoiceModalOpen(true)
     },
-    onError: (err: Error) => {
-      toast.error(err.message || 'Gagal menerbitkan invoice.')
+    onOrderPaid: (order) => setSelectedOrder(order),
+    onOrderCancelled: (order) => {
+      setSelectedOrder((prev) => (prev?.publicId === order.publicId ? order : prev))
     },
   })
-
-  const payMutation = useMutation({
-    mutationFn: ({ publicId, method }: { publicId: string; method: string }) =>
-      payAppLicenseOrder(publicId, method),
-    onSuccess: (data) => {
-      toast.success(`Pembayaran invoice ${data.invoiceNumber} berhasil! Lisensi langsung aktif.`)
-      queryClient.invalidateQueries({ queryKey: ['app-licenses'] })
-      queryClient.invalidateQueries({ queryKey: ['app-license-orders'] })
-      setSelectedOrder(data)
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || 'Gagal memproses pembayaran.')
-    },
-  })
-
-  const cancelOrderMutation = useMutation({
-    mutationFn: (publicId: string) => cancelAppLicenseOrder(publicId),
-    onSuccess: (data) => {
-      toast.success(`Invoice ${data.invoiceNumber} berhasil dibatalkan.`)
-      queryClient.invalidateQueries({ queryKey: ['app-license-orders'] })
-      if (selectedOrder?.publicId === data.publicId) {
-        setSelectedOrder(data)
-      }
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || 'Gagal membatalkan invoice.')
-    },
-  })
-
-  const handleCancelOrder = async (ord: AppLicenseOrder) => {
-    const ok = await alertLib.confirm(
-      'Batalkan Invoice?',
-      `Invoice ${ord.invoiceNumber} untuk ${ord.appName} (${ord.planName}) akan dibatalkan.`,
-      'Batalkan Invoice',
-      'Kembali',
-      'warning',
-      'app-licenses'
-    )
-    if (ok) {
-      cancelOrderMutation.mutate(ord.publicId)
-    }
-  }
-
-  const suspendMutation = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: 'SUSPENDED' | 'ACTIVE' }) =>
-      updateAppLicense(id, { status }),
-    onSuccess: (updated) => {
-      toast.success(
-        updated.status === 'SUSPENDED'
-          ? `Lisensi ${updated.appName} berhasil disuspend. Aplikasi tidak dapat digunakan.`
-          : `Lisensi ${updated.appName} berhasil diaktifkan kembali.`
-      )
-      queryClient.invalidateQueries({ queryKey: ['app-licenses'] })
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || 'Gagal mengubah status lisensi.')
-    },
-  })
-
-  const handleToggleSuspend = async (lic: AppLicense) => {
-    if (lic.status === 'SUSPENDED') {
-      suspendMutation.mutate({ id: lic.id, status: 'ACTIVE' })
-      return
-    }
-    const ok = await alertLib.confirm(
-      'Suspend Lisensi?',
-      `Lisensi ${lic.appName} (${lic.licenseKey}) akan disuspend sehingga aplikasi tidak dapat digunakan sampai diaktifkan kembali.`,
-      'Suspend',
-      'Batal',
-      'warning',
-      'app-licenses'
-    )
-    if (ok) {
-      suspendMutation.mutate({ id: lic.id, status: 'SUSPENDED' })
-    }
-  }
 
   const handleCopyKey = (key: string) => {
     navigator.clipboard.writeText(key)
@@ -353,36 +113,7 @@ export function AppLicensesWindow() {
 
   const handleOpenRenew = (lic: AppLicense) => {
     setSelectedLicense(lic)
-    setMonths(1)
     setRenewModalOpen(true)
-  }
-
-  const handleDeleteLicense = async (lic: AppLicense) => {
-    const ok = await alertLib.confirm(
-      'Hapus Lisensi?',
-      `Lisensi ${lic.appName} (${lic.licenseKey}) akan dihapus permanen.`,
-      'Hapus',
-      'Batal',
-      'warning',
-      'app-licenses'
-    )
-    if (ok) {
-      deleteLicenseMutation.mutate(lic.id)
-    }
-  }
-
-  const handleDeletePlan = async (plan: AppLicensePlan) => {
-    const ok = await alertLib.confirm(
-      'Hapus Paket?',
-      `Paket "${plan.name}" akan dihapus dari daftar paket lisensi.`,
-      'Hapus',
-      'Batal',
-      'warning',
-      'app-licenses'
-    )
-    if (ok) {
-      deletePlanMutation.mutate(plan.id)
-    }
   }
 
   const handleOpenApp = (lic: AppLicense) => {
@@ -393,95 +124,6 @@ export function AppLicensesWindow() {
     }
     openWindow('app-catalog')
   }
-
-  const handleOrderPlan = (plan: AppLicensePlan) => {
-    orderMutation.mutate({
-      catalogId: plan.catalogId,
-      planSlug: plan.slug,
-      paymentMethod: 'transfer',
-    })
-  }
-
-  const filteredLicenses = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return licenses.filter((lic) => {
-      const isSuspended = lic.status === 'SUSPENDED'
-      const isExpired = !isSuspended && (lic.isExpired || lic.status === 'EXPIRED')
-      if (statusFilter === 'ACTIVE' && (isSuspended || isExpired)) return false
-      if (statusFilter === 'SUSPENDED' && !isSuspended) return false
-      if (statusFilter === 'EXPIRED' && !isExpired) return false
-      if (!q) return true
-      return (
-        lic.appName.toLowerCase().includes(q) ||
-        lic.catalogId.toLowerCase().includes(q) ||
-        lic.licenseKey.toLowerCase().includes(q) ||
-        lic.planName.toLowerCase().includes(q)
-      )
-    })
-  }, [licenses, search, statusFilter])
-
-  const activeCount = useMemo(
-    () => licenses.filter((l) => !l.isExpired && l.status !== 'EXPIRED' && l.status !== 'SUSPENDED').length,
-    [licenses]
-  )
-  const suspendedCount = useMemo(
-    () => licenses.filter((l) => l.status === 'SUSPENDED').length,
-    [licenses]
-  )
-  const expiredCount = useMemo(
-    () => licenses.filter((l) => l.status !== 'SUSPENDED' && (l.isExpired || l.status === 'EXPIRED')).length,
-    [licenses]
-  )
-  const pendingOrdersCount = useMemo(
-    () => orders.filter((o) => o.status === 'pending').length,
-    [orders]
-  )
-
-  const pricingOptions = useMemo(() => {
-    const basePrice = selectedLicense?.priceAmount || 99000
-    return [
-      {
-        months: 1,
-        label: '1 Bulan',
-        period: 'monthly',
-        price: basePrice,
-        desc: 'Paket Standar Bulanan',
-        savings: null,
-      },
-      {
-        months: 3,
-        label: '3 Bulan',
-        period: 'quarterly',
-        price: Math.round(basePrice * 3 * 0.94),
-        desc: 'Rp 93.000 / bln',
-        savings: 'Hemat 6%',
-      },
-      {
-        months: 12,
-        label: '12 Bulan (1 Tahun)',
-        period: 'annual',
-        price: Math.round(basePrice * 10),
-        desc: 'Rp 82.500 / bln',
-        savings: 'Hemat 17% (Paling Populer)',
-      },
-    ]
-  }, [selectedLicense])
-
-  const selectedPricing = pricingOptions.find((p) => p.months === months) || pricingOptions[0]
-
-  const calculatedNewExpiry = useMemo(() => {
-    if (!selectedLicense) return ''
-    const currentExp = new Date(selectedLicense.expiresAt)
-    const now = new Date()
-    const baseDate = currentExp > now ? currentExp : now
-    const newExp = new Date(baseDate)
-    newExp.setMonth(newExp.getMonth() + months)
-    return newExp.toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    })
-  }, [selectedLicense, months])
 
   return (
     <div className="flex flex-col h-full w-full bg-[var(--win-bg)] text-[var(--win-text)] overflow-hidden">
@@ -523,12 +165,7 @@ export function AppLicensesWindow() {
             size="md"
             variant="outline"
             loading={licensesRefetching}
-            onClick={() => {
-              refetchLicenses()
-              refetchApps()
-              refetchPlans()
-              refetchOrders()
-            }}
+            onClick={refetchAll}
           >
             <RefreshCw size={14} className={licensesRefetching ? 'animate-spin' : ''} />
           </IconButton>
@@ -537,1257 +174,99 @@ export function AppLicensesWindow() {
 
       {/* Tab 1: Licenses */}
       {activeTab === 'licenses' && (
-        <div className="flex-1 flex flex-col min-h-0 p-3 sm:p-4 space-y-3 overflow-hidden">
-          {/* Subheader Filter Bar */}
-          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2.5 shrink-0">
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder={t('appLicenses.searchPlaceholder')}
-              className="w-full sm:w-64"
-            />
-
-            <div className="flex flex-wrap items-center justify-between gap-2 w-full sm:w-auto min-w-0">
-              <Tabs
-                variant="segmented"
-                label="Filter Status Lisensi"
-                value={statusFilter}
-                onChange={setStatusFilter}
-                items={[
-                  { key: 'ALL', label: `Semua (${licenses.length})` },
-                  { key: 'ACTIVE', label: `Aktif (${activeCount})` },
-                  { key: 'SUSPENDED', label: `Disuspend (${suspendedCount})` },
-                  { key: 'EXPIRED', label: `Kedaluwarsa (${expiredCount})` },
-                ]}
-              />
-
-              <div className="flex items-center gap-2 ml-auto shrink-0">
-                <ViewModeToggle mode={viewMode} onChange={setViewMode} isMobile={isMobile} />
-
-                <Button
-                  variant="primary"
-                  onClick={() => setCreateLicenseModalOpen(true)}
-                >
-                  Buat Lisensi
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Licenses Content (Card vs List) */}
-          {viewMode === 'grid' ? (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <ListState
-                loading={licensesLoading}
-                error={licensesError}
-                errorTitle="Gagal memuat lisensi"
-                errorHint="Periksa koneksi database atau coba segarkan kembali."
-                loadingText="Memuat lisensi aplikasi..."
-                empty={filteredLicenses.length === 0}
-                emptyIcon={<KeyRound size={28} />}
-                emptyTitle="Belum ada lisensi aplikasi"
-                emptyHint="Pilih paket pada tab 'Paket & Tarif' untuk membuat lisensi Reneo CRM."
-              >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pb-4">
-                  {filteredLicenses.map((lic) => {
-                    const isSuspended = lic.status === 'SUSPENDED'
-                    const isExpired = !isSuspended && (lic.isExpired || lic.status === 'EXPIRED')
-                    const isLocked = isSuspended || isExpired
-                    const progressPct = Math.min(100, Math.max(0, (lic.daysLeft / 30) * 100))
-
-                    return (
-                      <div
-                        key={lic.id}
-                        className={`rounded-lg border p-4 flex flex-col justify-between transition-colors bg-[var(--panel-surface)] gap-3 ${
-                          isLocked
-                            ? 'border-[var(--panel-danger-text)]/35'
-                            : 'border-[var(--win-border)] hover:border-[var(--panel-primary-text)]/40'
-                        }`}
-                      >
-                        <div className="space-y-3">
-                          {/* Header Identity */}
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <h3 className="text-sm font-bold text-[var(--win-text)] truncate">
-                                  {lic.appName}
-                                </h3>
-                                {lic.catalogId && lic.catalogId !== lic.appName ? (
-                                  <span className="text-[10px] font-mono text-[var(--text-secondary)] shrink-0">
-                                    {lic.catalogId}
-                                  </span>
-                                ) : null}
-                              </div>
-                              <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-                                Paket: <span className="font-medium text-[var(--win-text)]">{lic.planName}</span>
-                              </div>
-                            </div>
-
-                            <div className="shrink-0">
-                              {isSuspended ? (
-                                <Badge tone="danger" dot size="sm">
-                                  Disuspend
-                                </Badge>
-                              ) : isExpired ? (
-                                <Badge tone="danger" dot size="sm">
-                                  Kedaluwarsa
-                                </Badge>
-                              ) : lic.status === 'TRIAL' ? (
-                                <Badge tone="warning" dot size="sm">
-                                  Trial ({lic.daysLeft}h)
-                                </Badge>
-                              ) : (
-                                <Badge tone="success" dot size="sm">
-                                  Aktif ({lic.daysLeft}h)
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Key Bar */}
-                          <div className="px-2.5 py-2 rounded-lg bg-[var(--win-bg)] border border-[var(--win-border)] flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-[11px] text-[var(--text-secondary)] shrink-0">
-                                Key:
-                              </span>
-                              <span className="font-mono text-xs font-semibold text-[var(--panel-primary-text)] truncate">
-                                {lic.licenseKey}
-                              </span>
-                            </div>
-                            <IconButton
-                              label="Salin Key"
-                              size="sm"
-                              onClick={() => handleCopyKey(lic.licenseKey)}
-                              className="shrink-0"
-                            >
-                              {copiedKey === lic.licenseKey ? (
-                                <Check size={13} className="text-[var(--panel-success-text)]" />
-                              ) : (
-                                <Copy size={13} />
-                              )}
-                            </IconButton>
-                          </div>
-
-                          {/* Meta Details */}
-                          <div className="grid grid-cols-2 gap-3 text-xs pt-0.5">
-                            <div className="space-y-0.5">
-                              <span className="text-[11px] text-[var(--text-secondary)]">Tarif Langganan</span>
-                              <div className="font-semibold text-sm text-[var(--win-text)] tabular-nums">
-                                Rp {lic.priceAmount?.toLocaleString('id-ID')}
-                                <span className="text-[11px] font-normal text-[var(--text-secondary)]">
-                                  {' '}
-                                  / {lic.period === 'annual' ? 'tahun' : 'bulan'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="space-y-0.5">
-                              <span className="text-[11px] text-[var(--text-secondary)]">Masa Berlaku</span>
-                              <div className="font-medium text-xs text-[var(--win-text)]">
-                                Hingga{' '}
-                                {new Date(lic.expiresAt).toLocaleDateString('id-ID', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric',
-                                })}
-                              </div>
-                              <div className="w-full bg-[var(--win-bg)] border border-[var(--win-border)] rounded-full h-1.5 mt-1 overflow-hidden">
-                                <div
-                                  className={`h-full ${
-                                    isExpired
-                                      ? 'bg-[var(--panel-danger-text)]'
-                                      : lic.daysLeft < 7
-                                        ? 'bg-[var(--panel-warning-text)]'
-                                        : 'bg-[var(--panel-success-text)]'
-                                  }`}
-                                  style={{ width: `${progressPct}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Features */}
-                          <div className="space-y-0.5 pt-0.5">
-                            <span className="text-[11px] text-[var(--text-secondary)]">Fitur Terkoneksi</span>
-                            <p className="text-[11.5px] leading-relaxed text-[var(--win-text)]">
-                              {(() => {
-                                const labels = lic.features
-                                  ? Object.entries(lic.features)
-                                      .map(([k, v]) => formatFeatureBadge(k, v))
-                                      .filter((x): x is string => Boolean(x))
-                                  : []
-                                return labels.length > 0 ? labels.join(' · ') : 'Fitur Standar'
-                              })()}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Card Actions Footer */}
-                        <div className="pt-2 border-t border-[var(--win-border)] flex items-center justify-between gap-2">
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            onClick={() => handleOpenRenew(lic)}
-                          >
-                            Perpanjang
-                          </Button>
-
-                          <div className="flex items-center gap-1.5">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenApp(lic)}
-                            >
-                              Buka
-                            </Button>
-                            <ActionMenu
-                              label={t('common.moreActions')}
-                              size="sm"
-                              variant="outline"
-                              items={[
-                                {
-                                  key: 'api',
-                                  label: 'Integrasi API',
-                                  onSelect: () => {
-                                    setIntegrationLicense(lic)
-                                    setIntegrationModalOpen(true)
-                                  },
-                                },
-                                {
-                                  key: 'toggle-suspend',
-                                  label: isSuspended ? 'Aktifkan Lisensi' : 'Suspend Lisensi',
-                                  tone: isSuspended ? 'primary' : 'warning',
-                                  onSelect: () => void handleToggleSuspend(lic),
-                                },
-                                {
-                                  key: 'edit',
-                                  label: 'Edit Lisensi',
-                                  dividerBefore: true,
-                                  onSelect: () => {
-                                    setEditingLicense(lic)
-                                    setEditModalOpen(true)
-                                  },
-                                },
-                                {
-                                  key: 'delete',
-                                  label: 'Hapus Lisensi',
-                                  tone: 'danger',
-                                  onSelect: () => void handleDeleteLicense(lic),
-                                },
-                              ]}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </ListState>
-            </div>
-          ) : (
-            <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col">
-              <ListTable
-                variant="app-licenses"
-                empty={licensesLoading || licensesError || filteredLicenses.length === 0}
-                columns={[
-                  { label: '#' },
-                  { label: 'Aplikasi & Paket' },
-                  { label: 'License Key' },
-                  { label: 'Tarif' },
-                  { label: 'Masa Berlaku' },
-                  { label: 'Fitur Terkoneksi' },
-                  { label: 'Aksi', actions: true },
-                ]}
-              >
-                <ListState
-                  loading={licensesLoading}
-                  error={licensesError}
-                  errorTitle="Gagal memuat lisensi"
-                  errorHint="Periksa koneksi database atau coba segarkan kembali."
-                  loadingText="Memuat lisensi aplikasi..."
-                  empty={filteredLicenses.length === 0}
-                  emptyIcon={<KeyRound size={28} />}
-                  emptyTitle="Belum ada lisensi aplikasi"
-                  emptyHint="Pilih paket pada tab 'Paket & Tarif' untuk membuat lisensi Reneo CRM."
-                >
-                  {filteredLicenses.map((lic, index) => {
-                    const isExpired = lic.isExpired || lic.status === 'EXPIRED'
-                    return (
-                      <div className="docker-row" key={lic.id}>
-                        <div className="docker-row__num">{indexLabel(index)}</div>
-
-                        <div className="docker-row__app">
-                          <ListRowIcon>
-                            <KeyRound className="h-3.5 w-3.5 text-[var(--panel-primary-text)]" />
-                          </ListRowIcon>
-                          <div className="docker-row__text">
-                            <span className="docker-app-name" title={lic.appName}>
-                              {lic.appName}
-                            </span>
-                            <span className="docker-row__sub">
-                              {lic.planName} · <span className="font-mono">{lic.catalogId}</span>
-                            </span>
-                            <span className="docker-row__meta">
-                              {`${lic.licenseKey} · Rp ${lic.priceAmount?.toLocaleString('id-ID')}/${lic.period === 'annual' ? 'thn' : 'bln'}`}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="docker-cell docker-cell--mono">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-[var(--panel-primary-text)]">
-                              {lic.licenseKey}
-                            </span>
-                            <IconButton
-                              label="Salin License Key"
-                              size="sm"
-                              onClick={() => handleCopyKey(lic.licenseKey)}
-                            >
-                              {copiedKey === lic.licenseKey ? (
-                                <Check size={12} className="text-[var(--panel-success-text)]" />
-                              ) : (
-                                <Copy size={12} />
-                              )}
-                            </IconButton>
-                          </div>
-                        </div>
-
-                        <div className="docker-cell docker-cell--mono font-semibold">
-                          Rp {lic.priceAmount?.toLocaleString('id-ID')}
-                          <span className="text-[10px] font-normal text-[var(--text-secondary)]">
-                            {' '}
-                            / {lic.period === 'annual' ? 'thn' : 'bln'}
-                          </span>
-                        </div>
-
-                        <div className="docker-cell docker-cell--keep space-y-1">
-                          <div className="text-[11px] font-medium text-[var(--win-text)] hidden sm:block">
-                            {new Date(lic.expiresAt).toLocaleDateString('id-ID', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </div>
-                          <div>
-                            {lic.status === 'SUSPENDED' ? (
-                              <Badge tone="danger" dot size="sm">
-                                Disuspend
-                              </Badge>
-                            ) : isExpired ? (
-                              <Badge tone="danger" dot size="sm">
-                                Kedaluwarsa
-                              </Badge>
-                            ) : lic.status === 'TRIAL' ? (
-                              <Badge tone="warning" dot size="sm">
-                                Trial ({lic.daysLeft}h)
-                              </Badge>
-                            ) : (
-                              <Badge tone="success" dot size="sm">
-                                Aktif ({lic.daysLeft}h)
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="docker-cell">
-                          <span className="text-[11.5px] text-[var(--text-secondary)] truncate">
-                            {(() => {
-                              const labels = lic.features
-                                ? Object.entries(lic.features)
-                                    .map(([k, v]) => formatFeatureBadge(k, v))
-                                    .filter((x): x is string => Boolean(x))
-                                : []
-                              return labels.length > 0 ? labels.join(' · ') : '-'
-                            })()}
-                          </span>
-                        </div>
-
-                        <div className="docker-action-btns">
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            onClick={() => handleOpenRenew(lic)}
-                          >
-                            Perpanjang
-                          </Button>
-                          <ActionMenu
-                            label={t('common.moreActions')}
-                            size="sm"
-                            variant="outline"
-                            items={[
-                              {
-                                key: 'open',
-                                label: 'Buka Aplikasi',
-                                onSelect: () => handleOpenApp(lic),
-                              },
-                              {
-                                key: 'api',
-                                label: 'Integrasi API',
-                                onSelect: () => {
-                                  setIntegrationLicense(lic)
-                                  setIntegrationModalOpen(true)
-                                },
-                              },
-                              {
-                                key: 'toggle-suspend',
-                                label: lic.status === 'SUSPENDED' ? 'Aktifkan Lisensi' : 'Suspend Lisensi',
-                                tone: lic.status === 'SUSPENDED' ? 'primary' : 'warning',
-                                onSelect: () => void handleToggleSuspend(lic),
-                              },
-                              {
-                                key: 'edit',
-                                label: 'Edit Lisensi',
-                                dividerBefore: true,
-                                onSelect: () => {
-                                  setEditingLicense(lic)
-                                  setEditModalOpen(true)
-                                },
-                              },
-                              {
-                                key: 'delete',
-                                label: 'Hapus Lisensi',
-                                tone: 'danger',
-                                onSelect: () => void handleDeleteLicense(lic),
-                              },
-                            ]}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </ListState>
-              </ListTable>
-            </div>
-          )}
-        </div>
+        <LicensesTab
+          totalLicensesCount={licenses.length}
+          filteredLicenses={filteredLicenses}
+          activeCount={activeCount}
+          suspendedCount={suspendedCount}
+          expiredCount={expiredCount}
+          loading={licensesLoading}
+          error={licensesError}
+          search={search}
+          onSearchChange={setSearch}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          isMobile={isMobile}
+          copiedKey={copiedKey}
+          onCreateLicense={() => setCreateLicenseModalOpen(true)}
+          onCopyKey={handleCopyKey}
+          onRenew={handleOpenRenew}
+          onOpenApp={handleOpenApp}
+          onOpenIntegration={(lic) => {
+            setIntegrationLicense(lic)
+            setIntegrationModalOpen(true)
+          }}
+          onToggleSuspend={(lic) => void handleToggleSuspend(lic)}
+          onEdit={(lic) => {
+            setEditingLicense(lic)
+            setEditModalOpen(true)
+          }}
+          onDelete={(lic) => void handleDeleteLicense(lic)}
+        />
       )}
 
       {/* Tab 2: Plans & Pricing (Reneo CRM Services) */}
       {activeTab === 'plans' && (
-        <div className="flex-1 flex flex-col min-h-0 p-3 sm:p-4 space-y-3 overflow-hidden">
-          {/* Subheader bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2.5 shrink-0">
-            <div className="min-w-0">
-              <div className="flex items-center flex-wrap gap-2">
-                <h3 className="text-sm font-semibold text-[var(--win-text)]">
-                  Paket Langganan Reneo CRM Services
-                </h3>
-                <span className="text-[10px] font-mono text-[var(--text-secondary)]">
-                  reneo-crm
-                </span>
-              </div>
-              <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                Tarif resmi lisensi untuk integrasi WAHA, bot WhatsApp, dan kapasitas kontak CRM.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 ml-auto shrink-0">
-              <ViewModeToggle mode={viewMode} onChange={setViewMode} isMobile={isMobile} />
-              <Button
-                variant="primary"
-                onClick={() => setCreatePlanModalOpen(true)}
-              >
-                Tambah Paket Tarif
-              </Button>
-            </div>
-          </div>
-
-          {/* Plans Content (Card vs List) */}
-          {viewMode === 'grid' ? (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <ListState
-                loading={plansLoading}
-                error={plansError}
-                errorTitle="Gagal memuat paket tarif"
-                errorHint="Periksa koneksi database atau coba segarkan kembali."
-                loadingText="Memuat paket langganan aplikasi..."
-                empty={plans.length === 0}
-                emptyIcon={<Boxes size={28} />}
-                emptyTitle="Belum ada paket tarif"
-                emptyHint="Klik tombol 'Tambah Paket Tarif' untuk mendaftarkan tier harga baru."
-              >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4">
-                  {plans.map((p) => (
-                    <div
-                      key={p.id}
-                      className={`rounded-lg border p-4 flex flex-col justify-between transition-colors bg-[var(--panel-surface)] ${
-                        p.highlighted
-                          ? 'border-[var(--panel-primary-text)]/50 ring-1 ring-[var(--panel-primary-text)]/20'
-                          : 'border-[var(--win-border)] hover:border-[var(--panel-primary-text)]/40'
-                      }`}
-                    >
-                      <div className="space-y-3">
-                        {/* Header */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] block mb-0.5">
-                              {p.period === 'annual' ? 'Paket Tahunan' : 'Paket Bulanan'}
-                            </span>
-                            <h4 className="text-base font-bold text-[var(--win-text)]">{p.name}</h4>
-                          </div>
-                          {p.highlighted && (
-                            <Badge tone="primary" size="sm">
-                              Paling Populer
-                            </Badge>
-                          )}
-                        </div>
-
-                        <p className="text-xs text-[var(--text-secondary)] leading-relaxed min-h-[36px]">
-                          {p.tagline}
-                        </p>
-
-                        <div className="pt-1 space-y-1">
-                          {Number(p.originalPriceAmount || 0) > p.priceAmount && (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="line-through text-xs text-[var(--text-secondary)] tabular-nums">
-                                Rp {Number(p.originalPriceAmount).toLocaleString('id-ID')}
-                              </span>
-                              <Badge tone="danger" size="sm">
-                                Hemat{' '}
-                                {p.discountPercent && p.discountPercent > 0
-                                  ? p.discountPercent
-                                  : Math.round(((Number(p.originalPriceAmount) - p.priceAmount) / Number(p.originalPriceAmount)) * 100)}
-                                %
-                              </Badge>
-                            </div>
-                          )}
-                          <div className="text-xl font-bold text-[var(--panel-primary-text)] tabular-nums">
-                            Rp {p.priceAmount.toLocaleString('id-ID')}
-                            <span className="text-xs font-normal text-[var(--text-secondary)]">
-                              {' '}
-                              / {p.period === 'annual' ? 'tahun' : 'bulan'}
-                            </span>
-                          </div>
-                          {p.promoValidUntil && (
-                            <div className="text-[11px] text-[var(--text-secondary)]">
-                              Promo s/d {p.promoValidUntil}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Feature list */}
-                        <ul className="border-t border-[var(--win-border)] pt-3 space-y-1.5 text-xs">
-                          {p.features && Object.keys(p.features).length > 0 ? (
-                            Object.entries(p.features).map(([k, v]) => {
-                              const label = formatFeatureBadge(k, v)
-                              if (!label) return null
-                              return (
-                                <li key={k} className="text-[var(--win-text)]">
-                                  · {label}
-                                </li>
-                              )
-                            })
-                          ) : (
-                            <li className="text-[11px] text-[var(--text-secondary)]">Fitur Standar</li>
-                          )}
-                        </ul>
-                      </div>
-
-                      <div className="pt-4 mt-3 border-t border-[var(--win-border)] flex items-center justify-between gap-2">
-                        <Button
-                          size="sm"
-                          variant={p.highlighted ? 'primary' : 'outline'}
-                          block
-                          loading={orderMutation.isPending}
-                          onClick={() => handleOrderPlan(p)}
-                          className="flex-1"
-                        >
-                          Pesan &amp; Invoice
-                        </Button>
-                        <ActionMenu
-                          label={t('common.moreActions')}
-                          size="sm"
-                          variant="outline"
-                          items={[
-                            {
-                              key: 'edit',
-                              label: 'Edit Paket',
-                              onSelect: () => {
-                                setEditingPlan(p)
-                                setEditPlanModalOpen(true)
-                              },
-                            },
-                            {
-                              key: 'delete',
-                              label: 'Hapus Paket',
-                              tone: 'danger',
-                              onSelect: () => void handleDeletePlan(p),
-                            },
-                          ]}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ListState>
-            </div>
-          ) : (
-            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col">
-              <ListTable
-                variant="app-plans"
-                empty={plansLoading || plansError || plans.length === 0}
-                columns={[
-                  { label: '#' },
-                  { label: 'Nama Paket' },
-                  { label: 'Tarif' },
-                  { label: 'Durasi' },
-                  { label: 'Fitur & Kuota' },
-                  { label: 'Status' },
-                  { label: 'Aksi', actions: true },
-                ]}
-              >
-                <ListState
-                  loading={plansLoading}
-                  error={plansError}
-                  errorTitle="Gagal memuat paket tarif"
-                  errorHint="Periksa koneksi database atau coba segarkan kembali."
-                  loadingText="Memuat paket langganan aplikasi..."
-                  empty={plans.length === 0}
-                  emptyIcon={<Boxes size={28} />}
-                  emptyTitle="Belum ada paket tarif"
-                  emptyHint="Klik tombol 'Tambah Paket Tarif' untuk mendaftarkan tier harga baru."
-                >
-                  {plans.map((p, index) => (
-                    <div className="docker-row" key={p.id}>
-                      <div className="docker-row__num">{indexLabel(index)}</div>
-
-                      <div className="docker-row__app">
-                        <ListRowIcon>
-                          <Boxes className="h-3.5 w-3.5 text-[var(--panel-primary-text)]" />
-                        </ListRowIcon>
-                        <div className="docker-row__text">
-                          <span className="docker-app-name" title={p.name}>
-                            {p.name}
-                            {p.highlighted && (
-                              <Badge tone="primary" size="sm" className="ml-1.5">
-                                Paling Populer
-                              </Badge>
-                            )}
-                          </span>
-                          <span className="docker-row__sub" title={p.tagline}>
-                            {p.tagline || p.slug}
-                          </span>
-                          <span className="docker-row__meta">
-                            {`Rp ${p.priceAmount.toLocaleString('id-ID')} / ${p.period === 'annual' ? 'thn' : 'bln'} · ${p.period === 'annual' ? '12 Bln' : `${p.months || 1} Bln`}`}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="docker-cell docker-cell--mono font-semibold">
-                        <div className="flex flex-col">
-                          {Number(p.originalPriceAmount || 0) > p.priceAmount && (
-                            <span className="line-through text-[10px] font-normal text-[var(--text-secondary)]">
-                              Rp {Number(p.originalPriceAmount).toLocaleString('id-ID')}
-                            </span>
-                          )}
-                          <span>
-                            Rp {p.priceAmount.toLocaleString('id-ID')}
-                            <span className="text-[10px] font-normal text-[var(--text-secondary)]">
-                              {' '}
-                              / {p.period === 'annual' ? 'thn' : 'bln'}
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="docker-cell text-xs">
-                        {p.period === 'annual' ? '12 Bulan (Tahunan)' : `${p.months || 1} Bulan`}
-                      </div>
-
-                      <div className="docker-cell">
-                        <span className="text-[11.5px] text-[var(--text-secondary)] truncate">
-                          {(() => {
-                            const labels = p.features
-                              ? Object.entries(p.features)
-                                  .map(([k, v]) => formatFeatureBadge(k, v))
-                                  .filter((x): x is string => Boolean(x))
-                              : []
-                            return labels.length > 0 ? labels.join(' · ') : 'Fitur Standar'
-                          })()}
-                        </span>
-                      </div>
-
-                      <div className="docker-cell--keep">
-                        <Badge tone="success" dot size="sm">
-                          Tersedia
-                        </Badge>
-                      </div>
-
-                      <div className="docker-action-btns">
-                        <Button
-                          size="sm"
-                          variant={p.highlighted ? 'primary' : 'outline'}
-                          loading={orderMutation.isPending}
-                          onClick={() => handleOrderPlan(p)}
-                        >
-                          Pesan &amp; Invoice
-                        </Button>
-                        <ActionMenu
-                          label={t('common.moreActions')}
-                          size="sm"
-                          variant="outline"
-                          items={[
-                            {
-                              key: 'edit',
-                              label: 'Edit Paket',
-                              onSelect: () => {
-                                setEditingPlan(p)
-                                setEditPlanModalOpen(true)
-                              },
-                            },
-                            {
-                              key: 'delete',
-                              label: 'Hapus Paket',
-                              tone: 'danger',
-                              onSelect: () => void handleDeletePlan(p),
-                            },
-                          ]}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </ListState>
-              </ListTable>
-            </div>
-          )}
-        </div>
+        <PlansTab
+          plans={plans}
+          loading={plansLoading}
+          error={plansError}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          isMobile={isMobile}
+          orderPending={orderMutation.isPending}
+          onCreatePlan={() => setCreatePlanModalOpen(true)}
+          onOrderPlan={handleOrderPlan}
+          onEditPlan={(plan) => {
+            setEditingPlan(plan)
+            setEditPlanModalOpen(true)
+          }}
+          onDeletePlan={(plan) => void handleDeletePlan(plan)}
+        />
       )}
 
       {/* Tab 3: Riwayat Invoice */}
       {activeTab === 'invoices' && (
-        <div className="flex-1 flex flex-col min-h-0 p-3 sm:p-4 space-y-3 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2.5 shrink-0">
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--win-text)]">
-                Daftar Tagihan & Invoice Lisensi
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Semua invoice pesanan lisensi aplikasi yang diterbitkan untuk akun ini.
-              </p>
-            </div>
-
-            <div className="ml-auto shrink-0">
-              <ViewModeToggle mode={viewMode} onChange={setViewMode} isMobile={isMobile} />
-            </div>
-          </div>
-
-          {/* Invoices Content (Card vs List) */}
-          {viewMode === 'grid' ? (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <ListState
-                loading={ordersLoading}
-                error={ordersError}
-                errorTitle="Gagal memuat invoice"
-                errorHint="Periksa koneksi database atau coba segarkan kembali."
-                loadingText="Memuat riwayat invoice..."
-                empty={orders.length === 0}
-                emptyIcon={<ReceiptText size={28} />}
-                emptyTitle="Belum ada invoice yang diterbitkan"
-                emptyHint="Pilih paket pada tab 'Paket & Tarif' untuk menerbitkan pesanan pertama."
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pb-4">
-                  {orders.map((ord) => {
-                    const isPaid = ord.status === 'paid'
-                    const isCancelled = ord.status === 'cancelled'
-                    const isPending = ord.status === 'pending'
-                    return (
-                      <div
-                        key={ord.id}
-                        className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] hover:border-[var(--panel-primary-text)]/40 transition-colors p-4 flex flex-col justify-between gap-3"
-                      >
-                        <div className="space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <span className="font-mono text-xs font-bold text-[var(--win-text)] block">
-                                {ord.invoiceNumber}
-                              </span>
-                              <span className="text-[11px] text-[var(--text-secondary)]">
-                                {ord.buyerName || 'Pelanggan'} · {ord.paymentMethod?.toUpperCase()}
-                              </span>
-                            </div>
-                            {isPaid ? (
-                              <Badge tone="success" dot size="sm">
-                                Lunas
-                              </Badge>
-                            ) : isCancelled ? (
-                              <Badge tone="neutral" dot size="sm">
-                                Dibatalkan
-                              </Badge>
-                            ) : (
-                              <Badge tone="warning" dot size="sm">
-                                Menunggu Bayar
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="text-xs text-[var(--win-text)]">
-                            <span className="font-semibold">{ord.appName}</span> - {ord.planName} ({ord.months} Bulan)
-                          </div>
-
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-[11px] text-[var(--text-secondary)]">Total Tagihan:</span>
-                            <span className="font-mono text-sm font-bold text-[var(--win-text)]">
-                              Rp {ord.amountTotal.toLocaleString('id-ID')}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="pt-2 border-t border-[var(--win-border)] flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-[var(--text-secondary)]">
-                            {new Date(ord.createdAt).toLocaleDateString('id-ID', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            {isPending && (
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                onClick={() => {
-                                  setSelectedOrder(ord)
-                                  setInvoiceModalOpen(true)
-                                }}
-                              >
-                                Bayar
-                              </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedOrder(ord)
-                                setInvoiceModalOpen(true)
-                              }}
-                            >
-                              Invoice
-                            </Button>
-                            {isPending && (
-                              <ActionMenu
-                                label={t('common.moreActions')}
-                                size="sm"
-                                variant="outline"
-                                items={[
-                                  {
-                                    key: 'cancel',
-                                    label: 'Batalkan Invoice',
-                                    tone: 'danger',
-                                    onSelect: () => void handleCancelOrder(ord),
-                                  },
-                                ]}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </ListState>
-            </div>
-          ) : (
-            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col">
-              <ListTable
-                variant="app-orders"
-                empty={ordersLoading || ordersError || orders.length === 0}
-                columns={[
-                  { label: '#' },
-                  { label: 'Nomor Invoice' },
-                  { label: 'Paket Aplikasi' },
-                  { label: 'Total Tagihan' },
-                  { label: 'Status' },
-                  { label: 'Waktu Terbit' },
-                  { label: 'Aksi', actions: true },
-                ]}
-              >
-                <ListState
-                  loading={ordersLoading}
-                  error={ordersError}
-                  errorTitle="Gagal memuat invoice"
-                  errorHint="Periksa koneksi database atau coba segarkan kembali."
-                  loadingText="Memuat riwayat invoice..."
-                  empty={orders.length === 0}
-                  emptyIcon={<ReceiptText size={28} />}
-                  emptyTitle="Belum ada invoice yang diterbitkan"
-                  emptyHint="Pilih paket pada tab 'Paket & Tarif' untuk menerbitkan pesanan pertama."
-                >
-                  {orders.map((ord, index) => {
-                    const isPaid = ord.status === 'paid'
-                    const isCancelled = ord.status === 'cancelled'
-                    const isPending = ord.status === 'pending'
-                    return (
-                      <div className="docker-row" key={ord.id}>
-                        <div className="docker-row__num">{indexLabel(index)}</div>
-
-                        <div className="docker-row__app">
-                          <ListRowIcon>
-                            <ReceiptText className="h-3.5 w-3.5 text-[var(--panel-primary-text)]" />
-                          </ListRowIcon>
-                          <div className="docker-row__text">
-                            <span className="docker-app-name docker-app-name--mono">
-                              {ord.invoiceNumber}
-                            </span>
-                            <span className="docker-row__sub">
-                              {ord.buyerName || 'Pelanggan'} · {ord.paymentMethod?.toUpperCase()}
-                            </span>
-                            <span className="docker-row__meta">
-                              {`${ord.planName} (${ord.months} Bln) · Rp ${ord.amountTotal.toLocaleString('id-ID')}`}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="docker-cell text-xs">
-                          <span className="font-medium text-[var(--win-text)]">{ord.planName}</span>
-                          <span className="text-[11px] text-[var(--text-secondary)] block">
-                            ({ord.months} Bulan)
-                          </span>
-                        </div>
-
-                        <div className="docker-cell docker-cell--mono font-semibold text-[var(--win-text)]">
-                          Rp {ord.amountTotal.toLocaleString('id-ID')}
-                        </div>
-
-                        <div className="docker-cell--keep">
-                          {isPaid ? (
-                            <Badge tone="success" dot size="sm">
-                              Lunas
-                            </Badge>
-                          ) : isCancelled ? (
-                            <Badge tone="neutral" dot size="sm">
-                              Dibatalkan
-                            </Badge>
-                          ) : (
-                            <Badge tone="warning" dot size="sm">
-                              Menunggu Bayar
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="docker-cell text-[11px] text-[var(--text-secondary)]">
-                          {new Date(ord.createdAt).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </div>
-
-                        <div className="docker-action-btns">
-                          {isPending && (
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={() => {
-                                setSelectedOrder(ord)
-                                setInvoiceModalOpen(true)
-                              }}
-                            >
-                              Bayar
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedOrder(ord)
-                              setInvoiceModalOpen(true)
-                            }}
-                          >
-                            Invoice
-                          </Button>
-                          {isPending && (
-                            <ActionMenu
-                              label={t('common.moreActions')}
-                              size="sm"
-                              variant="outline"
-                              items={[
-                                {
-                                  key: 'cancel',
-                                  label: 'Batalkan Invoice',
-                                  tone: 'danger',
-                                  onSelect: () => void handleCancelOrder(ord),
-                                },
-                              ]}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </ListState>
-              </ListTable>
-            </div>
-          )}
-        </div>
+        <InvoicesTab
+          orders={orders}
+          loading={ordersLoading}
+          error={ordersError}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          isMobile={isMobile}
+          onSelectOrder={(ord) => {
+            setSelectedOrder(ord)
+            setInvoiceModalOpen(true)
+          }}
+          onCancelOrder={(ord) => void handleCancelOrder(ord)}
+        />
       )}
 
       {/* Invoice Details & Payment Modal */}
       {invoiceModalOpen && selectedOrder && (
-        <Modal
+        <InvoiceDetailModal
           open={invoiceModalOpen}
+          order={selectedOrder}
           onClose={() => setInvoiceModalOpen(false)}
-          title={`Invoice ${selectedOrder.invoiceNumber}`}
-          subtitle={`${selectedOrder.appName} · ${selectedOrder.planName}`}
-          icon={<ReceiptText className="text-[var(--panel-primary-text)]" size={20} />}
-          size="md"
-          footer={
-            <div className="flex items-center justify-between w-full">
-              <div className="text-xs">
-                <span className="text-[var(--text-secondary)]">Total Tagihan:</span>
-                <span className="panel-mono block font-bold text-base text-[var(--panel-primary-text)]">
-                  Rp {selectedOrder.amountTotal.toLocaleString('id-ID')}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => window.print()}>
-                  Cetak
-                </Button>
-                {selectedOrder.status === 'pending' ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      loading={cancelOrderMutation.isPending}
-                      onClick={() => void handleCancelOrder(selectedOrder)}
-                      className="text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-bg)]"
-                    >
-                      Batalkan
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      loading={payMutation.isPending}
-                      onClick={() => {
-                        payMutation.mutate({
-                          publicId: selectedOrder.publicId,
-                          method: selectedOrder.paymentMethod || activePaymentMethods[0]?.id || 'transfer',
-                        })
-                      }}
-                    >
-                      Konfirmasi Lunas
-                    </Button>
-                  </>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={() => setInvoiceModalOpen(false)}>
-                    Tutup
-                  </Button>
-                )}
-              </div>
-            </div>
-          }
-        >
-          <div className="space-y-4 text-xs">
-            {/* Status Banner */}
-            <div
-              className={`p-3.5 rounded-xl border flex items-center justify-between ${
-                selectedOrder.status === 'paid'
-                  ? 'bg-[var(--panel-success-bg)] border-[var(--panel-success-border)] text-[var(--panel-success-text)]'
-                  : selectedOrder.status === 'cancelled'
-                    ? 'bg-[var(--win-bg)] border-[var(--win-border)] text-[var(--text-secondary)]'
-                    : 'bg-[var(--panel-warning-bg)] border-[var(--win-border)] text-[var(--panel-warning-text)]'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                {selectedOrder.status === 'paid' ? (
-                  <CheckCircle2 size={18} />
-                ) : selectedOrder.status === 'cancelled' ? (
-                  <XCircle size={18} />
-                ) : (
-                  <AlertTriangle size={18} />
-                )}
-                <div>
-                  <span className="font-bold block">
-                    {selectedOrder.status === 'paid'
-                      ? 'Lunas (Telah Dibayar)'
-                      : selectedOrder.status === 'cancelled'
-                        ? 'Invoice Dibatalkan'
-                        : 'Menunggu Pembayaran'}
-                  </span>
-                  <span className="text-[11px] opacity-80">
-                    {selectedOrder.status === 'paid'
-                      ? `Lisensi telah aktif sejak ${new Date(
-                          selectedOrder.paidAt || selectedOrder.createdAt
-                        ).toLocaleDateString('id-ID')}`
-                      : selectedOrder.status === 'cancelled'
-                        ? 'Pesanan ini telah dibatalkan dan tidak perlu dibayar.'
-                        : `Batas waktu pembayaran: ${new Date(
-                            selectedOrder.expiresAt
-                          ).toLocaleDateString('id-ID')}`}
-                  </span>
-                </div>
-              </div>
-              <span className="font-mono text-xs font-bold">{selectedOrder.invoiceNumber}</span>
-            </div>
-
-            {/* Rincian Tagihan */}
-            <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)] space-y-2.5">
-              <h5 className="font-bold text-[var(--win-text)]">Rincian Pembelian:</h5>
-              <div className="flex items-center justify-between text-[var(--win-text)]">
-                <span>
-                  {selectedOrder.appName} - {selectedOrder.planName} ({selectedOrder.months} Bulan)
-                </span>
-                <span className="panel-mono font-semibold">
-                  Rp {selectedOrder.amountList.toLocaleString('id-ID')}
-                </span>
-              </div>
-              {selectedOrder.uniqueCode > 0 && (
-                <div className="flex items-center justify-between text-[var(--text-secondary)]">
-                  <span>Kode Unik Pembayaran:</span>
-                  <span className="panel-mono">Rp {selectedOrder.uniqueCode}</span>
-                </div>
-              )}
-              <div className="h-px bg-[var(--win-border)]" />
-              <div className="flex items-center justify-between font-bold text-sm text-[var(--win-text)]">
-                <span>Total Jumlah Bayar:</span>
-                <span className="panel-mono text-[var(--panel-primary-text)]">
-                  Rp {selectedOrder.amountTotal.toLocaleString('id-ID')}
-                </span>
-              </div>
-            </div>
-
-            {/* Metode Pembayaran Aktif */}
-            {selectedOrder.status === 'pending' && (
-              <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)] space-y-2">
-                <h5 className="font-bold text-[var(--win-text)]">
-                  Tujuan Pembayaran Aktif:
-                </h5>
-                {orderDetailLoading ? (
-                  <p className="text-[11px] text-[var(--text-secondary)]">Memuat metode pembayaran...</p>
-                ) : activePaymentMethods.length > 0 ? (
-                  <div className="space-y-1.5 text-[11px]">
-                    {activePaymentMethods.map((method) => (
-                      <div key={method.id} className="p-2 rounded-lg bg-[var(--panel-surface)] border border-[var(--win-border)]">
-                        <span className="font-bold text-[var(--win-text)] block">{method.name}</span>
-                        {method.account && (
-                          <span className="panel-mono font-semibold text-[var(--panel-primary-text)]">
-                            {method.account}
-                          </span>
-                        )}
-                        {method.holder && (
-                          <span className="text-[var(--text-secondary)]">
-                            {method.account ? ' · a/n ' : ''}
-                            {method.holder}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-[var(--text-secondary)]">
-                    Belum ada metode pembayaran aktif yang dikonfigurasi di pengaturan billing panel.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </Modal>
+          onCancelOrder={(ord) => void handleCancelOrder(ord)}
+          onPayOrder={(payload) => payMutation.mutate(payload)}
+          cancelPending={cancelOrderMutation.isPending}
+          payPending={payMutation.isPending}
+        />
       )}
 
       {/* Renew Modal */}
       {renewModalOpen && selectedLicense && (
-        <Modal
+        <RenewLicenseModal
+          key={selectedLicense.id}
           open={renewModalOpen}
+          license={selectedLicense}
           onClose={() => setRenewModalOpen(false)}
-          title={`Perpanjang Lisensi ${selectedLicense.appName}`}
-          subtitle={t('appLicenses.renewSubtitle')}
-          icon={<KeyRound className="text-[var(--panel-primary-text)]" size={20} />}
-          size="md"
-          footer={
-            <div className="flex items-center justify-between w-full">
-              <div className="text-xs">
-                <span className="text-[var(--text-secondary)]">Total Pembayaran:</span>
-                <span className="block font-bold text-base text-[var(--panel-primary-text)] tabular-nums">
-                  Rp {selectedPricing.price.toLocaleString('id-ID')}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setRenewModalOpen(false)}
-                  disabled={renewMutation.isPending}
-                >
-                  Batal
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  loading={renewMutation.isPending}
-                  onClick={() => {
-                    renewMutation.mutate({
-                      catalogId: selectedLicense.catalogId,
-                      months: selectedPricing.months,
-                      planName:
-                        selectedPricing.months === 12
-                          ? 'Tahunan (Enterprise)'
-                          : 'Bulanan (Pro)',
-                      period: selectedPricing.period,
-                      priceAmount: selectedPricing.price,
-                      paymentMethod,
-                    })
-                  }}
-                >
-                  Konfirmasi &amp; Bayar
-                </Button>
-              </div>
-            </div>
-          }
-        >
-          <div className="space-y-4 text-xs">
-            <div>
-              <label className="block font-semibold text-[var(--win-text)] mb-2">
-                Pilih Periode Langganan:
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {pricingOptions.map((opt) => {
-                  const isSelected = months === opt.months
-                  return (
-                    <button
-                      key={opt.months}
-                      type="button"
-                      onClick={() => setMonths(opt.months)}
-                      className={`text-left p-3 rounded-lg border transition-colors ${
-                        isSelected
-                          ? 'border-[var(--panel-primary-border)] bg-[var(--panel-primary-bg)] ring-1 ring-[var(--panel-primary-border)]'
-                          : 'border-[var(--win-border)] bg-[var(--win-bg)] hover:border-[var(--win-border-focus)]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-xs text-[var(--win-text)]">{opt.label}</span>
-                        {opt.savings && (
-                          <Badge tone="primary" size="sm">
-                            {opt.savings}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="font-bold text-sm text-[var(--panel-primary-text)] mt-2 tabular-nums">
-                        Rp {opt.price.toLocaleString('id-ID')}
-                      </div>
-                      <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">{opt.desc}</div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)] space-y-2">
-              <div className="text-[11px] text-[var(--text-secondary)]">
-                Invoice akan diterbitkan menggunakan metode pembayaran aktif dari Pengaturan Situs Reneo (sama seperti pesanan Hosting).
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[var(--text-secondary)]">Aplikasi:</span>
-                <span className="font-semibold text-[var(--win-text)]">{selectedLicense.appName}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[var(--text-secondary)]">Masa Aktif Baru:</span>
-                <span className="font-semibold text-[var(--panel-success-text)]">
-                  s/d {calculatedNewExpiry}
-                </span>
-              </div>
-            </div>
-          </div>
-        </Modal>
+          pending={renewMutation.isPending}
+          onConfirm={(payload) => renewMutation.mutate(payload)}
+        />
       )}
 
       {/* Create License Modal */}

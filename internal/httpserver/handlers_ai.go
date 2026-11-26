@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/ai"
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
@@ -174,12 +175,17 @@ func (s *Server) handleTestAISettings(w http.ResponseWriter, r *http.Request) {
 		cfg.Temperature = req.Temperature
 	}
 
+	started := time.Now()
 	reply, err := ai.TestConnection(r.Context(), *cfg)
 	if err != nil {
 		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "reply": reply})
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":        true,
+		"reply":     reply,
+		"latencyMs": time.Since(started).Milliseconds(),
+	})
 }
 
 func (s *Server) handleListAIModels(w http.ResponseWriter, r *http.Request) {

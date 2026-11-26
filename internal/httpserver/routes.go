@@ -457,6 +457,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/containers/{id}/stop", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerStop)))
 	s.mux.Handle("POST /api/v1/containers/{id}/restart", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerRestart)))
 	s.mux.Handle("POST /api/v1/containers/{id}/update", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerUpdate)))
+	s.mux.Handle("POST /api/v1/containers/{id}/static-ip", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerPinStaticIP)))
 	s.mux.Handle("DELETE /api/v1/containers/{id}", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerDelete)))
 	s.mux.Handle("GET /api/v1/containers/{id}/config", s.requireAuthV2(http.HandlerFunc(s.handleContainerInspectConfig)))
 	s.mux.Handle("GET /api/v1/containers/{id}/logs", s.requireAuthV2(http.HandlerFunc(s.handleContainerLogs)))

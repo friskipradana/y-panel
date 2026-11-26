@@ -129,6 +129,7 @@ interface WidgetState {
   tidyUpWidgets: () => void
   updateWidgetConfig: (id: string, patch: WidgetConfig) => void
   setLayout: (widgets: PlacedWidget[]) => void
+  setLayoutViewport: (vp: { w: number; h: number } | null) => void
   settleLayout: () => void
   hasWidget: (type: WidgetType) => boolean
 }
@@ -245,6 +246,8 @@ export const useWidgetStore = create<WidgetState>()(
       },
 
       setLayout: (widgets) => set({ placedWidgets: widgets }),
+
+      setLayoutViewport: (layoutViewport) => set({ layoutViewport }),
 
       settleLayout: () => {
         const current = get().placedWidgets

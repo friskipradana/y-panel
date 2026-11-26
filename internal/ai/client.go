@@ -86,7 +86,7 @@ func Complete(ctx context.Context, cfg Config, systemPrompt, userPrompt string) 
 	if err != nil {
 		return "", err
 	}
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{Timeout: 120 * time.Second}
 	if provider == "anthropic" {
 		return completeAnthropic(ctx, client, baseURL, model, cfg.APIKey, temp, systemPrompt, userPrompt)
 	}

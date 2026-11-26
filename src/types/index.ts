@@ -34,9 +34,13 @@ export interface WindowState {
   y: number
   width: number
   height: number
-  /** The size the window had before a narrow screen (a phone) squeezed it; it comes back when the screen is wide again */
+  /** The size and position the window had before a narrower viewport squeezed it; restored when space returns */
   prefWidth?: number
   prefHeight?: number
+  prefX?: number
+  prefY?: number
+  prefViewportW?: number
+  prefViewportH?: number
   zIndex: number
   isMinimized: boolean
   isMaximized: boolean
@@ -103,6 +107,7 @@ export interface Container {
   Ports: { PrivatePort: number; PublicPort?: number; Type: string }[]
   Networks?: string[]
   IpAddresses?: string[]
+  StaticIps?: string[]
   Created: number
   Labels?: Record<string, string>
   ProjectName?: string

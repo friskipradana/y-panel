@@ -35,7 +35,7 @@ export const saveAISettings = (payload: UpdateAISettingsInput) =>
   agentApi.put<AISettings>('/api/v1/settings/ai', payload).then((r) => r.data)
 
 export const testAISettings = (payload: Partial<UpdateAISettingsInput>) =>
-  agentApi.post<{ ok: boolean; reply: string }>('/api/v1/settings/ai/test', payload).then((r) => r.data)
+  agentApi.post<{ ok: boolean; reply: string; latencyMs?: number }>('/api/v1/settings/ai/test', payload).then((r) => r.data)
 
 export const listAIModels = (payload: { provider?: string; baseUrl?: string; apiKey?: string }) =>
   agentApi.post<{ ok: boolean; models: string[] }>('/api/v1/settings/ai/models', payload).then((r) => r.data)

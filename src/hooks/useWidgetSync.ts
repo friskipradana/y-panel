@@ -29,9 +29,18 @@ function sanitizeMobile(input: unknown): MobileWidgetLayout | null {
   return { order: ids(m.order), locked: ids(m.locked) }
 }
 
+function sanitizeViewport(input: unknown): { w: number; h: number } | null {
+  if (!input || typeof input !== 'object') return null
+  const v = input as Record<string, unknown>
+  const w = Number(v.w)
+  const h = Number(v.h)
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w < 320 || h < 240) return null
+  return { w: Math.round(w), h: Math.round(h) }
+}
+
 function snapshot() {
-  const { placedWidgets, mobile, notes } = useWidgetStore.getState()
-  return { placedWidgets, mobile, notes }
+  const { placedWidgets, layoutViewport, mobile, notes } = useWidgetStore.getState()
+  return { placedWidgets, layoutViewport, mobile, notes }
 }
 
 function readOwner() {
@@ -102,11 +111,13 @@ export function useWidgetSync(): boolean {
     void (async () => {
       let reachable = true
       let remote: PlacedWidget[] | null = null
+      let remoteViewport: { w: number; h: number } | null = null
       let remoteMobile: MobileWidgetLayout | null = null
       let remoteNotes: unknown = []
       try {
         const res = await getMyWidgets()
         if (res.data && Array.isArray(res.data.placedWidgets)) remote = sanitize(res.data.placedWidgets)
+        remoteViewport = sanitizeViewport(res.data?.layoutViewport)
         remoteMobile = sanitizeMobile(res.data?.mobile)
         remoteNotes = res.data?.notes
       } catch {
@@ -125,6 +136,7 @@ export function useWidgetSync(): boolean {
       } else if (remote) {
         store.setNotes(sanitizeNotes(remoteNotes))
         store.setLayout(sanitizeLayout(remote))
+        if (remoteViewport) store.setLayoutViewport(remoteViewport)
         store.normalizeNotes()
         if (remoteMobile) store.setMobileLayout(remoteMobile)
       } else if (owner && owner !== username) {
@@ -142,11 +154,18 @@ export function useWidgetSync(): boolean {
           void putMyWidgets(snapshot()).catch(() => undefined)
         }
         let prev = useWidgetStore.getState().placedWidgets
+        let prevViewport = useWidgetStore.getState().layoutViewport
         let prevMobile = useWidgetStore.getState().mobile
         let prevNotes = useWidgetStore.getState().notes
         unsubscribe = useWidgetStore.subscribe((state) => {
-          if (state.placedWidgets === prev && state.mobile === prevMobile && state.notes === prevNotes) return
+          if (
+            state.placedWidgets === prev &&
+            state.layoutViewport === prevViewport &&
+            state.mobile === prevMobile &&
+            state.notes === prevNotes
+          ) return
           prev = state.placedWidgets
+          prevViewport = state.layoutViewport
           prevMobile = state.mobile
           prevNotes = state.notes
           dirty = true

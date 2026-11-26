@@ -596,3 +596,37 @@ func (s *Server) handleDockerSuggestStaticIP(w http.ResponseWriter, r *http.Requ
 	}
 	s.writeJSON(w, http.StatusOK, suggestion)
 }
+
+func (s *Server) handleContainerPinStaticIP(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "container id is required"})
+		return
+	}
+	if _, err := s.ensureContainerAccess(r, id); err != nil {
+		code := http.StatusForbidden
+		if err.Error() == "unauthorized" {
+			code = http.StatusUnauthorized
+		}
+		s.writeJSON(w, code, jsonResponse{"error": err.Error()})
+		return
+	}
+	var req struct {
+		Network string `json:"network"`
+		IP      string `json:"ip"`
+	}
+	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<14)).Decode(&req)
+
+	res, err := docker.PinContainerStaticIP(id, req.Network, req.IP)
+	if err != nil {
+		s.writeError(w, http.StatusUnprocessableEntity, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":      true,
+		"network": res.Network,
+		"subnet":  res.Subnet,
+		"gateway": res.Gateway,
+		"ip":      res.IP,
+	})
+}

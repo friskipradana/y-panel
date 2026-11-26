@@ -65,7 +65,10 @@ func listContainersEngine(ctx context.Context) ([]Container, error) {
 		Labels          map[string]string `json:"Labels"`
 		NetworkSettings struct {
 			Networks map[string]struct {
-				IPAddress string `json:"IPAddress"`
+				IPAddress  string `json:"IPAddress"`
+				IPAMConfig *struct {
+					IPv4Address string `json:"IPv4Address"`
+				} `json:"IPAMConfig"`
 			} `json:"Networks"`
 		} `json:"NetworkSettings"`
 	}
@@ -106,14 +109,19 @@ func listContainersEngine(ctx context.Context) ([]Container, error) {
 		}
 		var nets []string
 		var ips []string
+		var staticIPs []string
 		for netName, netCfg := range row.NetworkSettings.Networks {
 			nets = append(nets, netName)
 			if netCfg.IPAddress != "" {
 				ips = append(ips, netCfg.IPAddress)
 			}
+			if netCfg.IPAMConfig != nil && strings.TrimSpace(netCfg.IPAMConfig.IPv4Address) != "" {
+				staticIPs = append(staticIPs, strings.TrimSpace(netCfg.IPAMConfig.IPv4Address))
+			}
 		}
 		sort.Strings(nets)
 		sort.Strings(ips)
+		sort.Strings(staticIPs)
 
 		containers = append(containers, Container{
 			ID:          shortContainerID(row.ID),
@@ -125,6 +133,7 @@ func listContainersEngine(ctx context.Context) ([]Container, error) {
 			Ports:       ports,
 			Networks:    nets,
 			IPAddresses: ips,
+			StaticIPs:   staticIPs,
 			Created:     row.Created,
 			Labels:      labels,
 			ProjectName: labels["com.docker.compose.project"],
@@ -181,7 +190,10 @@ func enrichContainersEngine(ctx context.Context, containers []Container) {
 					} `json:"State"`
 					NetworkSettings struct {
 						Networks map[string]struct {
-							IPAddress string `json:"IPAddress"`
+							IPAddress  string `json:"IPAddress"`
+							IPAMConfig *struct {
+								IPv4Address string `json:"IPv4Address"`
+							} `json:"IPAMConfig"`
 						} `json:"Networks"`
 					} `json:"NetworkSettings"`
 				}
@@ -189,17 +201,22 @@ func enrichContainersEngine(ctx context.Context, containers []Container) {
 				if _, _, err := defaultEngine.doRequest(ctx, http.MethodGet, path, &insp); err != nil {
 					continue
 				}
-				var nets, ips []string
+				var nets, ips, staticIPs []string
 				for name, netCfg := range insp.NetworkSettings.Networks {
 					nets = append(nets, name)
 					if netCfg.IPAddress != "" {
 						ips = append(ips, netCfg.IPAddress)
 					}
+					if netCfg.IPAMConfig != nil && strings.TrimSpace(netCfg.IPAMConfig.IPv4Address) != "" {
+						staticIPs = append(staticIPs, strings.TrimSpace(netCfg.IPAMConfig.IPv4Address))
+					}
 				}
 				sort.Strings(nets)
 				sort.Strings(ips)
+				sort.Strings(staticIPs)
 				containers[idx].Networks = nets
 				containers[idx].IPAddresses = ips
+				containers[idx].StaticIPs = staticIPs
 				containers[idx].RestartCount = insp.RestartCount
 				containers[idx].ExitCode = insp.State.ExitCode
 				containers[idx].StartedAt = insp.State.StartedAt
@@ -322,7 +339,10 @@ func InspectContainerNetworks(containers []Container) error {
 		var row struct {
 			ID       string `json:"Id"`
 			Networks map[string]struct {
-				IPAddress string `json:"IPAddress"`
+				IPAddress  string `json:"IPAddress"`
+				IPAMConfig *struct {
+					IPv4Address string `json:"IPv4Address"`
+				} `json:"IPAMConfig"`
 			} `json:"Networks"`
 			RestartCount int    `json:"RestartCount"`
 			Created      string `json:"Created"`
@@ -344,16 +364,22 @@ func InspectContainerNetworks(containers []Container) error {
 			if ok {
 				var ips []string
 				var nets []string
+				var staticIPs []string
 				for name, net := range row.Networks {
 					nets = append(nets, name)
 					if net.IPAddress != "" {
 						ips = append(ips, net.IPAddress)
 					}
+					if net.IPAMConfig != nil && strings.TrimSpace(net.IPAMConfig.IPv4Address) != "" {
+						staticIPs = append(staticIPs, strings.TrimSpace(net.IPAMConfig.IPv4Address))
+					}
 				}
 				sort.Strings(nets)
 				sort.Strings(ips)
+				sort.Strings(staticIPs)
 				containers[idx].Networks = nets
 				containers[idx].IPAddresses = ips
+				containers[idx].StaticIPs = staticIPs
 				containers[idx].RestartCount = row.RestartCount
 				containers[idx].ExitCode = row.State.ExitCode
 				containers[idx].StartedAt = row.State.StartedAt

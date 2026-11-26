@@ -1,13 +1,12 @@
 import { useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, Maximize, Minimize as ExitFullscreen, Minus, PictureInPicture2, Square, X } from 'lucide-react'
 import { useWindowStore, selectFocusedId } from '@/store/windowStore'
 import { useAlertStore } from '@/store/alertStore'
 import { InnerAlert } from '@/components/alert/GlobalAlert'
-import { AppIcon } from '@/components/common/AppIcon'
 import type { WindowState } from '@/types'
-import { useI18n, windowTitleKey } from '@/lib/i18n'
+import { useI18n } from '@/lib/i18n'
 import { Z } from '@/lib/zLayers'
+import { WindowTitleBar } from './WindowTitleBar'
 
 type ResizeDirection = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
 type SnapZone = 'left' | 'right' | 'top' | null
@@ -268,9 +267,6 @@ export function Window({ win, children }: Props) {
 
   const isPip = Boolean(win.isPip) && !win.isFullscreen
   const canPip = win.kind === 'installed-app' || win.kind === 'kvm'
-  const pipTitle = isPip ? t('window.pipExit') : t('window.pipEnter')
-  const maxTitle = win.isMaximized ? t('window.restore') : t('window.maximize')
-  const fullTitle = win.isFullscreen ? t('window.exitFullscreen') : t('window.fullscreen')
   const lockScroll =
     win.kind === 'host-terminal' ||
     win.kind === 'system-logs' ||
@@ -301,72 +297,21 @@ export function Window({ win, children }: Props) {
         focusWindow(win.id)
       }}
     >
-      <div
-        className={`flex items-center justify-between px-3 shrink-0 z-10 transition-colors duration-150 select-none border-b border-[var(--win-border)] ${isPip ? 'window-titlebar--pip' : 'relative'}`}
-        style={{ height: isPip ? 32 : 38, background: isFocused ? 'var(--win-bar-focus)' : 'var(--win-bar)', borderBottom: '1px solid var(--win-border)', cursor: isExpanded ? 'default' : 'move' }}
+      <WindowTitleBar
+        win={win}
+        isFocused={isFocused}
+        isExpanded={isExpanded}
+        isPip={isPip}
+        canPip={canPip}
+        t={t}
         onPointerDown={handleBarPointerDown}
         onDoubleClick={() => (isPip ? togglePipWindow(win.id) : maximizeWindow(win.id))}
-      >
-        <div className="flex items-center gap-2 min-w-0 pr-3 pointer-events-none">
-          <AppIcon
-            kind={win.kind}
-            iconKey={typeof win.params?.iconKey === 'string' ? win.params.iconKey : undefined}
-            iconColor={typeof win.params?.iconColor === 'string' ? win.params.iconColor : undefined}
-            size={16}
-          />
-          <span className="text-xs font-semibold truncate tracking-tight transition-colors duration-150" style={{ color: isFocused ? 'var(--win-text)' : 'var(--window-title-muted)' }}>
-            {win.kind === 'installed-app' && typeof win.params?.appName === 'string' && win.params.appName
-              ? win.params.appName
-              : t(windowTitleKey(win.kind))}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1 shrink-0" data-window-controls onPointerDown={(e) => e.stopPropagation()}>
-          {canPip ? (
-            <button
-              type="button"
-              onClick={() => togglePipWindow(win.id)}
-              style={{ ...controlButtonStyle, color: isPip ? 'var(--panel-primary-text)' : controlButtonStyle.color }}
-              onMouseEnter={(e) => applyHover(e.currentTarget)}
-              onMouseLeave={(e) => {
-                resetHover(e.currentTarget)
-                if (isPip) e.currentTarget.style.color = 'var(--panel-primary-text)'
-              }}
-              title={pipTitle}
-              aria-label={pipTitle}
-            >
-              <PictureInPicture2 size={13} strokeWidth={1.75} />
-            </button>
-          ) : null}
-          {!isPip ? (
-            <>
-              <button type="button" onClick={() => minimizeWindow(win.id)} style={controlButtonStyle} onMouseEnter={(e) => applyHover(e.currentTarget)} onMouseLeave={(e) => resetHover(e.currentTarget)} title={t('window.minimize')} aria-label={t('window.minimize')}>
-                <Minus size={13} strokeWidth={1.75} />
-              </button>
-              <button type="button" onClick={() => maximizeWindow(win.id)} style={controlButtonStyle} onMouseEnter={(e) => applyHover(e.currentTarget)} onMouseLeave={(e) => resetHover(e.currentTarget)} title={maxTitle} aria-label={maxTitle}>
-                {win.isMaximized ? <Copy size={11} strokeWidth={1.75} className="rotate-90" /> : <Square size={11} strokeWidth={1.75} />}
-              </button>
-              <button type="button" onClick={() => toggleFullscreenWindow(win.id)} style={controlButtonStyle} onMouseEnter={(e) => applyHover(e.currentTarget)} onMouseLeave={(e) => resetHover(e.currentTarget)} title={fullTitle} aria-label={fullTitle}>
-                {win.isFullscreen ? <ExitFullscreen size={12} strokeWidth={1.75} /> : <Maximize size={12} strokeWidth={1.75} />}
-              </button>
-            </>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => closeWindow(win.id)}
-            style={controlButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--window-close-hover-bg, #ef4444)'
-              e.currentTarget.style.color = 'var(--window-close-hover-text, #ffffff)'
-            }}
-            onMouseLeave={(e) => resetHover(e.currentTarget)}
-            title={t('common.close')}
-            aria-label={t('common.close')}
-          >
-            <X size={13} strokeWidth={1.75} />
-          </button>
-        </div>
-      </div>
+        onMinimize={() => minimizeWindow(win.id)}
+        onMaximize={() => maximizeWindow(win.id)}
+        onToggleFullscreen={() => toggleFullscreenWindow(win.id)}
+        onTogglePip={() => togglePipWindow(win.id)}
+        onClose={() => closeWindow(win.id)}
+      />
 
       <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', zIndex: 1 }}>
         <div
@@ -399,22 +344,6 @@ export function Window({ win, children }: Props) {
         ))}
     </motion.div>
   )
-}
-
-const controlButtonStyle: React.CSSProperties = {
-  width: 28, height: 28, border: 'none', background: 'transparent', borderRadius: 6,
-  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-  color: 'var(--tb-clock)', transition: 'background 120ms ease, color 120ms ease',
-}
-
-function applyHover(element: HTMLButtonElement) {
-  element.style.background = 'var(--tb-hover)'
-  element.style.color = 'var(--win-text)'
-}
-
-function resetHover(element: HTMLButtonElement) {
-  element.style.background = 'transparent'
-  element.style.color = 'var(--tb-clock)'
 }
 
 const RESIZE_HANDLES: Array<{ direction: ResizeDirection; cursor: React.CSSProperties['cursor']; style: React.CSSProperties }> = [

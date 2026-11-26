@@ -79,6 +79,11 @@ export const suggestDockerStaticIP = (network?: string) =>
     })
     .then((r) => r.data)
 
+export const pinContainerStaticIP = (id: string, payload?: { network?: string; ip?: string }) =>
+  agentApi
+    .post<{ ok: boolean; network: string; subnet: string; gateway: string; ip: string }>(`/api/v1/containers/${id}/static-ip`, payload ?? {})
+    .then((r) => r.data)
+
 export const listDockerImages = (query: ListQuery) =>
   agentApi.get<TableResult<DockerImage>>('/api/v1/docker/images', { params: listParams(query) }).then((r) => r.data)
 

@@ -197,3 +197,48 @@ func ValidateStaticIPAssignment(network, staticIP string) (resolvedNetwork, clea
 	}
 	return network, cleanIP, nil
 }
+
+// PinContainerStaticIP attaches an existing container to a user-defined bridge network
+// (defaulting to reneo-static) with a permanent ipv4_address without recreating the container.
+func PinContainerStaticIP(containerID, networkName, requestedIP string) (*StaticIPSuggestion, error) {
+	containerID = strings.TrimSpace(containerID)
+	if containerID == "" {
+		return nil, errors.New("container ID tidak valid")
+	}
+	var suggestion *StaticIPSuggestion
+	var err error
+	if strings.TrimSpace(requestedIP) == "" {
+		suggestion, err = SuggestStaticIP(networkName)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		netName, cleanIP, vErr := ValidateStaticIPAssignment(networkName, requestedIP)
+		if vErr != nil {
+			return nil, vErr
+		}
+		subnet, gw, eErr := EnsureStaticNetwork(netName)
+		if eErr != nil {
+			return nil, eErr
+		}
+		suggestion = &StaticIPSuggestion{
+			Network: netName,
+			Subnet:  subnet,
+			Gateway: gw,
+			IP:      cleanIP,
+		}
+	}
+
+	// Disconnect first if already attached to target network without a static IP so reconnect applies IPAMConfig.
+	_ = exec.Command("docker", "network", "disconnect", suggestion.Network, containerID).Run()
+	out, cErr := exec.Command("docker", "network", "connect", "--ip", suggestion.IP, suggestion.Network, containerID).CombinedOutput()
+	if cErr != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg == "" {
+			msg = cErr.Error()
+		}
+		return nil, fmt.Errorf("gagal mengunci IP statis %s pada jaringan %s: %s", suggestion.IP, suggestion.Network, msg)
+	}
+	InvalidateAll()
+	return suggestion, nil
+}
