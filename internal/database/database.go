@@ -847,6 +847,28 @@ func (m *Manager) ensureSchema() error {
 			updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_dev_todos_owner_doc ON dev_todos(owner_user_id, doc_id, sort_order, id)`,
+		`CREATE TABLE IF NOT EXISTS studio_pages (
+			id              BIGSERIAL    PRIMARY KEY,
+			owner_user_id   BIGINT       NOT NULL DEFAULT 1,
+			kind            VARCHAR(16)  NOT NULL DEFAULT 'landing',
+			slug            VARCHAR(120) NOT NULL UNIQUE,
+			title           VARCHAR(240) NOT NULL DEFAULT '',
+			subtitle        TEXT         NOT NULL DEFAULT '',
+			status          VARCHAR(16)  NOT NULL DEFAULT 'draft',
+			show_in_docs    BOOLEAN      NOT NULL DEFAULT FALSE,
+			linked_doc_id   BIGINT       NOT NULL DEFAULT 0,
+			brand_name      VARCHAR(120) NOT NULL DEFAULT '',
+			theme_tone      VARCHAR(24)  NOT NULL DEFAULT 'blue',
+			seo_description TEXT         NOT NULL DEFAULT '',
+			cta_label       VARCHAR(120) NOT NULL DEFAULT '',
+			cta_url         TEXT         NOT NULL DEFAULT '',
+			sections_json   TEXT         NOT NULL DEFAULT '[]',
+			markdown_body   TEXT         NOT NULL DEFAULT '',
+			source_prompt   TEXT         NOT NULL DEFAULT '',
+			created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_studio_pages_owner ON studio_pages(owner_user_id, id DESC)`,
 	}
 
 	for _, stmt := range stmts {

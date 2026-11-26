@@ -19,6 +19,7 @@ const OrderPage = lazyNamed(() => import('@/pages/order/OrderPage'), 'OrderPage'
 const DatabaseAdminPage = lazyNamed(() => import('@/pages/database-admin/DatabaseAdminPage'), 'DatabaseAdminPage')
 const KvmPage = lazyNamed(() => import('@/pages/kvm/KvmPage'), 'KvmPage')
 const PublicDevDocPage = lazyNamed(() => import('@/pages/devdesk/PublicDevDocPage'), 'PublicDevDocPage')
+const PublicStudioPage = lazyNamed(() => import('@/pages/studio/PublicStudioPage'), 'PublicStudioPage')
 
 // The page of an address, fetched before the first frame of the app, so a reload does not flash an empty page while its code loads
 export function preloadRoute(pathname: string): Promise<unknown> {
@@ -35,6 +36,7 @@ export function preloadRoute(pathname: string): Promise<unknown> {
   if (pathname === '/articles') return ArticlesPage.preload()
   if (pathname.startsWith('/articles/')) return ArticlePage.preload()
   if (pathname.startsWith('/doc/')) return PublicDevDocPage.preload()
+  if (pathname.startsWith('/p/')) return PublicStudioPage.preload()
   return Promise.resolve()
 }
 
@@ -108,6 +110,7 @@ export function AppRouter() {
         <Route path="/articles" element={landing ? (<div className="h-full w-full overflow-y-auto"><ArticlesPage /></div>) : publicFallback} />
         <Route path="/articles/:slug" element={landing ? (<div className="h-full w-full overflow-y-auto"><ArticlePage /></div>) : publicFallback} />
         <Route path="/doc/:token" element={<div className="h-full w-full overflow-y-auto"><PublicDevDocPage /></div>} />
+        <Route path="/p/:slug" element={<div className="h-full w-full overflow-y-auto"><PublicStudioPage /></div>} />
         <Route
           path={LOGIN_PATH}
           element={

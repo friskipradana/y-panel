@@ -259,6 +259,7 @@ const PANEL_ICON_MAP: Record<string, string> = {
   'installed-app': '/icons/panel/installed-app.svg?v=1',
   'app-licenses': '/icons/panel/app-licenses.svg?v=1',
   'dev-desk': '/icons/panel/dev-desk.svg?v=1',
+  'page-studio': '/icons/panel/page-studio.svg?v=1',
 }
 
 export function AppIcon({ kind, size = 24, className = '', style = {}, iconKey, iconColor }: AppIconProps) {

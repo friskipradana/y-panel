@@ -406,6 +406,15 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/devdesk/todos/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteDevTodo)))
 	s.mux.HandleFunc("GET /api/v1/public/devdesk/{token}", s.handlePublicDevDoc)
 
+	// ── Page Studio (Landing Pages & Documentation Builder) ───────────────────
+	s.mux.Handle("GET /api/v1/studio/pages", s.requireAuthV2(http.HandlerFunc(s.handleStudioListPages)))
+	s.mux.Handle("POST /api/v1/studio/pages", s.requireAuthV2(http.HandlerFunc(s.handleStudioCreatePage)))
+	s.mux.Handle("PUT /api/v1/studio/pages/{id}", s.requireAuthV2(http.HandlerFunc(s.handleStudioUpdatePage)))
+	s.mux.Handle("POST /api/v1/studio/pages/{id}/publish", s.requireAuthV2(http.HandlerFunc(s.handleStudioTogglePublish)))
+	s.mux.Handle("DELETE /api/v1/studio/pages/{id}", s.requireAuthV2(http.HandlerFunc(s.handleStudioDeletePage)))
+	s.mux.Handle("POST /api/v1/studio/ai-generate", s.requireAuthV2(http.HandlerFunc(s.handleStudioAIGenerate)))
+	s.mux.HandleFunc("GET /api/v1/public/pages/{slug}", s.handlePublicStudioPage)
+
 	// ── Payment Gateway Settings ─────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/settings/payment", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetPaymentSettings)))
 	s.mux.Handle("POST /api/v1/settings/payment", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePaymentSettings))))

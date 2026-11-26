@@ -116,6 +116,12 @@ export const MENU_ITEMS: AppMenuItem[] = [
     category: 'dev',
   },
   {
+    kind: 'page-studio',
+    descId: 'Generator AI untuk landing page dan dokumentasi, publikasi instan /p/:slug, serta sinkron otomatis ke Window Dokumentasi',
+    descEn: 'AI builder for landing pages and documentation with instant /p/:slug publishing and Docs window sync',
+    category: 'dev',
+  },
+  {
     kind: 'tunnels',
     descId: 'Kelola tunnel Cloudflare daemon dan public routing',
     descEn: 'Cloudflare ingress tunnels and public hostname routing',
@@ -191,6 +197,7 @@ export const APP_KEYWORDS: Partial<Record<WindowKind, string[]>> = {
   'app-licenses': ['lisensi', 'license', 'key', 'serial', 'langganan', 'subscription', 'paket', 'order'],
   kvm: ['kvm', 'vnc', 'novnc', 'display', 'layar', 'remote', 'desktop', 'gui', 'monitor'],
   'dev-desk': ['dev', 'desk', 'devdesk', 'penawaran', 'quotation', 'proposal', 'invoice', 'faktur', 'tagihan', 'todo', 'checklist', 'klien', 'client', 'ai', 'draft', 'token', 'pdf'],
+  'page-studio': ['page', 'studio', 'landing', 'landing page', 'builder', 'publish', 'publikasi', 'docs', 'dokumentasi', 'ai', 'generator', 'markdown', 'website', 'halaman'],
   'host-terminal': ['terminal', 'shell', 'bash', 'ssh', 'console', 'konsol', 'command', 'perintah'],
   system: ['system', 'sistem', 'cpu', 'ram', 'memory', 'memori', 'disk', 'monitor', 'suhu', 'uptime', 'info'],
   'system-logs': ['log', 'logs', 'journal', 'journald', 'error', 'catatan'],
