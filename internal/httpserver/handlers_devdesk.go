@@ -432,9 +432,14 @@ func (s *Server) handleDevDeskAIGenerate(w http.ResponseWriter, r *http.Request)
 	sysPrompt := `You are a practical software studio billing and project planner for Reneo.
 Return ONLY one valid JSON object matching this exact schema, with no markdown prose outside the JSON:
 {
+  "clientName": "client PIC name if mentioned in notes, otherwise empty string",
+  "clientCompany": "client business or company name if mentioned, otherwise empty string",
+  "clientContact": "client phone/WhatsApp/email if mentioned, otherwise empty string",
   "title": "concise project document title",
   "summary": "2-3 concrete sentences summarizing deliverables in business language",
+  "discount": 0,
   "dpPercent": 50,
+  "paymentInfo": "bank account details if explicitly mentioned in notes, otherwise empty string",
   "items": [
     {"title": "Item name", "description": "clear business scope", "qty": 1, "unit": "Paket", "unitPrice": 2900000}
   ],
@@ -447,7 +452,7 @@ Return ONLY one valid JSON object matching this exact schema, with no markdown p
 Rules:
 - Language: ` + lang + `.
 - Never use em dashes (—) or marketing buzzwords (seamless, revolutionary, cutting-edge, all-in-one).
-- Prices must be integer numbers in IDR (Rupiah) matching any budget breakdown given by the user.
+- Prices must be plain integer numbers in IDR (Rupiah) matching any budget breakdown given by the user.
 - Provide 4 to 8 actionable developer checklist todos.`
 
 	userPrompt := fmt.Sprintf("Document type: %s\nClient: %s (%s)\nBudget/deal hint: %s\nNotes / chat:\n%s",
@@ -458,39 +463,10 @@ Rules:
 		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
 	}
-	cleanJSON := ai.ExtractJSONObject(raw)
-	var generated struct {
-		Title     string                `json:"title"`
-		Summary   string                `json:"summary"`
-		DPPercent int                   `json:"dpPercent"`
-		Items     []database.DevDocItem `json:"items"`
-		Terms     []string              `json:"terms"`
-		WAMessage string                `json:"waMessage"`
-		Todos     []struct {
-			Title    string `json:"title"`
-			Notes    string `json:"notes"`
-			Priority string `json:"priority"`
-		} `json:"todos"`
-	}
-	if err := json.Unmarshal([]byte(cleanJSON), &generated); err != nil {
-		s.writeError(w, http.StatusUnprocessableEntity, fmt.Errorf("AI returned unreadable JSON: %w", err))
+	generated, parseErr := parseGeneratedDevDoc(raw)
+	if parseErr != nil {
+		s.writeError(w, http.StatusUnprocessableEntity, parseErr)
 		return
-	}
-	// Strip any accidental em dashes from generated text.
-	stripEm := func(s string) string { return strings.ReplaceAll(s, "—", ",") }
-	generated.Title = stripEm(generated.Title)
-	generated.Summary = stripEm(generated.Summary)
-	generated.WAMessage = stripEm(generated.WAMessage)
-	for i := range generated.Items {
-		generated.Items[i].Title = stripEm(generated.Items[i].Title)
-		generated.Items[i].Description = stripEm(generated.Items[i].Description)
-		if generated.Items[i].Qty <= 0 {
-			generated.Items[i].Qty = 1
-		}
-		generated.Items[i].Subtotal = generated.Items[i].Qty * generated.Items[i].UnitPrice
-	}
-	for i := range generated.Terms {
-		generated.Terms[i] = stripEm(generated.Terms[i])
 	}
 	s.writeJSON(w, http.StatusOK, generated)
 }

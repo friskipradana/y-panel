@@ -5,6 +5,7 @@ import {
   ExternalLink,
   FileText,
   Link2,
+  MessageSquare,
   Pencil,
   Plus,
   Receipt,
@@ -13,6 +14,7 @@ import {
   Search,
   Trash2,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import type { WindowState } from '@/types'
 import { FilterMenu } from '@/components/ui/FilterMenu'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
@@ -212,6 +214,17 @@ export function DevDeskWindow({ win, authenticated }: DevDeskWindowProps) {
                     <button type="button" className="docker-act-btn" title={t('devdesk.copyPublicUrl')} aria-label={t('devdesk.copyPublicUrl')} onClick={() => copyPublicUrl(doc)}>
                       <Link2 className="h-3.5 w-3.5" strokeWidth={1.75} />
                     </button>
+                    {doc.waMessage?.trim() ? (
+                      <button
+                        type="button"
+                        className="docker-act-btn"
+                        title={t('devdesk.copyWa')}
+                        aria-label={t('devdesk.copyWa')}
+                        onClick={() => void navigator.clipboard.writeText(doc.waMessage).then(() => toast.success(t('common.copied')))}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="docker-act-btn"

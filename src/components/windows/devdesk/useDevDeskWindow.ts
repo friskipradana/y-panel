@@ -112,8 +112,8 @@ export function useDevDeskWindow(win: WindowState, authenticated: boolean) {
       setEditingDoc(null)
       setDraftSeed({
         kind: vars.kind,
-        clientName: vars.clientName,
-        clientCompany: vars.clientCompany,
+        clientName: vars.clientName.trim() || generated.clientName || '',
+        clientCompany: vars.clientCompany.trim() || generated.clientCompany || '',
         sourceNotes: vars.notes,
         generated,
       })

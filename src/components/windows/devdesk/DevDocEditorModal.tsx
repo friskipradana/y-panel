@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Copy, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { DevDocItem, DevDocKind, DevDocStatus, DevTodoPriority } from '@/api/devdesk'
+import type { DevDocItem, DevDocKind, DevDocStatus } from '@/api/devdesk'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput, Textarea } from '@/components/ui/Field'
 import { IconButton } from '@/components/ui/IconButton'
@@ -9,11 +9,12 @@ import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import type { DevDeskWindowState } from './useDevDeskWindow'
+import { DevInitialTodosEditor, type InitialTodoDraft } from './DevInitialTodosEditor'
 
 const EMPTY_ITEM: DevDocItem = { title: '', description: '', qty: 1, unit: 'Paket', unitPrice: 0, subtotal: 0 }
 
 export function DevDocEditorModal({ dd }: { dd: DevDeskWindowState }) {
-  const { t, editingDoc, setEditingDoc, draftSeed, setDraftSeed, saveDocMut } = dd
+  const { t, docs, editingDoc, setEditingDoc, draftSeed, setDraftSeed, saveDocMut } = dd
   const open = Boolean(editingDoc || draftSeed)
 
   const [kind, setKind] = useState<DevDocKind>('invoice')
@@ -36,7 +37,7 @@ export function DevDocEditorModal({ dd }: { dd: DevDeskWindowState }) {
   const [waMessage, setWaMessage] = useState('')
   const [sourceNotes, setSourceNotes] = useState('')
   const [shareChecklist, setShareChecklist] = useState(true)
-  const [initialTodos, setInitialTodos] = useState<{ title: string; notes: string; priority: DevTodoPriority }[]>([])
+  const [initialTodos, setInitialTodos] = useState<InitialTodoDraft[]>([])
 
   useEffect(() => {
     if (editingDoc) {
@@ -65,15 +66,16 @@ export function DevDocEditorModal({ dd }: { dd: DevDeskWindowState }) {
     }
     if (draftSeed) {
       const gen = draftSeed.generated
+      const lastPaymentInfo = docs.find((d) => d.paymentInfo?.trim())?.paymentInfo ?? ''
       setKind(draftSeed.kind)
       setDocNumber('')
-      setClientName(draftSeed.clientName ?? '')
-      setClientCompany(draftSeed.clientCompany ?? '')
-      setClientContact('')
+      setClientName(draftSeed.clientName || gen?.clientName || '')
+      setClientCompany(draftSeed.clientCompany || gen?.clientCompany || '')
+      setClientContact(gen?.clientContact ?? '')
       setTitle(gen?.title ?? '')
       setSummary(gen?.summary ?? '')
       setItems(gen?.items && gen.items.length > 0 ? gen.items : [{ ...EMPTY_ITEM }])
-      setDiscount('0')
+      setDiscount(String(gen?.discount ?? 0))
       setDpPercent(String(gen?.dpPercent ?? 50))
       setPaidAmount('0')
       setStatus('draft')
@@ -81,13 +83,13 @@ export function DevDocEditorModal({ dd }: { dd: DevDeskWindowState }) {
       setDueDate('')
       setValidUntil('')
       setTermsText((gen?.terms ?? []).join('\n'))
-      setPaymentInfo('')
+      setPaymentInfo(gen?.paymentInfo || lastPaymentInfo)
       setWaMessage(gen?.waMessage ?? '')
       setSourceNotes(draftSeed.sourceNotes ?? '')
       setShareChecklist(true)
       setInitialTodos(gen?.todos ?? [])
     }
-  }, [editingDoc, draftSeed])
+  }, [editingDoc, draftSeed, docs])
 
   const close = () => {
     setEditingDoc(null)
@@ -290,9 +292,7 @@ export function DevDocEditorModal({ dd }: { dd: DevDeskWindowState }) {
         </div>
 
         {!editingDoc && initialTodos.length > 0 ? (
-          <p className="text-[0.75rem] text-[var(--panel-primary-text)]">
-            {t('devdesk.initialTodosNote', { count: initialTodos.length })}
-          </p>
+          <DevInitialTodosEditor todos={initialTodos} onChange={setInitialTodos} t={t} />
         ) : null}
       </div>
     </Modal>

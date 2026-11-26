@@ -220,6 +220,7 @@ func completeOpenAI(ctx context.Context, client *http.Client, baseURL, model, ap
 	payload := map[string]any{
 		"model":       model,
 		"temperature": temp,
+		"max_tokens":  4096,
 		"stream":      false,
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
@@ -261,16 +262,32 @@ func completeOpenAI(ctx context.Context, client *http.Client, baseURL, model, ap
 				Content string `json:"content"`
 			} `json:"delta"`
 		} `json:"choices"`
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
 	}
 	if err := json.Unmarshal(trimmedBody, &out); err != nil {
 		return "", fmt.Errorf("invalid AI response JSON: %w", err)
 	}
-	if len(out.Choices) == 0 {
-		return "", errors.New("AI provider returned empty content")
+	var content string
+	if len(out.Choices) > 0 {
+		content = extractOpenAIContent(out.Choices[0].Message.Content)
+		if content == "" {
+			content = strings.TrimSpace(out.Choices[0].Delta.Content)
+		}
 	}
-	content := extractOpenAIContent(out.Choices[0].Message.Content)
-	if content == "" {
-		content = strings.TrimSpace(out.Choices[0].Delta.Content)
+	if content == "" && len(out.Candidates) > 0 {
+		var parts []string
+		for _, p := range out.Candidates[0].Content.Parts {
+			if p.Text != "" {
+				parts = append(parts, p.Text)
+			}
+		}
+		content = strings.TrimSpace(strings.Join(parts, ""))
 	}
 	if content == "" {
 		return "", errors.New("AI provider returned empty content")
@@ -317,6 +334,13 @@ func parseOpenAISSE(body []byte) (string, error) {
 					Content any `json:"content"`
 				} `json:"message"`
 			} `json:"choices"`
+			Candidates []struct {
+				Content struct {
+					Parts []struct {
+						Text string `json:"text"`
+					} `json:"parts"`
+				} `json:"content"`
+			} `json:"candidates"`
 			Error *struct {
 				Message string `json:"message"`
 			} `json:"error"`
@@ -335,6 +359,12 @@ func parseOpenAISSE(body []byte) (string, error) {
 			} else if s := extractOpenAIContent(ev.Choices[0].Message.Content); s != "" {
 				b.WriteString(s)
 			}
+		} else if len(ev.Candidates) > 0 {
+			for _, p := range ev.Candidates[0].Content.Parts {
+				if p.Text != "" {
+					b.WriteString(p.Text)
+				}
+			}
 		}
 	}
 	res := strings.TrimSpace(b.String())
@@ -351,7 +381,7 @@ func completeAnthropic(ctx context.Context, client *http.Client, baseURL, model,
 	}
 	payload := map[string]any{
 		"model":       model,
-		"max_tokens":  2048,
+		"max_tokens":  4096,
 		"temperature": temp,
 		"system":      systemPrompt,
 		"messages": []map[string]string{
@@ -434,21 +464,4 @@ func extractProviderError(body []byte) string {
 		s = s[:220]
 	}
 	return s
-}
-
-// ExtractJSONObject strips markdown code fences and extracts the outermost JSON object.
-func ExtractJSONObject(raw string) string {
-	s := strings.TrimSpace(raw)
-	if strings.HasPrefix(s, "```") {
-		if idx := strings.Index(s, "\n"); idx >= 0 {
-			s = s[idx+1:]
-		}
-		s = strings.TrimSuffix(strings.TrimSpace(s), "```")
-	}
-	start := strings.Index(s, "{")
-	end := strings.LastIndex(s, "}")
-	if start >= 0 && end > start {
-		return strings.TrimSpace(s[start : end+1])
-	}
-	return strings.TrimSpace(s)
 }

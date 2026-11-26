@@ -95,9 +95,14 @@ export interface DevDocInput {
 }
 
 export interface AIGeneratedDevDoc {
+  clientName?: string
+  clientCompany?: string
+  clientContact?: string
   title: string
   summary: string
+  discount?: number
   dpPercent: number
+  paymentInfo?: string
   items: DevDocItem[]
   terms: string[]
   waMessage: string
