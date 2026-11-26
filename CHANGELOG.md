@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.98] - 2026-11-26
+
+Harden AI JSON parsing and upgrade AI draft modal and checklist editor.
+
+### Perbaikan
+- **devdesk:** Harden AI JSON parsing and upgrade AI draft modal and checklist editor ([`fd3af9d`](https://github.com/friskipradana/y-panel/commit/fd3af9d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.97...v1.88.98
+
 ## [1.88.97] - 2026-11-26
 
 Sync widget viewport, scale window positions, 1-click Docker static IP, AI latency/hints, and modularize large UI files.
