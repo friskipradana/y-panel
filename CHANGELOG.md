@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.97] - 2026-11-26
+
+Sync widget viewport, scale window positions, 1-click Docker static IP, AI latency/hints, and modularize large UI files.
+
+### Fitur baru
+- **panel:** Sync widget viewport, scale window positions, 1-click Docker static IP, AI latency/hints, and modularize large UI files ([`962626f`](https://github.com/friskipradana/y-panel/commit/962626f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.96...v1.88.97
+
 ## [1.88.96] - 2026-11-25
 
 Scale and anchor desktop widget positions responsively across viewport resizes.
