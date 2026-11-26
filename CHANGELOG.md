@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.99] - 2026-11-26
+
+Add Page Studio window with AI landing page & docs generator, instant /p/:slug publish, and Docs window sync.
+
+### Fitur baru
+- **studio:** Add Page Studio window with AI landing page & docs generator, instant /p/:slug publish, and Docs window sync ([`e3c477f`](https://github.com/friskipradana/y-panel/commit/e3c477f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.98...v1.88.99
+
 ## [1.88.98] - 2026-11-26
 
 Harden AI JSON parsing and upgrade AI draft modal and checklist editor.
