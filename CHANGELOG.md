@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.100] - 2026-11-27
+
+Compact file manager toolbar and add junk file detector with selective and bulk cleanup.
+
+### Fitur baru
+- **files:** Compact file manager toolbar and add junk file detector with selective and bulk cleanup ([`93ace7f`](https://github.com/friskipradana/y-panel/commit/93ace7f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.99...v1.88.100
+
 ## [1.88.99] - 2026-11-26
 
 Add Page Studio window with AI landing page & docs generator, instant /p/:slug publish, and Docs window sync.
