@@ -8,6 +8,7 @@ import type { FileManagerState } from './useFileManager'
 export function FileList({ fm }: { fm: FileManagerState }) {
   const {
     t,
+    showHidden,
     activeTab,
     setMenu,
     selectedPaths,
@@ -21,7 +22,8 @@ export function FileList({ fm }: { fm: FileManagerState }) {
     narrowed,
   } = fm
 
-  const contents = activeTab.data?.contents || []
+  const rawContents = activeTab.data?.contents || []
+  const contents = showHidden || activeTab.query.q ? rawContents : rawContents.filter((it) => !it.name.startsWith('.'))
 
   return (
     <div
@@ -69,6 +71,7 @@ export function FileList({ fm }: { fm: FileManagerState }) {
           fileColumn('size', t('fileManager.sizeColumn'), { labelOf: (v) => t(`fileManager.size.${v}`) }),
           fileColumn('mode', t('fileManager.accessColumn')),
           fileColumn('modified', t('fileManager.modifiedColumn'), { labelOf: (v) => t(`fileManager.age.${v}`) }),
+          { label: t('docker.colActions'), actions: true },
         ]}
       >
         <ListState
@@ -81,7 +84,7 @@ export function FileList({ fm }: { fm: FileManagerState }) {
           emptyIcon={<Folder />}
           emptyTitle={narrowed ? t('docker.noResults') : t('fileManager.emptyFolder')}
         >
-          {(activeTab.data?.contents || []).map((item) => (
+          {contents.map((item) => (
         <FileRow
           key={item.path}
           item={item}

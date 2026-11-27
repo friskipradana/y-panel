@@ -58,20 +58,18 @@ export const FileRow = memo(({ item, isSelected, onToggleSelect, dragOverPath, o
       <div className="docker-cell docker-cell--mono">{item.isDir ? '--' : formatSize(item.size)}</div>
       <div className="docker-cell docker-cell--mono">{item.mode}</div>
       <div className="docker-cell">{formatDate(item.modified)}</div>
-      {touch ? (
-        <button
-          type="button"
-          className="docker-act-btn"
-          title={t('common.moreActions')}
-          aria-label={t('common.moreActions')}
-          onClick={(e) => {
-            e.stopPropagation()
-            onContextMenu(e, item)
-          }}
-        >
-          <EllipsisVertical className="h-4 w-4" strokeWidth={1.75} />
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className={`docker-act-btn ${touch ? '' : 'opacity-60 hover:opacity-100'}`}
+        title={t('common.moreActions')}
+        aria-label={t('common.moreActions')}
+        onClick={(e) => {
+          e.stopPropagation()
+          onContextMenu(e, item)
+        }}
+      >
+        <EllipsisVertical className="h-3.5 w-3.5" strokeWidth={1.75} />
+      </button>
     </div>
   )
 })

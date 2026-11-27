@@ -447,6 +447,8 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/files/write", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerWrite)))
 	s.mux.Handle("POST /api/v1/files/upload", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerUpload)))
 	s.mux.Handle("POST /api/v1/files/delete", s.requireCapability(auth.CapabilityFilesDelete, http.HandlerFunc(s.handleFileManagerDelete)))
+	s.mux.Handle("GET /api/v1/files/cleanup/scan", s.requireAuthV2(http.HandlerFunc(s.handleFileCleanupScan)))
+	s.mux.Handle("POST /api/v1/files/cleanup/delete", s.requireCapability(auth.CapabilityFilesDelete, http.HandlerFunc(s.handleFileCleanupDelete)))
 	s.mux.Handle("POST /api/v1/files/rename", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerRename)))
 	s.mux.Handle("POST /api/v1/files/move", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerMove)))
 	s.mux.Handle("POST /api/v1/files/copy", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerCopy)))

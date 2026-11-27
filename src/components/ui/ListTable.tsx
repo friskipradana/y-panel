@@ -28,6 +28,7 @@ interface ListTableProps {
     | 'dns'
     | 'routes'
     | 'files'
+    | 'files-cleanup'
     | 'databases'
     | 'users'
     | 'users-plain'

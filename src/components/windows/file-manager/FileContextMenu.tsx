@@ -1,4 +1,4 @@
-import { Archive, ClipboardPaste, Copy, Download, FilePlus, FolderPlus, Key, PackageOpen, Pencil, Scissors, SquarePen, Trash2 } from 'lucide-react'
+import { Archive, ClipboardCopy, ClipboardPaste, Copy, Download, FilePlus, FolderPlus, Key, PackageOpen, Pencil, Scissors, SquarePen, Trash2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { FileManagerState } from './useFileManager'
@@ -17,7 +17,7 @@ const ICON = { size: 14, strokeWidth: 1.75 }
 
 // The menu of a right click: on a file or folder, or on the empty space of the open folder
 export function FileContextMenu({ fm }: { fm: FileManagerState }) {
-  const { t, menu, clipboard, handleEdit, handleDownload, openModal, setClipboardItem, handlePasteClipboard, getSafeMenuStyles } = fm
+  const { t, menu, clipboard, handleEdit, handleDownload, copyPath, openModal, setClipboardItem, handlePasteClipboard, getSafeMenuStyles } = fm
   const item = menu?.item
   const position = getSafeMenuStyles()
 
@@ -41,11 +41,13 @@ export function FileContextMenu({ fm }: { fm: FileManagerState }) {
             <div className="file-menu__group">
               <MenuItem icon={<FilePlus {...ICON} />} label={t('fileManager.newFile')} onClick={() => openModal({ type: 'touch' })} />
               <MenuItem icon={<FolderPlus {...ICON} />} label={t('fileManager.newFolder')} onClick={() => openModal({ type: 'mkdir' })} />
+              <MenuItem icon={<ClipboardCopy {...ICON} />} label={t('fileManager.copyPathAction')} onClick={() => copyPath(menu.targetPath)} />
             </div>
           ) : (
             <div className="file-menu__group">
               {!item.isDir ? <MenuItem icon={<SquarePen {...ICON} />} label={t('fileManager.openEditor')} onClick={() => handleEdit(item)} /> : null}
               {!item.isDir ? <MenuItem icon={<Download {...ICON} />} label={t('common.download')} onClick={() => handleDownload(item)} /> : null}
+              <MenuItem icon={<ClipboardCopy {...ICON} />} label={t('fileManager.copyPathAction')} onClick={() => copyPath(item.path)} />
               <MenuItem icon={<Scissors {...ICON} />} label={t('common.cut')} onClick={() => setClipboardItem(item, 'cut')} />
               <MenuItem icon={<Copy {...ICON} />} label={t('common.copy')} onClick={() => setClipboardItem(item, 'copy')} />
             </div>

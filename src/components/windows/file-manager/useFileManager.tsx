@@ -1,19 +1,24 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import axios from 'axios'
+import { toast } from 'sonner'
 import { alertLib } from '@/lib/alert'
 import { getFileRootAccessStatus, getMeV2, revokeFileRootAccess, verifyFileRootAccess } from '@/api/agent'
+import { deleteFileCleanup } from '@/api/files'
 import { useWindowStore } from '@/store/windowStore'
 import { useEditorStore } from '@/store/editorStore'
 import { useI18n } from '@/lib/i18n'
 import {
   type FileNode, type DirResponse, type ModalType, type FileManagerTab,
-  joinPath, extractFileError, downloadFileNode, computeSafeMenuStyles, buildModalRequest,
+  joinPath, extractFileError, downloadFileNode, computeSafeMenuStyles, buildModalRequest, formatSize,
 } from './fileManagerConfig'
+import { useTabDragScroll } from './useTabDragScroll'
 import type { WindowState } from '@/types'
 import { EMPTY_LIST_QUERY, listParams, type ListQuery } from '@/lib/listQuery'
 import { listColumn, type ColumnOptions } from '@/hooks/useListQuery'
 
 let nextFileManagerTabId = 1
+
+export type FileManagerViewMode = 'browse' | 'cleanup'
 
 export function useFileManager({ win, authenticated }: { win: WindowState; authenticated?: boolean }) {
   const { openWindow, updateWindowParams } = useWindowStore()
@@ -21,6 +26,8 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
   const { t } = useI18n()
 
   const initialPath = (win.params?.currentPath as string | undefined) || '/'
+  const [viewMode, setViewMode] = useState<FileManagerViewMode>('browse')
+  const [showHidden, setShowHidden] = useState(true)
 
   const [tabs, setTabs] = useState<FileManagerTab[]>([
     { id: 'tab-0', currentPath: initialPath, inputPath: initialPath, data: null, loading: false, failed: false, query: EMPTY_LIST_QUERY, searchText: '' },
@@ -42,6 +49,7 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
     void getMeV2().then((me) => setIsSuperadmin(me.role === 'superadmin')).catch(() => setIsSuperadmin(false))
     void getFileRootAccessStatus().then(setRootAccess).catch(() => setRootAccess({ enabled: false }))
   }, [authenticated])
+
   const [menu, setMenu] = useState<{ x: number; y: number; item?: FileNode; targetPath: string } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [clipboard, setClipboard] = useState<{ items: FileNode[]; mode: 'cut' | 'copy' } | null>(null)
@@ -57,32 +65,7 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
   const [chmodRecursive, setChmodRecursive] = useState(false)
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
 
-  const tabsScrollRef = useRef<HTMLDivElement>(null)
-  const isTabDraggingRef = useRef(false)
-  const [isTabDragging, setIsTabDragging] = useState(false)
-  const tabStartXRef = useRef(0)
-  const tabScrollLeftRef = useRef(0)
-
-  const handleTabsMouseDown = (e: React.MouseEvent) => {
-    if (!tabsScrollRef.current) return
-    isTabDraggingRef.current = true
-    setIsTabDragging(true)
-    tabStartXRef.current = e.pageX - tabsScrollRef.current.offsetLeft
-    tabScrollLeftRef.current = tabsScrollRef.current.scrollLeft
-  }
-  const stopTabDrag = () => {
-    isTabDraggingRef.current = false
-    setIsTabDragging(false)
-  }
-  const handleTabsMouseLeave = stopTabDrag
-  const handleTabsMouseUp = stopTabDrag
-  const handleTabsMouseMove = (e: React.MouseEvent) => {
-    if (!isTabDraggingRef.current || !tabsScrollRef.current) return
-    e.preventDefault()
-    const x = e.pageX - tabsScrollRef.current.offsetLeft
-    tabsScrollRef.current.scrollLeft = tabScrollLeftRef.current - (x - tabStartXRef.current) * 1.5
-  }
-
+  const tabDrag = useTabDragScroll()
   const tabsRef = useRef(tabs)
   useEffect(() => {
     tabsRef.current = tabs
@@ -142,7 +125,10 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
   useEffect(() => {
     if (requested === undefined || requested === lastOpenRequest.current) return
     lastOpenRequest.current = requested
-    if (typeof requestedPath === 'string' && requestedPath) setCurrentPath(requestedPath)
+    if (typeof requestedPath === 'string' && requestedPath) {
+      setViewMode('browse')
+      setCurrentPath(requestedPath)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requested, requestedPath])
 
@@ -192,6 +178,7 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
     }
     setTabs((prev) => [...prev, newTab])
     setActiveTabId(id)
+    setViewMode('browse')
     void loadDirectory(activeTab.currentPath, id)
   }
 
@@ -213,6 +200,11 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
   const handleDownload = (item: FileNode) => {
     setMenu(null)
     downloadFileNode(item)
+  }
+
+  const copyPath = (path: string) => {
+    setMenu(null)
+    void navigator.clipboard.writeText(path).then(() => toast.success(t('fileManager.pathCopied')))
   }
 
   const openModal = (m: ModalType) => {
@@ -285,11 +277,11 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
       setModal(null)
       void loadDirectory(activeTab.currentPath, activeTabId)
 
-      if (modal.type === 'delete') alertLib.fire(t('fileManager.deleteSuccessTitle'), t('fileManager.deleteSuccessMessage', { name: modal.item.name }), 'success', 'file-manager')
-      else if (modal.type === 'rename') alertLib.fire(t('fileManager.renameSuccessTitle'), t('fileManager.renameSuccessMessage'), 'success', 'file-manager')
-      else if (modal.type === 'mkdir') alertLib.fire(t('common.success'), t('fileManager.mkdirSuccessMessage'), 'success', 'file-manager')
-      else if (modal.type === 'touch') alertLib.fire(t('common.success'), t('fileManager.touchSuccessMessage'), 'success', 'file-manager')
-      else if (modal.type === 'chmod') alertLib.fire(t('common.success'), t('fileManager.chmodSuccessMessage'), 'success', 'file-manager')
+      if (modal.type === 'delete') toast.success(t('fileManager.deletedSingleToast', { name: modal.item.name }))
+      else if (modal.type === 'rename') toast.success(t('fileManager.renamedToast'))
+      else if (modal.type === 'mkdir') toast.success(t('fileManager.mkdirSuccessMessage'))
+      else if (modal.type === 'touch') toast.success(t('fileManager.touchSuccessMessage'))
+      else if (modal.type === 'chmod') toast.success(t('fileManager.chmodSuccessMessage'))
     } catch (err: unknown) {
       alertLib.fire(t('fileManager.operationFailedTitle'), extractFileError(err, t('fileManager.internalError')).message, 'error', 'file-manager')
     } finally {
@@ -316,8 +308,7 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
       }
       setSelectedPaths(new Set())
       await loadDirectory(activeTab.currentPath, activeTabId)
-
-      if (count > 0 && failed === 0) alertLib.fire(t('fileManager.moveSuccessTitle'), t('fileManager.moveSuccessMessage', { count }), 'success', 'file-manager')
+      if (count > 0 && failed === 0) toast.success(t('fileManager.movedToast', { count }))
       else if (count > 0 && failed > 0) alertLib.fire(t('fileManager.movePartialTitle'), t('fileManager.movePartialMessage', { count, failed }), 'warning', 'file-manager')
       else if (failed > 0) alertLib.fire(t('fileManager.moveFailedTitle'), t('fileManager.moveFailedMessage'), 'error', 'file-manager')
     } catch (err: unknown) {
@@ -330,29 +321,38 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
   const setClipboardItem = (item: FileNode, mode: 'cut' | 'copy') => {
     setMenu(null)
     setClipboard({ items: [item], mode })
+    toast.info(t('fileManager.clipboardReady', { count: 1 }))
   }
 
   const setClipboardBulk = (mode: 'cut' | 'copy') => {
     if (!activeTab.data?.contents) return
-    setClipboard({ items: activeTab.data.contents.filter((i) => selectedPaths.has(i.path)), mode })
+    const items = activeTab.data.contents.filter((i) => selectedPaths.has(i.path))
+    setClipboard({ items, mode })
     setSelectedPaths(new Set())
+    toast.info(t('fileManager.clipboardReady', { count: items.length }))
   }
 
   const handleBulkDelete = async () => {
+    const paths = Array.from(selectedPaths)
+    if (paths.length === 0) return
     const isConfirmed = await alertLib.confirm(
-      t('fileManager.bulkDeleteConfirmTitle'), t('fileManager.bulkDeleteConfirmMessage', { count: selectedPaths.size }),
+      t('fileManager.bulkDeleteConfirmTitle'), t('fileManager.bulkDeleteConfirmMessage', { count: paths.length }),
       t('fileManager.bulkDeleteConfirmAction'), t('common.cancel'), 'warning', 'file-manager',
     )
     if (!isConfirmed) return
     setModalLoading(true)
     try {
-      const paths = Array.from(selectedPaths)
-      for (const p of paths) {
-        await axios.post('/api/v1/files/delete', { path: p }, { baseURL: import.meta.env.VITE_AGENT_BASE, withCredentials: true }).catch(() => undefined)
-      }
+      const res = await deleteFileCleanup(paths)
       setSelectedPaths(new Set())
       await loadDirectory(activeTab.currentPath, activeTabId)
-      alertLib.fire(t('fileManager.deleteSuccessTitle'), t('fileManager.bulkDeleteSuccessMessage', { count: paths.length }), 'success', 'file-manager')
+      if (res.deleted > 0) {
+        toast.success(t('fileManager.cleanup.deletedToast', { count: res.deleted, size: formatSize(res.freedBytes) }))
+      }
+      if (res.failed.length > 0) {
+        toast.warning(t('fileManager.cleanup.failedCountToast', { count: res.failed.length }))
+      }
+    } catch (err: unknown) {
+      alertLib.fire(t('fileManager.operationFailedTitle'), extractFileError(err, t('fileManager.internalError')).message, 'error', 'file-manager')
     } finally {
       setModalLoading(false)
     }
@@ -373,7 +373,7 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
       }
       if (clipboard.mode === 'cut') setClipboard(null)
       await loadDirectory(activeTab.currentPath, activeTabId)
-      alertLib.fire(t('fileManager.pasteSuccessTitle'), t(clipboard.mode === 'cut' ? 'fileManager.pasteMovedMessage' : 'fileManager.pasteCopiedMessage', { count: clipboard.items.length }), 'success', 'file-manager')
+      toast.success(t('fileManager.pastedToast', { count: clipboard.items.length }))
     } catch (err: unknown) {
       alertLib.fire(t('fileManager.pasteFailedTitle'), extractFileError(err, t('fileManager.pasteFailedMessage')).message, 'error', 'file-manager')
     } finally {
@@ -384,14 +384,14 @@ export function useFileManager({ win, authenticated }: { win: WindowState; authe
   const getSafeMenuStyles = () => computeSafeMenuStyles(menu, containerRef.current, Boolean(clipboard && clipboard.items.length > 0))
 
   return {
-    t, tabs, activeTabId, setActiveTabId, isSuperadmin, rootAccess, showRootAccessModal, setShowRootAccessModal,
-    rootPassword, setRootPassword, rootAccessLoading, activeTab, menu, setMenu, containerRef, clipboard,
-    selectedPaths, setSelectedPaths, modal, setModal, dragOverPath, setDragOverPath, tabsScrollRef, isTabDragging,
-    handleTabsMouseDown, handleTabsMouseLeave, handleTabsMouseUp, handleTabsMouseMove, loadDirectory, setCurrentPath,
-    setInputPath, setSearchText, fileColumn, narrowed, openNewTab, closeTab, handleEdit, handleDownload, openModal,
-    submitRootAccess, openTerminalHere, handleRootAccessButton, moveItems, setClipboardItem, setClipboardBulk,
-    handleBulkDelete, handlePasteClipboard, modalInput, setModalInput, modalPathInput, setModalPathInput,
-    chmodMode, setChmodMode, chmodRecursive, setChmodRecursive, modalLoading, executeModal, joinPath, getSafeMenuStyles,
+    t, viewMode, setViewMode, showHidden, setShowHidden, tabs, activeTabId, setActiveTabId, isSuperadmin, rootAccess,
+    showRootAccessModal, setShowRootAccessModal, rootPassword, setRootPassword, rootAccessLoading, activeTab, menu,
+    setMenu, containerRef, clipboard, selectedPaths, setSelectedPaths, modal, setModal, dragOverPath, setDragOverPath,
+    ...tabDrag, loadDirectory, setCurrentPath, setInputPath, setSearchText, fileColumn, narrowed, openNewTab, closeTab,
+    handleEdit, handleDownload, copyPath, openModal, submitRootAccess, openTerminalHere, handleRootAccessButton,
+    moveItems, setClipboardItem, setClipboardBulk, handleBulkDelete, handlePasteClipboard, modalInput, setModalInput,
+    modalPathInput, setModalPathInput, chmodMode, setChmodMode, chmodRecursive, setChmodRecursive, modalLoading,
+    executeModal, joinPath, getSafeMenuStyles,
   }
 }
 

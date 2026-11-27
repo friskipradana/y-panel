@@ -7,6 +7,7 @@ import { FileUploadBar } from './file-manager/FileUploadBar'
 import { FileTabsStrip } from './file-manager/FileTabsStrip'
 import { FileToolbar } from './file-manager/FileToolbar'
 import { FileList } from './file-manager/FileList'
+import { FileCleanupPanel } from './file-manager/FileCleanupPanel'
 import { FileStatusBar } from './file-manager/FileStatusBar'
 import { BulkActionsBar } from './file-manager/BulkActionsBar'
 import { FileActionModal } from './file-manager/FileActionModal'
@@ -53,10 +54,16 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
     >
       <FileTabsStrip fm={fm} />
       <FileToolbar fm={fm} upload={upload} />
-      <FileList fm={fm} />
-      <FileUploadBar upload={upload} />
-      <FileStatusBar fm={fm} />
-      <BulkActionsBar fm={fm} />
+      {fm.viewMode === 'cleanup' ? (
+        <FileCleanupPanel fm={fm} />
+      ) : (
+        <>
+          <FileList fm={fm} />
+          <FileUploadBar upload={upload} />
+          <FileStatusBar fm={fm} />
+          <BulkActionsBar fm={fm} />
+        </>
+      )}
       <FileActionModal fm={fm} />
       <RootAccessModal fm={fm} />
       <FileContextMenu fm={fm} />

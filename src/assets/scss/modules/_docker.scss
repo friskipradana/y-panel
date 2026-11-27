@@ -840,7 +840,11 @@
   }
 
   &--files {
-    --docker-cols: 40px minmax(0, 2.4fr) minmax(72px, 0.6fr) minmax(76px, 0.6fr) 104px minmax(140px, 1fr);
+    --docker-cols: 40px minmax(0, 2.4fr) minmax(72px, 0.6fr) minmax(76px, 0.6fr) 96px minmax(120px, 0.9fr) 36px;
+  }
+
+  &--files-cleanup {
+    --docker-cols: 40px minmax(0, 2.6fr) 96px 88px 96px 76px;
   }
 
   &--services-systemd {
@@ -1077,7 +1081,8 @@
       grid-column: 2;
     }
 
-    > .docker-act-btn {
+    > .docker-act-btn,
+    > .docker-action-btns {
       grid-column: 3;
     }
   }
@@ -1737,7 +1742,7 @@
     }
   }
 
-  .docker-table:not(.docker-table--files):not(.docker-table--docs) {
+  .docker-table:not(.docker-table--files):not(.docker-table--files-cleanup):not(.docker-table--docs) {
     padding: 8px 10px 14px;
     min-height: 0;
 
@@ -1754,6 +1759,7 @@
   }
 
   .docker-table--files,
+  .docker-table--files-cleanup,
   .docker-table--docs {
     padding: 0;
     min-height: 0;
@@ -1851,6 +1857,10 @@
       text-overflow: ellipsis;
       word-break: normal;
       overflow-wrap: normal;
+    }
+
+    > .docker-action-btns {
+      grid-column: 3;
     }
 
     > .docker-act-btn {

@@ -38,3 +38,45 @@ export const uploadFiles = (dir: string, files: File[], overwrite: boolean, onPr
     })
     .then((r) => r.data)
 }
+
+export type CleanupCategory = 'cache' | 'temp' | 'logs' | 'build' | 'empty' | 'large'
+export type CleanupSafety = 'safe' | 'caution'
+export type CleanupScope = 'folder' | 'system'
+
+export interface CleanupItem {
+  path: string
+  name: string
+  isDir: boolean
+  size: number
+  modified: string
+  category: CleanupCategory
+  safety: CleanupSafety
+  reason: string
+}
+
+export interface CleanupScanResult {
+  root: string
+  scope: CleanupScope
+  scannedFiles: number
+  totalBytes: number
+  safeBytes: number
+  truncated: boolean
+  items: CleanupItem[]
+}
+
+export interface CleanupDeleteResult {
+  ok: boolean
+  deleted: number
+  freedBytes: number
+  failed: Array<{ path: string; error: string }>
+}
+
+export const scanFileCleanup = (path: string, scope: CleanupScope = 'folder') =>
+  agentApi
+    .get<CleanupScanResult>('/api/v1/files/cleanup/scan', { params: { path, scope } })
+    .then((r) => r.data)
+
+export const deleteFileCleanup = (paths: string[]) =>
+  agentApi
+    .post<CleanupDeleteResult>('/api/v1/files/cleanup/delete', { paths })
+    .then((r) => r.data)
