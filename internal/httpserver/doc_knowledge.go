@@ -35,6 +35,7 @@ type docFeature struct {
 	Description localized `json:"description"`
 	Keywords    []string  `json:"keywords"`
 	Official    []string  `json:"official"`
+	Shot        string    `json:"shot"`
 	Labels      struct {
 		ID []string `json:"id"`
 		EN []string `json:"en"`
@@ -123,6 +124,37 @@ func docKnowledgeBlock(features []*docFeature, lang string, official []database.
 		}
 	}
 	return b.String()
+}
+
+// withFeatureShot puts the screenshot of the window after the opening of the post. The model cannot make pictures, so the panel
+// adds the real one itself instead of hoping the model copies an address.
+func withFeatureShot(content string, features []*docFeature, lang string) string {
+	if len(features) == 0 || features[0].Shot == "" || strings.Contains(content, features[0].Shot) {
+		return content
+	}
+	f := features[0]
+	caption := "Jendela " + f.Name.ID
+	if lang == "en" {
+		caption = "The " + f.Name.EN + " window"
+	}
+	image := fmt.Sprintf("![%s](%s)", strings.NewReplacer("[", "", "]", "").Replace(caption), f.Shot)
+	// before the second heading, so it stands with the introduction; a post without one gets it at the end
+	lines := strings.Split(content, "\n")
+	headings, inCode := 0, false
+	for i, line := range lines {
+		if strings.HasPrefix(line, "```") {
+			inCode = !inCode
+		}
+		if inCode || !strings.HasPrefix(line, "#") {
+			continue
+		}
+		headings++
+		if headings == 2 {
+			head := strings.TrimRight(strings.Join(lines[:i], "\n"), "\n")
+			return head + "\n\n" + image + "\n\n" + strings.Join(lines[i:], "\n")
+		}
+	}
+	return strings.TrimRight(content, "\n") + "\n\n" + image
 }
 
 const docGroundingRules = `

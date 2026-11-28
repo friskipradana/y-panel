@@ -165,6 +165,9 @@ Rules:
 		s.writeError(w, http.StatusUnprocessableEntity, errors.New("AI tidak menghasilkan isi konten Markdown"))
 		return
 	}
+	if !revising {
+		content = withFeatureShot(content, features, langKey)
+	}
 	slug := slugify(parsed.Slug)
 	if slug == "" {
 		slug = slugify(parsed.Title)

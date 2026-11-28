@@ -165,8 +165,8 @@ export const MENU_ITEMS: AppMenuItem[] = [
   },
   {
     kind: 'docs',
-    descId: 'Panduan lengkap dan dokumentasi fitur Reneo',
-    descEn: 'Comprehensive guides and documentation',
+    descId: 'Panduan fitur Reneo dan artikel: baca, tulis, dan buat dengan AI',
+    descEn: 'Reneo feature guides and articles: read, write and draft with AI',
     category: 'info',
   },
   {

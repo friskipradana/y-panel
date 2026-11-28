@@ -18,6 +18,7 @@
    "network"
   ],
   "official": [],
+  "shot": "/doc-shots/docker.webp",
   "labels": {
    "id": [
     "Database",
@@ -666,6 +667,7 @@
    "helm"
   ],
   "official": [],
+  "shot": "/doc-shots/kubernetes.webp",
   "labels": {
    "id": [
     "Bagian Kubernetes",
@@ -1038,6 +1040,7 @@
   "official": [
    "project-dan-runtime"
   ],
+  "shot": "/doc-shots/projects.webp",
   "labels": {
    "id": [
     "Upload Build Static",
@@ -1526,6 +1529,7 @@
   "official": [
    "mengelola-database"
   ],
+  "shot": "/doc-shots/database.webp",
   "labels": {
    "id": [
     "{count} baris",
@@ -2033,6 +2037,7 @@
    "editor"
   ],
   "official": [],
+  "shot": "/doc-shots/files.webp",
   "labels": {
    "id": [
     "Pilih semua",
@@ -2490,6 +2495,7 @@
    "perintah"
   ],
   "official": [],
+  "shot": "/doc-shots/terminal.webp",
   "labels": {
    "id": [
     "Tombol terminal",
@@ -2614,6 +2620,7 @@
   "official": [
    "mengaktifkan-cloudflare-for-saas"
   ],
+  "shot": "/doc-shots/cloudflare.webp",
   "labels": {
    "id": [
     "Izin token API Cloudflare",
@@ -3270,6 +3277,7 @@
   "official": [
    "ip-publik-tanpa-tunnel"
   ],
+  "shot": "/doc-shots/public-ip.webp",
   "labels": {
    "id": [
     "Layani domain dari IP publik",
@@ -3527,6 +3535,7 @@
    "ssh key"
   ],
   "official": [],
+  "shot": "/doc-shots/firewall.webp",
   "labels": {
    "id": [
     "Bagian firewall",
@@ -3819,6 +3828,7 @@
    "r2"
   ],
   "official": [],
+  "shot": "/doc-shots/backups.webp",
   "labels": {
    "id": [
     "Bagian Backup",
@@ -3983,6 +3993,7 @@
    "down"
   ],
   "official": [],
+  "shot": "/doc-shots/uptime.webp",
   "labels": {
    "id": [
     "Filter monitor",
@@ -4086,6 +4097,7 @@
    "jadwal"
   ],
   "official": [],
+  "shot": "/doc-shots/services.webp",
   "labels": {
    "id": [
     "Bagian Layanan & Cron",
@@ -4192,6 +4204,7 @@
    "log"
   ],
   "official": [],
+  "shot": "/doc-shots/system.webp",
   "labels": {
    "id": [
     "{count} baris",
@@ -4458,6 +4471,7 @@
    "latency"
   ],
   "official": [],
+  "shot": "/doc-shots/speedtest.webp",
   "labels": {
    "id": [
     "Jenis tes kecepatan",
@@ -4592,6 +4606,7 @@
   "official": [
    "akun-kuota-dan-demo"
   ],
+  "shot": "/doc-shots/users.webp",
   "labels": {
    "id": [
     "Profil Akun",
@@ -5184,6 +5199,7 @@
    "pembayaran"
   ],
   "official": [],
+  "shot": "/doc-shots/hosting.webp",
   "labels": {
    "id": [
     "Domain ini tidak ditawarkan.",
@@ -5999,6 +6015,7 @@
    "waha"
   ],
   "official": [],
+  "shot": "/doc-shots/notifications.webp",
   "labels": {
    "id": [
     "Bot Telegram sendiri",
@@ -6670,6 +6687,7 @@
    "pembaruan"
   ],
   "official": [],
+  "shot": "/doc-shots/settings.webp",
   "labels": {
    "id": [
     "Gaya Ikon Desktop",
@@ -7670,6 +7688,7 @@
    "pasang"
   ],
   "official": [],
+  "shot": "/doc-shots/app-catalog.webp",
   "labels": {
    "id": [
     "Lisensi Aplikasi",
@@ -8080,6 +8099,7 @@
    "dkim"
   ],
   "official": [],
+  "shot": "/doc-shots/email.webp",
   "labels": {
    "id": [
     "Pengaktifan & Metode Email Server",
@@ -8483,6 +8503,7 @@
    "checklist"
   ],
   "official": [],
+  "shot": "/doc-shots/dev-desk.webp",
   "labels": {
    "id": [
     "Bagian Dev Desk",
@@ -8740,6 +8761,7 @@
    "builder"
   ],
   "official": [],
+  "shot": "/doc-shots/page-studio.webp",
   "labels": {
    "id": [
     "Filter Halaman",
@@ -8837,7 +8859,6 @@
     "AI sedang menyusun kode halaman...",
     "Atur AI",
     "Nama Brand / Proyek",
-    "Tampilkan di Window Dokumentasi",
     "Bagian Halaman",
     "Bagian Baru",
     "Item Baru",
@@ -8925,7 +8946,7 @@
     "Terapkan tautan",
     "Minta AI mengubah elemen yang dipilih...",
     "Belum ada landing page atau dokumentasi. Mulai buat otomatis dengan AI atau manual.",
-    "Hapus halaman {name}? Tautan publik dan salinan di Window Dokumentasi ikut dihapus.",
+    "Hapus halaman {name}? Tautan publik dan salinan di Window Dokumentasi & Artikel ikut dihapus.",
     "AI sedang menyusun struktur dan konten halaman memakai {model}...",
     "Halaman berhasil disusun AI. Periksa lalu klik Simpan & Publish.",
     "Terjadi kesalahan saat menghubungi penyedia AI.",
@@ -8937,13 +8958,14 @@
     "Buat landing page untuk aplikasi manajemen pesanan dan stok gudang berbasis cloud untuk distributor. Sertakan fitur utama, manfaat operasional, paket langganan bulanan, dan FAQ.",
     "Buat dokumentasi panduan lengkap untuk pengguna baru panel server: login pertama, menghubungkan domain, deploy aplikasi, backup berkala, serta FAQ pemecahan masalah umum.",
     "Buat dokumentasi teknis operasional server: struktur layanan, konfigurasi environment, pemantauan log harian, prosedur update aman, dan langkah pemulihan darurat.",
-    "Sinkronkan otomatis ke Window Dokumentasi saat dipublikasikan",
+    "Sinkronkan otomatis ke Window Dokumentasi & Artikel saat dipublikasikan",
     "## Pendahuluan Tulis dokumentasi lengkap dalam format Markdown...",
     "Ringkasan singkat 1-2 kalimat untuk mesin pencari dan pratinjau tautan.",
     "Belum ada bagian. Klik Tambah Bagian atau susun otomatis dengan AI.",
     "Halaman belum dipublikasikan atau alamat URL sudah berubah.",
     "Arahkan subdomain atau domain Cloudflare ke halaman ini. Setelah terhubung, halaman otomatis dipublikasikan dan langsung tampil di domain tersebut.",
     "Deskripsikan website, landing page, portofolio, atau aplikasi web apa saja, lalu tekan Enter...",
+    "Tampilkan di Window Dokumentasi & Artikel",
     "Sinkronkan otomatis ke Window Dokumentasi & /articles saat dipublikasikan.",
     "Minta AI membangun atau mengubah apa saja tanpa batasan, mis. 'Buat website kafe bergaya editorial gelap dengan filter menu dan formulir reservasi'.",
     "Minta AI ubah desain, warna, animasi, fitur interaktif, atau konten apa saja...",
@@ -8955,7 +8977,7 @@
     "Antrean Topik (opsional, 1 topik per baris)",
     "Kosongkan atau biarkan habis agar AI otomatis memilih topik baru sesuai tema tanpa mengulang artikel yang sudah ada.",
     "Cara Mengatur IP Statis Container Docker Panduan Backup Otomatis ke Cloud Tips Mengamankan Firewall Server",
-    "Artikel yang dihasilkan langsung terbit di /p/:slug (dan Window Dokumentasi bila aktif).",
+    "Artikel yang dihasilkan langsung terbit di /p/:slug (dan Window Dokumentasi & Artikel bila aktif).",
     "Jalankan otomatis di latar belakang sesuai frekuensi yang ditentukan.",
     "Hapus jadwal \"{{name}}\"? Artikel yang sudah terbuat tetap tersimpan.",
     "Pasang gambar terlampir di tempat yang paling cocok.",
@@ -9147,7 +9169,7 @@
     "Link address",
     "Apply link",
     "No landing pages or documentation yet. Generate one with AI or create manually.",
-    "Delete page {name}? The public link and any synced Docs window article will also be removed.",
+    "Delete page {name}? The public link and any synced Docs & Articles window article will also be removed.",
     "AI is building the page structure and copy with {model}...",
     "AI draft is ready. Review it and click Save & Publish.",
     "An error occurred while contacting the AI provider.",
@@ -9159,14 +9181,14 @@
     "Create a landing page for a cloud order and inventory management app for distributors. Include key capabilities, business benefits, monthly pricing tiers, and FAQ.",
     "Write a clear getting-started documentation guide for server panel users: initial sign-in, connecting a domain, deploying apps, scheduled backups, and common troubleshooting.",
     "Write an operational runbook covering service layout, environment configuration, daily log checks, safe upgrade workflow, and emergency recovery steps.",
-    "Automatically sync to Documentation window when published",
+    "Automatically sync to Docs & Articles window when published",
     "## Introduction Write complete Markdown documentation here...",
     "Concise 1-2 sentence summary for search engines and link previews.",
     "No sections yet. Click Add Section or generate automatically with AI.",
     "This page is not published yet or its URL has changed.",
     "Point a Cloudflare subdomain or domain directly to this page. Once connected, the page is automatically published and served at the root of that domain.",
     "Describe any website, landing page, portfolio, or interactive web app, then press Enter...",
-    "Automatically sync to Documentation window & /articles when published.",
+    "Automatically sync to Docs & Articles window & /articles when published.",
     "Ask AI to build or refine anything with no limits, e.g. 'Build a dark editorial cafe site with interactive menu filters and booking form'.",
     "Ask AI to change design, colors, interactivity, animations, or any content...",
     "No version history yet. A snapshot is saved before each AI edit.",
@@ -9177,298 +9199,13 @@
     "Topic Queue (optional, one topic per line)",
     "Leave empty or let it finish so AI automatically picks fresh non-duplicate topics matching your theme.",
     "Setting Static IPs for Docker Containers Automated Cloud Backup Guide Server Firewall Hardening Tips",
-    "Immediately publish generated articles to /p/:slug (and Documentation window if enabled).",
+    "Immediately publish generated articles to /p/:slug (and Docs & Articles window if enabled).",
     "Run automatically in the background on the configured schedule.",
     "Delete schedule \"{{name}}\"? Previously generated articles will remain.",
     "Place the attached pictures where they fit best.",
     "Or describe below what the AI should change on this element.",
     "Ask the AI to change the selected element...",
     "A script on the page built this element, so it cannot be edited directly. Ask the AI to change it in the chat."
-   ]
-  }
- },
- {
-  "key": "docs",
-  "access": "all",
-  "name": {
-   "id": "Dokumentasi",
-   "en": "Docs"
-  },
-  "description": {
-   "id": "Panduan lengkap dan dokumentasi fitur Reneo",
-   "en": "Comprehensive guides and documentation"
-  },
-  "keywords": [
-   "dokumentasi",
-   "artikel",
-   "panduan"
-  ],
-  "official": [],
-  "labels": {
-   "id": [
-    "Terbuka untuk umum",
-    "publik",
-    "Salin tautan publik",
-    "Tautan disalin",
-    "Pratinjau",
-    "Tulis",
-    "Slug ini sudah dipakai artikel lain.",
-    "Hanya admin yang dapat menulis artikel.",
-    "Artikel gagal disimpan",
-    "Artikel tidak dapat dimuat",
-    "Belum ada artikel yang diterbitkan.",
-    "Kembali ke daftar",
-    "resmi",
-    "Format teks",
-    "Judul bagian",
-    "Tebal",
-    "Miring",
-    "Tautan",
-    "Daftar poin",
-    "Daftar bernomor",
-    "Kutipan",
-    "Kode",
-    "Sisipkan gambar",
-    "Mengunggah gambar...",
-    "Artikel",
-    "Status",
-    "Cari artikel...",
-    "Resmi",
-    "Publik",
-    "Pribadi",
-    "Draf",
-    "Arsip",
-    "{count} artikel",
-    "{shown} dari {total} artikel",
-    "Docs & Tutorial",
-    "Muat ulang dokumen",
-    "Tulis Baru",
-    "Jenis Post",
-    "Semua",
-    "Dokumentasi",
-    "Generate AI",
-    "Jadwal Otomatis",
-    "Generate Dokumentasi / Artikel dengan AI",
-    "Topik (opsional)",
-    "Catatan / Fokus Tambahan (opsional)",
-    "Simpan Langsung ke Daftar",
-    "Langsung Terbitkan",
-    "Jika mati, post disimpan sebagai draf.",
-    "Generate Sekarang",
-    "Menyusun...",
-    "Post berhasil dibuat oleh AI",
-    "Draf AI siap ditinjau di editor.",
-    "AI gagal menyusun konten",
-    "Memuat dokumentasi dari database...",
-    "Cari",
-    "Sebelumnya",
-    "Berikutnya",
-    "status {status}",
-    "Terbit",
-    "Diarsipkan",
-    "Edit Artikel",
-    "Hapus Artikel",
-    "Judul",
-    "Slug",
-    "Ringkasan",
-    "Isi Artikel",
-    "Menyimpan...",
-    "Simpan Artikel",
-    "Artikel dibuat",
-    "Artikel {title} berhasil ditambahkan.",
-    "Gagal membuat dokumentasi",
-    "Artikel diperbarui",
-    "Artikel {title} berhasil diperbarui.",
-    "Gagal memperbarui dokumentasi",
-    "Artikel dihapus",
-    "Artikel gagal dihapus",
-    "Visual",
-    "Perbaiki",
-    "Urungkan",
-    "Paragraf",
-    "Tulis paragraf...",
-    "Judul besar",
-    "Judul kecil",
-    "Garis pemisah",
-    "Butir daftar",
-    "Keterangan gambar",
-    "Blok apa adanya",
-    "Aksi blok",
-    "Naikkan",
-    "Turunkan",
-    "Pasang tautan",
-    "Tampilan",
-    "Fitur Reneo",
-    "Daftar isi",
-    "{count} tulisan",
-    "Belum ada panduan",
-    "Buat dengan AI",
-    "Tulis sendiri",
-    "Bukan tentang satu fitur",
-    "Cari fitur...",
-    "Siapa pun dengan tautan dapat membaca artikel ini tanpa login. Hanya berlaku bila statusnya diterbitkan.",
-    "Mendukung judul (#), daftar, kode, tebal/miring, dan tautan.",
-    "Alamat artikel: /articles/{slug}. Dibuat dari judul bila dikosongkan.",
-    "Artikel publik hanya tampil bila statusnya diterbitkan.",
-    "Agent tidak menjawab atau sesi Anda berakhir. Coba lagi.",
-    "Tidak ada artikel yang cocok dengan pencarian.",
-    "Tulis isi artikel untuk melihat pratinjau.",
-    "Gambar gagal diunggah. Gunakan PNG, JPEG, GIF atau WebP maksimal 5 MB.",
-    "Knowledge base tersimpan di database dan bisa dikelola seperti blog internal.",
-    "AI menulis dokumentasi atau artikel dari teks layar asli Reneo, tanpa mengulang topik yang sudah ada.",
-    "Kosongkan agar AI otomatis memilih topik dokumentasi/artikel Reneo yang belum tersedia.",
-    "Mis. Panduan konfigurasi Cloudflare Tunnel dan SSL wildcard di Reneo",
-    "Mis. Cara hemat RAM server Linux dengan pembersihan berkas otomatis",
-    "Mis. Sertakan contoh langkah, perintah CLI, dan bagian pemecahan masalah.",
-    "Matikan jika ingin meninjau dan mengedit hasil AI di editor terlebih dahulu.",
-    "Tidak ada artikel yang cocok dengan pencarian saat ini.",
-    "Cari judul, slug, excerpt, atau isi dokumentasi...",
-    "{total} artikel • halaman {page}/{totalPages}",
-    "Pilih artikel di sebelah kiri untuk membaca detailnya.",
-    "Artikel <strong>{title}</strong> akan dihapus permanen dari database.",
-    "Simpan tutorial, SOP, atau catatan troubleshooting langsung ke database.",
-    "Gambar yang dilampirkan ditaruh AI di dalam tulisan.",
-    "Minta AI memperbaiki tulisan ini, mis. perpendek pembuka",
-    "Tulisan diperbarui AI. Periksa lalu simpan.",
-    "Pasang gambar terlampir di tempat yang paling cocok.",
-    "Bagian ini (mis. tabel atau daftar bertingkat) disunting apa adanya.",
-    "{covered} dari {total} fitur Reneo sudah punya panduan.",
-    "Dipakai untuk daftar cakupan di tampilan Fitur Reneo.",
-    "AI menulis dari teks layar asli fitur ini, bukan dari ingatannya.",
-    "Otomatis (dari topik, atau fitur yang belum ditulis)"
-   ],
-   "en": [
-    "Open to everyone",
-    "public",
-    "Copy public link",
-    "Link copied",
-    "Preview",
-    "Write",
-    "This slug is used by another article.",
-    "Only admins can write articles.",
-    "Article could not be saved",
-    "Articles could not be loaded",
-    "No articles have been published yet.",
-    "No article matches the search.",
-    "Back to the list",
-    "Write the article body to see a preview.",
-    "official",
-    "Text formatting",
-    "Section heading",
-    "Bold",
-    "Italic",
-    "Link",
-    "Bulleted list",
-    "Numbered list",
-    "Quote",
-    "Code",
-    "Insert image",
-    "Uploading image...",
-    "Article",
-    "Status",
-    "Search articles...",
-    "Official",
-    "Public",
-    "Private",
-    "Draft",
-    "Archived",
-    "{count} articles",
-    "{shown} of {total} articles",
-    "Docs & Tutorials",
-    "Refresh docs",
-    "New Post",
-    "Post Type",
-    "All",
-    "Documentation",
-    "AI Generate",
-    "Auto Schedule",
-    "Generate Documentation / Article with AI",
-    "Topic (optional)",
-    "Additional Notes / Focus (optional)",
-    "Save Directly to List",
-    "Publish Immediately",
-    "Generate Now",
-    "Writing...",
-    "Post created by AI",
-    "AI failed to generate content",
-    "Loading documentation from database...",
-    "No articles match the current search.",
-    "Search",
-    "Previous",
-    "Next",
-    "status {status}",
-    "Published",
-    "Edit Article",
-    "Delete Article",
-    "Title",
-    "Slug",
-    "Excerpt",
-    "Article Content",
-    "Saving...",
-    "Save Article",
-    "Article created",
-    "Article {title} was added successfully.",
-    "Failed to create documentation",
-    "Article updated",
-    "Failed to update documentation",
-    "Article deleted",
-    "The article could not be deleted",
-    "Visual",
-    "Rework",
-    "Undo",
-    "Paragraph",
-    "Write a paragraph...",
-    "Large heading",
-    "Small heading",
-    "Divider",
-    "List item",
-    "Picture caption",
-    "Block as written",
-    "Block actions",
-    "Move up",
-    "Move down",
-    "Add the link",
-    "View",
-    "Posts",
-    "Reneo features",
-    "Contents",
-    "{count} posts",
-    "No guide yet",
-    "Write with AI",
-    "Write it myself",
-    "Reneo feature",
-    "Not about one feature",
-    "Search features...",
-    "Anyone with the link can read this article without logging in. Only applies while it is published.",
-    "Supports headings (#), lists, code, bold/italic and links.",
-    "Article address: /articles/{slug}. Built from the title when left empty.",
-    "A public article is only shown while its status is published.",
-    "The agent did not answer or your session ended. Retry.",
-    "The image could not be uploaded. Use a PNG, JPEG, GIF or WebP up to 5 MB.",
-    "Knowledge base stored in the database and managed like an internal blog.",
-    "The AI writes documentation or articles from Reneo's real screen texts, without repeating existing topics.",
-    "Leave empty so AI automatically picks a missing Reneo documentation or article topic.",
-    "e.g. Configuring Cloudflare Tunnel and wildcard SSL in Reneo",
-    "e.g. Practical tips for reducing Linux server RAM and disk usage",
-    "e.g. Include numbered steps, CLI examples, and troubleshooting tips.",
-    "Keep off to review and edit the generated draft inside the editor first.",
-    "When off, the generated post is saved as a draft.",
-    "AI draft is ready for review in the editor.",
-    "Search title, slug, excerpt, or documentation content...",
-    "{total} articles • page {page}/{totalPages}",
-    "Select an article on the left to read its details.",
-    "Article <strong>{title}</strong> will be permanently deleted from the database.",
-    "Save tutorials, SOPs, or troubleshooting notes directly to the database.",
-    "Article {title} was updated successfully.",
-    "The AI places the attached pictures in the text.",
-    "Ask the AI to rework this text, e.g. shorten the opening",
-    "The AI updated the text. Check it, then save.",
-    "Place the attached pictures where they fit best.",
-    "This part (such as a table or a nested list) is edited as written.",
-    "{covered} of {total} Reneo features have a guide.",
-    "Used by the coverage list in the Reneo features view.",
-    "The AI writes from this feature's real screen texts, not from memory.",
-    "Automatic (from the topic, or a feature nobody wrote about)"
    ]
   }
  },
@@ -9490,6 +9227,7 @@
    "remote"
   ],
   "official": [],
+  "shot": "/doc-shots/kvm.webp",
   "labels": {
    "id": [
     "Layar Host (KVM)",
@@ -9635,6 +9373,7 @@
    "ponsel"
   ],
   "official": [],
+  "shot": "/doc-shots/widgets.webp",
   "labels": {
    "id": [
     "Rentang waktu grafik",
@@ -9772,7 +9511,7 @@
     "Pengguna",
     "Hosting",
     "Pengaturan",
-    "Dokumentasi",
+    "Dokumentasi & Artikel",
     "Riwayat Perubahan",
     "Profil",
     "Sampah",
@@ -9939,7 +9678,7 @@
     "Users",
     "Hosting",
     "Settings",
-    "Docs",
+    "Docs & Articles",
     "Changelog",
     "Profile",
     "Trash",

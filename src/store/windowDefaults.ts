@@ -30,7 +30,7 @@ export const DEFAULTS: Record<
   hosting: { title: 'Hosting', width: 880, height: 530, singleton: true },
   firewall: { title: 'Firewall', width: 880, height: 530, singleton: true },
   email: { title: 'Email', width: 880, height: 530, singleton: true },
-  docs: { title: 'Docs', width: 880, height: 530, singleton: true },
+  docs: { title: 'Docs & Articles', width: 880, height: 530, singleton: true },
 
   // M — Terminal & 2-Column Gauge/Stats (840 x 540)
   kvm: { title: 'KVM Host Display', width: 980, height: 620, singleton: true },

@@ -26,6 +26,26 @@ func TestDocKnowledgeIsUsable(t *testing.T) {
 	}
 }
 
+func TestEveryFeatureShotIsPlacedOnce(t *testing.T) {
+	f := &docFeature{Key: "x", Name: localized{ID: "Firewall", EN: "Firewall"}, Shot: "/doc-shots/x.webp"}
+	post := "## Mulai\n\nBuka.\n\n```\n# bukan judul\n```\n\n## Langkah\n\nSatu."
+	got := withFeatureShot(post, []*docFeature{f}, "id")
+	if !strings.Contains(got, "![Jendela Firewall](/doc-shots/x.webp)\n\n## Langkah") {
+		t.Fatalf("the picture stands before the second heading:\n%s", got)
+	}
+	if again := withFeatureShot(got, []*docFeature{f}, "id"); again != got {
+		t.Fatal("added twice")
+	}
+	if len(cleanAIImages([]aiImageRef{{URL: f.Shot}})) != 1 {
+		t.Fatal("a shipped screenshot is an allowed image")
+	}
+	for _, feature := range docFeatures {
+		if feature.Shot == "" {
+			t.Errorf("feature %q has no screenshot: add public/doc-shots/%s.webp", feature.Key, feature.Key)
+		}
+	}
+}
+
 func TestDocCoverage(t *testing.T) {
 	local := []database.Doc{{ID: 3, Title: "Panduan Docker", Slug: "panduan-docker", Status: "published", FeatureKey: "docker"}}
 	official := []database.Doc{{Title: "Database", Slug: "mengelola-database"}}

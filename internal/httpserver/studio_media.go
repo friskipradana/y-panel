@@ -23,7 +23,7 @@ type studioElementRef struct {
 	HTML     string `json:"html"`
 }
 
-var aiImageURLRe = regexp.MustCompile(`^(/api/v1/public/doc-images/[a-f0-9]{40}\.(png|jpg|gif|webp)|https://[^\s"'<>()]{4,500})$`)
+var aiImageURLRe = regexp.MustCompile(`^(/doc-shots/[a-z0-9-]{1,60}\.webp|/api/v1/public/doc-images/[a-f0-9]{40}\.(png|jpg|gif|webp)|https://[^\s"'<>()]{4,500})$`)
 
 // cleanAIImages keeps only addresses of the panel image store or https, so nothing else can be written into a prompt or a page.
 func cleanAIImages(in []aiImageRef) []aiImageRef {

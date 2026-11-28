@@ -49,7 +49,7 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 			return
 		}
 
-		if strings.HasPrefix(path, "/assets/") || path == "/favicon.ico" || path == "/favicon.svg" || path == "/icons.svg" || strings.HasPrefix(path, "/ChatGPT Image ") {
+		if strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/doc-shots/") || path == "/favicon.ico" || path == "/favicon.svg" || path == "/icons.svg" || strings.HasPrefix(path, "/ChatGPT Image ") {
 			next.ServeHTTP(w, r)
 			return
 		}

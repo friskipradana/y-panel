@@ -3,7 +3,7 @@ import { Fragment, type ReactNode } from 'react'
 // Small markdown renderer for docs and release notes. It builds React elements
 // (never HTML strings), so article content cannot inject markup or scripts, and
 // only http(s) and mailto links are rendered as links. Images are limited to the article image
-// store of the panel, https URLs, and the img/ folder of the official docs in the repository.
+// store of the panel, the window screenshots shipped with it, https URLs, and the img/ folder of the official docs in the repository.
 
 const SAFE_LINK = /^(https?:\/\/|mailto:)/i
 const OFFICIAL_IMAGE_BASE = 'https://raw.githubusercontent.com/friskipradana/y-panel/HEAD/docs/articles/img/'
@@ -11,6 +11,7 @@ const OFFICIAL_IMAGE_BASE = 'https://raw.githubusercontent.com/friskipradana/y-p
 // Returns a loadable src, or null when the address is not allowed
 export function resolveImageSrc(raw: string): string | null {
   if (/^\/api\/v1\/public\/doc-images\/[a-f0-9]{40}\.(png|jpg|gif|webp)$/.test(raw)) return raw
+  if (/^\/doc-shots\/[a-z0-9-]+\.webp$/.test(raw)) return raw
   if (/^https:\/\//i.test(raw)) return raw
   const relative = /^(?:\.\/)?img\/([\w.-]+\.(?:png|jpe?g|gif|webp))$/i.exec(raw)
   return relative ? OFFICIAL_IMAGE_BASE + relative[1] : null

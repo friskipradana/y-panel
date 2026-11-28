@@ -199,6 +199,7 @@ Rules:
 		return fail(err)
 	}
 
+	gen.MarkdownBody = withFeatureShot(gen.MarkdownBody, features, langKey)
 	status := "draft"
 	if sc.AutoPublish {
 		status = "published"

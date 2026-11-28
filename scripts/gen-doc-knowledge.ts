@@ -1,7 +1,7 @@
 // Builds internal/httpserver/doc_knowledge.json: what the documentation AI is allowed to know about each Reneo feature.
 // Everything in it comes from the panel itself (app catalog descriptions and the texts its screens show), so a guide names
 // the buttons that really exist. Run again after changing texts; `--check` fails when the file is out of date.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { MENU_ITEMS } from '../src/components/taskbar/appCatalog'
 import { en } from '../src/lib/locales/en'
 import { id } from '../src/lib/locales/id'
@@ -44,7 +44,6 @@ const FEATURES: Feature[] = [
   { key: 'email', kind: 'email', prefixes: ['email.'], access: 'admin', keywords: ['email', 'smtp', 'imap', 'mx', 'spf', 'dkim'] },
   { key: 'dev-desk', kind: 'dev-desk', prefixes: ['devdesk.'], access: 'admin', keywords: ['invoice', 'penawaran', 'klien', 'checklist'] },
   { key: 'page-studio', kind: 'page-studio', prefixes: ['studio.'], access: 'admin', keywords: ['landing', 'halaman', 'website', 'builder'] },
-  { key: 'docs', kind: 'docs', prefixes: ['docs.'], access: 'all', keywords: ['dokumentasi', 'artikel', 'panduan'] },
   { key: 'kvm', kind: 'kvm', prefixes: ['kvm.'], access: 'superadmin', keywords: ['kvm', 'vnc', 'layar', 'remote'] },
   { key: 'widgets', kind: 'widgets', prefixes: ['widget.', 'widgets.', 'desktop.', 'mobile.'], access: 'all', keywords: ['widget', 'desktop', 'ikon', 'ponsel'] },
 ]
@@ -87,6 +86,8 @@ const features = FEATURES.map((f) => {
     description: { id: item.descId, en: item.descEn },
     keywords: f.keywords,
     official: f.official ?? [],
+    // the screenshot of the window, when there is one (public/doc-shots)
+    shot: existsSync(`public/doc-shots/${f.key}.webp`) ? `/doc-shots/${f.key}.webp` : '',
     labels: { id: labels(dictId, f.prefixes), en: labels(dictEn, f.prefixes) },
   }
 })
