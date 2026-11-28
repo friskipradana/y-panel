@@ -7,14 +7,14 @@ import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
-import type { PageStudioWindowState } from './usePageStudioWindow'
+import type { DocsSchedulesState } from '@/components/windows/docs/useDocsSchedules'
 
 const HOURS = Array.from({ length: 24 }, (_, h) => ({
   value: String(h),
   label: `${String(h).padStart(2, '0')}:00`,
 }))
 
-export function StudioScheduleModal({ st }: { st: PageStudioWindowState }) {
+export function StudioScheduleModal({ st }: { st: DocsSchedulesState }) {
   const { t, editingSchedule, setEditingSchedule, saveScheduleMut } = st
   const open = editingSchedule !== null
   const isEdit = editingSchedule !== null && editingSchedule !== 'new'

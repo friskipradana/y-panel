@@ -1,33 +1,24 @@
 import { useState } from 'react'
 import {
   ArrowUp,
-  BookOpen,
-  ExternalLink,
   EyeOff,
-  Globe,
   LayoutTemplate,
-  Link2,
   Pencil,
   Plus,
   RefreshCw,
   Search,
   Send,
   Settings,
-  Trash2,
 } from 'lucide-react'
 import type { WindowState } from '@/types'
-import type { StudioPageKind } from '@/api/studio'
-import { Badge } from '@/components/ui/Badge'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
-import { FilterMenu } from '@/components/ui/FilterMenu'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
-import { Select } from '@/components/ui/Select'
+import { RouteDomainModal } from '@/components/windows/tunnels/RouteDomainModal'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { StudioBuilderWorkspace } from './studio/StudioBuilderWorkspace'
-import { StudioScheduleModal } from './studio/StudioScheduleModal'
-import { StudioSchedulesPanel } from './studio/StudioSchedulesPanel'
-import { usePageStudioWindow, type StudioKindFilter, type StudioTopSection } from './studio/usePageStudioWindow'
+import { usePageStudioWindow } from './studio/usePageStudioWindow'
 
 interface PageStudioWindowProps {
   win: WindowState
@@ -38,28 +29,24 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
   const isMobile = useIsMobileLayout()
   const st = usePageStudioWindow(win, authenticated)
   const [quickPrompt, setQuickPrompt] = useState('')
-  const [quickKind, setQuickKind] = useState<StudioPageKind>('landing')
 
   const {
     t,
-    section,
-    setSection,
-    kindFilter,
-    setKindFilter,
     search,
     setSearch,
     overviewQ,
     refresh,
     pages,
-    schedules,
     activePage,
     setActivePageId,
-    landingCount,
-    docsCount,
+    domainSubject,
+    setDomainPage,
+    onDomainConnected,
     aiReady,
     createManualMut,
     chatCreateMut,
     publishMut,
+    deletePageMut,
     confirmDeletePage,
     publicUrlOf,
     copyPublicUrl,
@@ -67,39 +54,33 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
     openDomainRoute,
   } = st
 
+  const domainModal = (
+    <RouteDomainModal
+      subject={domainSubject}
+      onClose={() => setDomainPage(null)}
+      onConnected={onDomainConnected}
+    />
+  )
+
   if (activePage) {
     return (
       <div className="panel-window docker-window-root relative flex flex-col overflow-hidden">
         <StudioBuilderWorkspace st={st} page={activePage} />
+        {domainModal}
       </div>
     )
   }
-
-  if (section === 'schedules') {
-    return (
-      <div className="panel-window docker-window-root relative flex flex-col overflow-hidden">
-        <StudioSchedulesPanel st={st} />
-        <StudioScheduleModal st={st} />
-      </div>
-    )
-  }
-
-  const topItems = [
-    { key: 'pages', label: t('studio.nav.pages'), count: pages.length },
-    { key: 'schedules', label: t('studio.nav.schedules'), count: schedules.length },
-  ]
-  const kindItems = [
-    { key: 'all', label: t('studio.tab.all'), count: pages.length },
-    { key: 'landing', label: t('studio.kind.landing'), count: landingCount },
-    { key: 'docs', label: t('studio.kind.docs'), count: docsCount },
-  ]
 
   const isSpinning = overviewQ.isFetching && !overviewQ.isLoading
   const q = search.trim().toLowerCase()
   const visiblePages = pages.filter((p) => {
-    if (kindFilter !== 'all' && p.kind !== kindFilter) return false
     if (!q) return true
-    return p.title.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || p.brandName.toLowerCase().includes(q)
+    return (
+      p.title.toLowerCase().includes(q) ||
+      p.slug.toLowerCase().includes(q) ||
+      p.brandName.toLowerCase().includes(q) ||
+      (p.customDomain ?? '').toLowerCase().includes(q)
+    )
   })
 
   const submitQuickBuild = () => {
@@ -109,24 +90,27 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
       openAiSettings()
       return
     }
-    chatCreateMut.mutate({ kind: quickKind, prompt: trimmed }, { onSuccess: () => setQuickPrompt('') })
+    chatCreateMut.mutate(trimmed, { onSuccess: () => setQuickPrompt('') })
   }
 
   return (
     <div className="panel-window docker-window-root relative flex flex-col overflow-hidden">
       <div className={`docker-topbar ${isMobile ? 'docker-topbar--mobile' : ''}`}>
         <div className={isMobile ? 'docker-topbar__mobile-row' : 'docker-topbar__left'}>
-          <FilterMenu label={t('studio.sections')} value={section} onChange={(v) => setSection(v as StudioTopSection)} items={topItems} />
-          <FilterMenu label={t('studio.col.type')} value={kindFilter} onChange={(v) => setKindFilter(v as StudioKindFilter)} items={kindItems} />
           <button
             type="button"
-            className="docker-secondary-btn"
+            className="docker-primary-btn"
             disabled={createManualMut.isPending}
-            onClick={() => createManualMut.mutate(kindFilter === 'docs' ? 'docs' : 'landing')}
+            onClick={() => createManualMut.mutate()}
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span className="docker-secondary-btn__text">{t('studio.newPage')}</span>
+            <span>{t('studio.newPage')}</span>
           </button>
+          {isMobile ? (
+            <div className="docker-badge-running docker-badge-running--mobile">
+              <span>{t('studio.pageCount', { count: pages.length })}</span>
+            </div>
+          ) : null}
         </div>
 
         <div className={isMobile ? 'docker-topbar__mobile-search' : 'docker-topbar__right'}>
@@ -150,23 +134,15 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isSpinning ? 'animate-spin' : ''}`} strokeWidth={1.75} />
           </button>
+          {!isMobile ? (
+            <div className="docker-badge-running">{t('studio.pageCount', { count: pages.length })}</div>
+          ) : null}
         </div>
       </div>
 
-      {/* Lovable-style quick prompt bar: build directly into live split-pane workspace */}
+      {/* Lovable-style quick prompt bar */}
       <div className="border-b border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="w-36 shrink-0">
-            <Select
-              size="sm"
-              value={quickKind}
-              onChange={(v) => setQuickKind(v as StudioPageKind)}
-              options={[
-                { value: 'landing', label: t('studio.kind.landing') },
-                { value: 'docs', label: t('studio.kind.docs') },
-              ]}
-            />
-          </div>
           <div className="min-w-[200px] flex-1">
             <TextInput
               value={quickPrompt}
@@ -198,12 +174,11 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
       </div>
 
       <ListTable
-        variant="devdesk-docs"
+        variant="studio-pages"
         empty={overviewQ.isLoading || overviewQ.isError || visiblePages.length === 0}
         columns={[
           { label: t('docker.colIndex') },
           { label: t('studio.col.page') },
-          { label: t('studio.col.type') },
           { label: t('studio.col.url') },
           { label: t('docker.colStatus') },
           { label: t('docker.colActions'), actions: true },
@@ -221,34 +196,47 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
         >
           {visiblePages.map((page, idx) => {
             const isPub = page.status === 'published'
+            const displayUrl = page.customDomain?.trim() ? `https://${page.customDomain.trim()}` : `/p/${page.slug}`
+            const moreItems: ActionMenuItem[] = [
+              {
+                key: 'open',
+                label: t('studio.openLive'),
+                onSelect: () => window.open(publicUrlOf(page), '_blank', 'noopener'),
+              },
+              {
+                key: 'copy',
+                label: t('studio.copyUrl'),
+                onSelect: () => copyPublicUrl(page),
+              },
+              {
+                key: 'domain',
+                label: t('studio.connectDomain'),
+                onSelect: () => openDomainRoute(page),
+              },
+              {
+                key: 'delete',
+                label: t('common.delete'),
+                tone: 'danger',
+                dividerBefore: true,
+                disabled: deletePageMut.isPending,
+                onSelect: () => void confirmDeletePage(page),
+              },
+            ]
             return (
               <div key={page.id} className="docker-row cursor-pointer" onClick={() => setActivePageId(page.id)}>
                 <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
                 <div className="docker-row__app">
                   <ListRowIcon>
-                    {page.kind === 'docs' ? (
-                      <BookOpen className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    ) : (
-                      <LayoutTemplate className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    )}
+                    <LayoutTemplate className="h-3.5 w-3.5" strokeWidth={1.75} />
                   </ListRowIcon>
                   <div className="docker-row__text">
                     <span className="docker-app-name" title={page.title}>{page.title}</span>
-                    <span className="docker-row__sub">
-                      {page.brandName || t(`studio.kind.${page.kind}`)}
-                      {page.kind === 'docs' && page.showInDocs ? ` · ${t('studio.syncedDocsBadge')}` : ''}
-                      {page.scheduleId > 0 ? ` · ${t('studio.autoBadge')}` : ''}
-                    </span>
-                    <span className="docker-row__meta panel-mono">/p/{page.slug}</span>
+                    {page.brandName ? <span className="docker-row__sub">{page.brandName}</span> : null}
+                    <span className="docker-row__meta panel-mono">{displayUrl}</span>
                   </div>
                 </div>
-                <div className="docker-cell">
-                  <Badge tone={page.kind === 'docs' ? 'info' : 'primary'} size="sm">
-                    {t(`studio.kind.${page.kind}`)}
-                  </Badge>
-                </div>
-                <div className="docker-cell docker-cell--mono" title={`/p/${page.slug}`}>
-                  /p/{page.slug}
+                <div className="docker-cell docker-cell--mono" title={displayUrl}>
+                  {displayUrl}
                 </div>
                 <div className="docker-cell--keep">
                   <span className={`docker-status-pill docker-status-pill--${isPub ? 'running' : 'paused'}`}>
@@ -259,7 +247,7 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
                 <div className="docker-action-btns" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
-                    className={`docker-act-btn ${isPub ? '' : 'docker-act-btn--start'}`}
+                    className={`docker-act-btn ${isPub ? 'docker-act-btn--stop' : 'docker-act-btn--start'}`}
                     title={isPub ? t('studio.unpublishAction') : t('studio.publishAction')}
                     aria-label={isPub ? t('studio.unpublishAction') : t('studio.publishAction')}
                     disabled={publishMut.isPending}
@@ -267,39 +255,24 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
                   >
                     {isPub ? <EyeOff className="h-3.5 w-3.5" strokeWidth={1.75} /> : <Send className="h-3.5 w-3.5" strokeWidth={1.75} />}
                   </button>
-                  <button type="button" className="docker-act-btn" title={t('studio.copyUrl')} aria-label={t('studio.copyUrl')} onClick={() => copyPublicUrl(page)}>
-                    <Link2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </button>
                   <button
                     type="button"
                     className="docker-act-btn"
-                    title={t('studio.openLive')}
-                    aria-label={t('studio.openLive')}
-                    onClick={() => window.open(publicUrlOf(page), '_blank', 'noopener')}
+                    title={t('studio.openBuilder')}
+                    aria-label={t('studio.openBuilder')}
+                    onClick={() => setActivePageId(page.id)}
                   >
-                    <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </button>
-                  <button type="button" className="docker-act-btn" title={t('studio.connectDomain')} aria-label={t('studio.connectDomain')} onClick={() => openDomainRoute(page)}>
-                    <Globe className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </button>
-                  <button type="button" className="docker-act-btn" title={t('studio.openBuilder')} aria-label={t('studio.openBuilder')} onClick={() => setActivePageId(page.id)}>
                     <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
                   </button>
-                  <button
-                    type="button"
-                    className="docker-act-btn docker-act-btn--danger"
-                    title={t('common.delete')}
-                    aria-label={t('common.delete')}
-                    onClick={() => void confirmDeletePage(page)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </button>
+                  <ActionMenu label={t('common.moreActions')} items={moreItems} compact />
                 </div>
               </div>
             )
           })}
         </ListState>
       </ListTable>
+
+      {domainModal}
     </div>
   )
 }

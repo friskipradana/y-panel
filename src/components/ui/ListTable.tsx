@@ -69,6 +69,7 @@ interface ListTableProps {
     | 'k8s-helm'
     | 'devdesk-docs'
     | 'devdesk-todos'
+    | 'studio-pages'
   columns: ListColumn[]
   /** No rows to head (nothing yet, still loading, or failed): the header is left out */
   empty?: boolean

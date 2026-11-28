@@ -1,4 +1,5 @@
-import { ArrowLeft, BookOpen, Bot, Calendar, FileText, Link2, PenSquare, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowLeft, BookOpen, Bot, Calendar, CalendarClock, FileText, Link2, PenSquare, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import type { DocRecord } from '@/api/agent'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -6,10 +7,13 @@ import { FilterMenu } from '@/components/ui/FilterMenu'
 import { ListState, ListTable } from '@/components/ui/ListTable'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState } from '@/components/ui/states'
+import { StudioScheduleModal } from '@/components/windows/studio/StudioScheduleModal'
+import { StudioSchedulesPanel } from '@/components/windows/studio/StudioSchedulesPanel'
 import { formatDateID } from '@/lib/datetime'
 import { Markdown } from '@/lib/markdown'
 import { DocAiModal } from './docs/DocAiModal'
 import { DocEditorModal } from './docs/DocEditorModal'
+import { useDocsSchedules } from './docs/useDocsSchedules'
 import { DOCS_PAGE_SIZE, useDocsWindow, type DocKindFilter, type DocsWindowState } from './docs/useDocsWindow'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 
@@ -139,7 +143,18 @@ function DocViewer({ dw, doc }: { dw: DocsWindowState; doc: DocRecord }) {
 export default function DocsWindow() {
   const isMobile = useIsMobileLayout()
   const dw = useDocsWindow()
+  const [showSchedules, setShowSchedules] = useState(false)
   const { t, isAdmin, docsQuery, all, facets, list, kindFilter, setKindFilter, selected, openCreate, setAiModalOpen, setPage } = dw
+  const schedulesState = useDocsSchedules(isAdmin && showSchedules)
+
+  if (isAdmin && showSchedules) {
+    return (
+      <div className="panel-window docker-window-root @container relative flex flex-col overflow-hidden">
+        <StudioSchedulesPanel st={schedulesState} onBack={() => setShowSchedules(false)} />
+        <StudioScheduleModal st={schedulesState} />
+      </div>
+    )
+  }
 
   const kindItems = [
     { key: 'all', label: t('docs.kind.all'), count: all },
@@ -166,6 +181,10 @@ export default function DocsWindow() {
               <button type="button" className="docker-secondary-btn" onClick={() => setAiModalOpen(true)}>
                 <Bot className="h-3.5 w-3.5" strokeWidth={1.75} />
                 <span className="docker-secondary-btn__text">{t('docs.aiGenerateBtn')}</span>
+              </button>
+              <button type="button" className="docker-secondary-btn" onClick={() => setShowSchedules(true)}>
+                <CalendarClock className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span className="docker-secondary-btn__text">{t('docs.autoSchedulesBtn')}</span>
               </button>
             </>
           ) : null}

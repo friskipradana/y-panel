@@ -867,6 +867,7 @@ func (m *Manager) ensureSchema() error {
 			sections_json     TEXT         NOT NULL DEFAULT '[]',
 			markdown_body     TEXT         NOT NULL DEFAULT '',
 			html_code         TEXT         NOT NULL DEFAULT '',
+			custom_domain     VARCHAR(180) NOT NULL DEFAULT '',
 			source_prompt     TEXT         NOT NULL DEFAULT '',
 			chat_history_json TEXT         NOT NULL DEFAULT '[]',
 			versions_json     TEXT         NOT NULL DEFAULT '[]',
@@ -875,6 +876,7 @@ func (m *Manager) ensureSchema() error {
 			updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 		)`,
 		`ALTER TABLE studio_pages ADD COLUMN IF NOT EXISTS html_code TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE studio_pages ADD COLUMN IF NOT EXISTS custom_domain VARCHAR(180) NOT NULL DEFAULT ''`,
 		`ALTER TABLE studio_pages ADD COLUMN IF NOT EXISTS chat_history_json TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE studio_pages ADD COLUMN IF NOT EXISTS versions_json TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE studio_pages ADD COLUMN IF NOT EXISTS schedule_id BIGINT NOT NULL DEFAULT 0`,

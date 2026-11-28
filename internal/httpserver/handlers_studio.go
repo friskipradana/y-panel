@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +13,15 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 )
+
+func (s *Server) agentListenPort() int {
+	if _, portStr, err := net.SplitHostPort(strings.TrimSpace(s.cfg.BindAddr)); err == nil {
+		if n, pErr := strconv.Atoi(portStr); pErr == nil && n > 0 {
+			return n
+		}
+	}
+	return 8787
+}
 
 func (s *Server) handleStudioListPages(w http.ResponseWriter, r *http.Request) {
 	u := s.currentUserRecord(r)
@@ -31,6 +41,7 @@ func (s *Server) handleStudioListPages(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"pages":      pages,
 		"aiReady":    aiReady,
+		"agentPort":  s.agentListenPort(),
 		"aiProvider": func() string { if aiCfg != nil { return aiCfg.Provider }; return "" }(),
 		"aiModel":    func() string { if aiCfg != nil { return aiCfg.Model }; return "" }(),
 	})
@@ -51,6 +62,7 @@ type studioPagePayload struct {
 	Sections       []database.StudioSection `json:"sections"`
 	MarkdownBody   string                   `json:"markdownBody"`
 	HTMLCode       string                   `json:"htmlCode"`
+	CustomDomain   string                   `json:"customDomain"`
 	SourcePrompt   string                   `json:"sourcePrompt"`
 }
 
@@ -151,6 +163,7 @@ func (s *Server) handleStudioCreatePage(w http.ResponseWriter, r *http.Request) 
 		Sections:       req.Sections,
 		MarkdownBody:   req.MarkdownBody,
 		HTMLCode:       req.HTMLCode,
+		CustomDomain:   req.CustomDomain,
 		SourcePrompt:   req.SourcePrompt,
 	}
 	created, err := s.database.CreateStudioPage(page)
@@ -211,6 +224,7 @@ func (s *Server) handleStudioUpdatePage(w http.ResponseWriter, r *http.Request) 
 	}
 	existing.MarkdownBody = req.MarkdownBody
 	existing.HTMLCode = req.HTMLCode
+	existing.CustomDomain = req.CustomDomain
 	existing.SourcePrompt = req.SourcePrompt
 
 	updated, err := s.database.UpdateStudioPage(existing)
@@ -463,6 +477,7 @@ func (s *Server) handlePublicStudioPage(w http.ResponseWriter, r *http.Request) 
 			"sections":       page.Sections,
 			"markdownBody":   page.MarkdownBody,
 			"htmlCode":       page.HTMLCode,
+			"customDomain":   page.CustomDomain,
 			"updatedAt":      page.UpdatedAt,
 		},
 	})

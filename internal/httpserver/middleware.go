@@ -144,11 +144,39 @@ func isPublicSitePath(path string) bool {
 		path == "/robots.txt" || path == "/sitemap.xml" || path == "/llms.txt"
 }
 
+// serveStudioCustomDomain serves a published Page Studio page directly at / when a Cloudflare Tunnel custom domain points here.
+func (s *Server) serveStudioCustomDomain(w http.ResponseWriter, r *http.Request) bool {
+	if (r.Method != http.MethodGet && r.Method != http.MethodHead) || s.database == nil || !s.database.IsConnected() {
+		return false
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
+		return false
+	}
+	host := normalizeHost(r.Host)
+	if host == "" || host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return false
+	}
+	page, err := s.database.GetPublishedStudioPageByDomain(host)
+	if err != nil || page == nil || strings.TrimSpace(page.HTMLCode) == "" {
+		return false
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=60")
+	w.WriteHeader(http.StatusOK)
+	if r.Method == http.MethodGet {
+		_, _ = w.Write([]byte(page.HTMLCode))
+	}
+	return true
+}
+
 // ServeHTTP applies the middleware chain: access log → host guard → CORS → rate limit → mux.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// the address of the WAHA dashboard answers with nothing but WAHA, behind its own cookie
 	if s.wahaDashboardRequest(r) {
 		s.serveWahaDashboard(w, r)
+		return
+	}
+	if s.serveStudioCustomDomain(w, r) {
 		return
 	}
 	s.withAccessLog(s.withHostGuard(s.withCORS(s.withRateLimit(s.mux)))).ServeHTTP(w, r)

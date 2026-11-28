@@ -70,6 +70,7 @@ type StudioPage struct {
 	Sections       []StudioSection     `json:"sections"`
 	MarkdownBody   string              `json:"markdownBody"`
 	HTMLCode       string              `json:"htmlCode"`
+	CustomDomain   string              `json:"customDomain"`
 	SourcePrompt   string              `json:"sourcePrompt"`
 	ChatHistory    []StudioChatMessage `json:"chatHistory"`
 	Versions       []StudioPageVersion `json:"versions"`
@@ -80,7 +81,7 @@ type StudioPage struct {
 
 const studioPageCols = `id, owner_user_id, kind, slug, title, subtitle, status, show_in_docs,
 	linked_doc_id, brand_name, theme_tone, seo_description, cta_label, cta_url,
-	sections_json, markdown_body, html_code, source_prompt, chat_history_json, versions_json, schedule_id,
+	sections_json, markdown_body, html_code, custom_domain, source_prompt, chat_history_json, versions_json, schedule_id,
 	created_at, updated_at`
 
 func normalizeStudioPage(p *StudioPage) {
@@ -102,6 +103,7 @@ func normalizeStudioPage(p *StudioPage) {
 	p.SEODescription = strings.TrimSpace(p.SEODescription)
 	p.CTALabel = strings.TrimSpace(p.CTALabel)
 	p.CTAURL = strings.TrimSpace(p.CTAURL)
+	p.CustomDomain = strings.ToLower(strings.TrimSpace(p.CustomDomain))
 	if p.Sections == nil {
 		p.Sections = []StudioSection{}
 	}
@@ -125,7 +127,7 @@ func scanStudioPage(scanner interface{ Scan(dest ...any) error }) (*StudioPage, 
 	err := scanner.Scan(
 		&p.ID, &p.OwnerUserID, &p.Kind, &p.Slug, &p.Title, &p.Subtitle, &p.Status, &p.ShowInDocs,
 		&p.LinkedDocID, &p.BrandName, &p.ThemeTone, &p.SEODescription, &p.CTALabel, &p.CTAURL,
-		&sectionsJSON, &p.MarkdownBody, &p.HTMLCode, &p.SourcePrompt, &chatJSON, &versionsJSON, &p.ScheduleID,
+		&sectionsJSON, &p.MarkdownBody, &p.HTMLCode, &p.CustomDomain, &p.SourcePrompt, &chatJSON, &versionsJSON, &p.ScheduleID,
 		&p.CreatedAt, &p.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -199,6 +201,20 @@ func (m *Manager) GetStudioPageBySlug(slug string) (*StudioPage, error) {
 	return scanStudioPage(m.db.QueryRow(`SELECT `+studioPageCols+` FROM studio_pages WHERE slug = $1`, strings.ToLower(strings.TrimSpace(slug))))
 }
 
+func (m *Manager) GetPublishedStudioPageByDomain(domain string) (*StudioPage, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	host := strings.ToLower(strings.TrimSpace(domain))
+	if host == "" {
+		return nil, nil
+	}
+	return scanStudioPage(m.db.QueryRow(
+		`SELECT `+studioPageCols+` FROM studio_pages WHERE status = 'published' AND LOWER(custom_domain) = $1 ORDER BY updated_at DESC LIMIT 1`,
+		host,
+	))
+}
+
 func (m *Manager) CreateStudioPage(p *StudioPage) (*StudioPage, error) {
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
@@ -211,12 +227,12 @@ func (m *Manager) CreateStudioPage(p *StudioPage) (*StudioPage, error) {
 		INSERT INTO studio_pages (
 			owner_user_id, kind, slug, title, subtitle, status, show_in_docs,
 			linked_doc_id, brand_name, theme_tone, seo_description, cta_label, cta_url,
-			sections_json, markdown_body, html_code, source_prompt, chat_history_json, versions_json, schedule_id
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+			sections_json, markdown_body, html_code, custom_domain, source_prompt, chat_history_json, versions_json, schedule_id
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
 		RETURNING id, created_at, updated_at`,
 		p.OwnerUserID, p.Kind, p.Slug, p.Title, p.Subtitle, p.Status, p.ShowInDocs,
 		p.LinkedDocID, p.BrandName, p.ThemeTone, p.SEODescription, p.CTALabel, p.CTAURL,
-		string(secB), p.MarkdownBody, p.HTMLCode, p.SourcePrompt, string(chatB), string(verB), p.ScheduleID,
+		string(secB), p.MarkdownBody, p.HTMLCode, p.CustomDomain, p.SourcePrompt, string(chatB), string(verB), p.ScheduleID,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -237,13 +253,13 @@ func (m *Manager) UpdateStudioPage(p *StudioPage) (*StudioPage, error) {
 			kind = $2, slug = $3, title = $4, subtitle = $5, status = $6, show_in_docs = $7,
 			linked_doc_id = $8, brand_name = $9, theme_tone = $10, seo_description = $11,
 			cta_label = $12, cta_url = $13, sections_json = $14, markdown_body = $15,
-			html_code = $16, source_prompt = $17, chat_history_json = $18, versions_json = $19,
-			schedule_id = $20, updated_at = NOW()
+			html_code = $16, custom_domain = $17, source_prompt = $18, chat_history_json = $19, versions_json = $20,
+			schedule_id = $21, updated_at = NOW()
 		WHERE id = $1
 		RETURNING updated_at`,
 		p.ID, p.Kind, p.Slug, p.Title, p.Subtitle, p.Status, p.ShowInDocs,
 		p.LinkedDocID, p.BrandName, p.ThemeTone, p.SEODescription,
-		p.CTALabel, p.CTAURL, string(secB), p.MarkdownBody, p.HTMLCode, p.SourcePrompt,
+		p.CTALabel, p.CTAURL, string(secB), p.MarkdownBody, p.HTMLCode, p.CustomDomain, p.SourcePrompt,
 		string(chatB), string(verB), p.ScheduleID,
 	).Scan(&p.UpdatedAt)
 	if err != nil {

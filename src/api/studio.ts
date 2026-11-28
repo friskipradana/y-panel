@@ -62,6 +62,7 @@ export interface StudioPage {
   sections: StudioSection[]
   markdownBody: string
   htmlCode: string
+  customDomain?: string
   sourcePrompt: string
   chatHistory: StudioChatMessage[]
   versions: StudioPageVersion[]
@@ -73,6 +74,7 @@ export interface StudioPage {
 export interface StudioOverviewResponse {
   pages: StudioPage[]
   aiReady: boolean
+  agentPort?: number
   aiProvider?: string
   aiModel?: string
 }
@@ -92,6 +94,7 @@ export interface StudioPageInput {
   sections: StudioSection[]
   markdownBody: string
   htmlCode?: string
+  customDomain?: string
   sourcePrompt: string
 }
 

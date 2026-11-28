@@ -6,31 +6,20 @@ import {
   chatRefineStudioPage,
   createStudioPage,
   createStudioPageFromChat,
-  createStudioSchedule,
   deleteStudioPage,
-  deleteStudioSchedule,
   listStudioPages,
-  listStudioSchedules,
   restoreStudioPageVersion,
-  runStudioScheduleNow,
   toggleStudioPagePublish,
-  toggleStudioSchedule,
   updateStudioPage,
-  updateStudioSchedule,
   type StudioPage,
   type StudioPageInput,
-  type StudioPageKind,
-  type StudioSchedule,
-  type StudioScheduleInput,
 } from '@/api/studio'
+import type { RouteSubject } from '@/components/windows/tunnels/RouteDomainModal'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { useSettingsNavStore } from '@/store/settingsNavStore'
 import { useWindowStore } from '@/store/windowStore'
-
-export type StudioTopSection = 'pages' | 'schedules'
-export type StudioKindFilter = 'all' | 'landing' | 'docs'
 
 const STARTER_HTML = `<!DOCTYPE html>
 <html lang="id">
@@ -55,35 +44,23 @@ export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
   const qc = useQueryClient()
   const pollingActive = useWindowPollingActive(win) && authenticated
 
-  const [section, setSection] = useState<StudioTopSection>('pages')
-  const [kindFilter, setKindFilter] = useState<StudioKindFilter>('all')
   const [search, setSearch] = useState('')
   const [activePageId, setActivePageId] = useState<number | null>(null)
-  const [editingSchedule, setEditingSchedule] = useState<StudioSchedule | 'new' | null>(null)
-  const [runningScheduleId, setRunningScheduleId] = useState<number | null>(null)
+  const [domainPage, setDomainPage] = useState<StudioPage | null>(null)
 
   const overviewQ = useQuery({
-    queryKey: ['studio-pages'],
-    queryFn: () => listStudioPages(),
-    enabled: authenticated,
-    refetchInterval: pollingActive ? 30_000 : false,
-  })
-
-  const schedulesQ = useQuery({
-    queryKey: ['studio-schedules'],
-    queryFn: listStudioSchedules,
+    queryKey: ['studio-pages', 'landing'],
+    queryFn: () => listStudioPages('landing'),
     enabled: authenticated,
     refetchInterval: pollingActive ? 30_000 : false,
   })
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['studio-pages'] })
-    void qc.invalidateQueries({ queryKey: ['studio-schedules'] })
-    void qc.invalidateQueries({ queryKey: ['docs'] })
   }
 
   const upsertPageInCache = (page: StudioPage) => {
-    qc.setQueryData(['studio-pages'], (prev: { pages?: StudioPage[] } | undefined) => {
+    qc.setQueryData(['studio-pages', 'landing'], (prev: { pages?: StudioPage[] } | undefined) => {
       if (!prev?.pages) return prev
       const exists = prev.pages.some((p) => p.id === page.id)
       return {
@@ -94,22 +71,23 @@ export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
   }
 
   const createManualMut = useMutation({
-    mutationFn: (kind: StudioPageKind) =>
+    mutationFn: () =>
       createStudioPage({
-        kind,
-        slug: kind === 'docs' ? 'panduan-baru' : 'halaman-baru',
-        title: kind === 'docs' ? t('studio.defaultDocTitle') : t('studio.defaultLandingTitle'),
+        kind: 'landing',
+        slug: 'halaman-baru',
+        title: t('studio.defaultLandingTitle'),
         subtitle: '',
         status: 'draft',
-        showInDocs: kind === 'docs',
-        brandName: kind === 'docs' ? 'Reneo' : '',
+        showInDocs: false,
+        brandName: '',
         themeTone: 'blue',
         seoDescription: '',
         ctaLabel: '',
         ctaUrl: '',
         sections: [],
-        markdownBody: kind === 'docs' ? `## ${t('studio.defaultDocHeading')}\n\n` : '',
-        htmlCode: kind === 'landing' ? STARTER_HTML : '',
+        markdownBody: '',
+        htmlCode: STARTER_HTML,
+        customDomain: '',
         sourcePrompt: '',
       }),
     onSuccess: (page) => {
@@ -121,11 +99,9 @@ export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
   })
 
   const chatCreateMut = useMutation({
-    mutationFn: (payload: { kind: StudioPageKind; prompt: string }) =>
-      createStudioPageFromChat({ ...payload, language }),
+    mutationFn: (prompt: string) => createStudioPageFromChat({ kind: 'landing', prompt, language }),
     onSuccess: ({ page }) => {
       upsertPageInCache(page)
-      setSection('pages')
       setActivePageId(page.id)
       toast.success(t('studio.aiGeneratedOk'))
       refresh()
@@ -194,50 +170,6 @@ export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
     onError: (e: Error) => toast.error(e.message),
   })
 
-  const saveScheduleMut = useMutation({
-    mutationFn: ({ id, payload }: { id?: number; payload: StudioScheduleInput }) =>
-      id ? updateStudioSchedule(id, payload) : createStudioSchedule(payload),
-    onSuccess: () => {
-      toast.success(t('studio.schedule.savedToast'))
-      setEditingSchedule(null)
-      refresh()
-    },
-    onError: (e: Error) => toast.error(e.message),
-  })
-
-  const toggleScheduleMut = useMutation({
-    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
-      toggleStudioSchedule(id, enabled),
-    onSuccess: () => refresh(),
-    onError: (e: Error) => toast.error(e.message),
-  })
-
-  const deleteScheduleMut = useMutation({
-    mutationFn: deleteStudioSchedule,
-    onSuccess: () => {
-      toast.success(t('studio.schedule.deletedToast'))
-      refresh()
-    },
-    onError: (e: Error) => toast.error(e.message),
-  })
-
-  const runScheduleMut = useMutation({
-    mutationFn: async (id: number) => {
-      setRunningScheduleId(id)
-      try {
-        return await runStudioScheduleNow(id)
-      } finally {
-        setRunningScheduleId(null)
-      }
-    },
-    onSuccess: ({ page }) => {
-      upsertPageInCache(page)
-      toast.success(t('studio.schedule.runSuccessToast', { title: page.title }))
-      refresh()
-    },
-    onError: (e: Error) => toast.error(e.message),
-  })
-
   const confirmDeletePage = async (page: StudioPage) => {
     const ok = await alertLib.confirm(
       t('studio.deleteTitle'),
@@ -245,28 +177,23 @@ export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
       t('common.delete'),
       t('common.cancel'),
       'warning',
-      win.id,
+      win.kind,
     )
     if (ok) deletePageMut.mutate(page.id)
   }
 
-  const confirmDeleteSchedule = async (sc: StudioSchedule) => {
-    const ok = await alertLib.confirm(
-      t('studio.schedule.deleteTitle'),
-      t('studio.schedule.deleteConfirm', { name: sc.name }),
-      t('common.delete'),
-      t('common.cancel'),
-      'warning',
-      win.id,
-    )
-    if (ok) deleteScheduleMut.mutate(sc.id)
+  const publicUrlOf = (page: StudioPage) => {
+    if (page.customDomain?.trim() && page.status === 'published') {
+      return `https://${page.customDomain.trim()}`
+    }
+    return `${window.location.origin}/p/${page.slug}${page.status !== 'published' ? '?preview=1' : ''}`
   }
 
-  const publicUrlOf = (page: StudioPage) =>
-    `${window.location.origin}/p/${page.slug}${page.status !== 'published' ? '?preview=1' : ''}`
-
   const copyPublicUrl = (page: StudioPage) => {
-    const url = `${window.location.origin}/p/${page.slug}`
+    const url =
+      page.customDomain?.trim() && page.status === 'published'
+        ? `https://${page.customDomain.trim()}`
+        : `${window.location.origin}/p/${page.slug}`
     void navigator.clipboard.writeText(url).then(() => toast.success(t('studio.urlCopied')))
   }
 
@@ -275,47 +202,71 @@ export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
     useWindowStore.getState().openWindow('settings')
   }
 
-  const openDomainRoute = (page: StudioPage) => {
-    const port = Number(window.location.port) || (window.location.protocol === 'https:' ? 443 : 80)
-    useWindowStore.getState().openWindow('tunnels', {
-      tab: 'tunnels',
-      action: 'createTunnel',
-      projectName: page.title || page.slug,
-      projectSlug: page.slug,
-      projectPort: port,
+  const agentPort = overviewQ.data?.agentPort || 8787
+
+  const domainSubject: RouteSubject | null = domainPage
+    ? {
+        id: `studio-page:${domainPage.id}`,
+        name: domainPage.slug || domainPage.title,
+        kind: 'studio-page',
+        linkedHost: domainPage.customDomain || '',
+        targets: [
+          {
+            key: `studio:${agentPort}`,
+            host: '127.0.0.1',
+            port: agentPort,
+            label: `127.0.0.1:${agentPort} → /p/${domainPage.slug}`,
+          },
+        ],
+      }
+    : null
+
+  const onDomainConnected = (hostname: string) => {
+    if (!domainPage) return
+    savePageMut.mutate({
+      id: domainPage.id,
+      payload: {
+        kind: domainPage.kind,
+        slug: domainPage.slug,
+        title: domainPage.title,
+        subtitle: domainPage.subtitle,
+        status: 'published',
+        showInDocs: false,
+        brandName: domainPage.brandName,
+        themeTone: domainPage.themeTone,
+        seoDescription: domainPage.seoDescription,
+        ctaLabel: domainPage.ctaLabel,
+        ctaUrl: domainPage.ctaUrl,
+        sections: domainPage.sections,
+        markdownBody: domainPage.markdownBody,
+        htmlCode: domainPage.htmlCode,
+        customDomain: hostname,
+        sourcePrompt: domainPage.sourcePrompt,
+      },
     })
   }
 
-  const pages = useMemo(() => overviewQ.data?.pages ?? [], [overviewQ.data?.pages])
-  const schedules = useMemo(() => schedulesQ.data?.schedules ?? [], [schedulesQ.data?.schedules])
+  const pages = useMemo(
+    () => (overviewQ.data?.pages ?? []).filter((p) => p.kind === 'landing'),
+    [overviewQ.data?.pages],
+  )
   const activePage = useMemo(() => pages.find((p) => p.id === activePageId) ?? null, [pages, activePageId])
-  const landingCount = useMemo(() => pages.filter((p) => p.kind === 'landing').length, [pages])
-  const docsCount = useMemo(() => pages.filter((p) => p.kind === 'docs').length, [pages])
 
   return {
     t,
-    section,
-    setSection,
-    kindFilter,
-    setKindFilter,
     search,
     setSearch,
     overviewQ,
-    schedulesQ,
     refresh,
     pages,
-    schedules,
     activePage,
     activePageId,
     setActivePageId,
-    landingCount,
-    docsCount,
+    domainPage,
+    setDomainPage,
+    domainSubject,
+    onDomainConnected,
     aiReady: Boolean(overviewQ.data?.aiReady),
-    aiProvider: overviewQ.data?.aiProvider ?? '',
-    aiModel: overviewQ.data?.aiModel ?? '',
-    editingSchedule,
-    setEditingSchedule,
-    runningScheduleId,
     createManualMut,
     chatCreateMut,
     chatRefineMut,
@@ -323,15 +274,11 @@ export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
     savePageMut,
     publishMut,
     deletePageMut,
-    saveScheduleMut,
-    toggleScheduleMut,
-    runScheduleMut,
     confirmDeletePage,
-    confirmDeleteSchedule,
     publicUrlOf,
     copyPublicUrl,
     openAiSettings,
-    openDomainRoute,
+    openDomainRoute: (page: StudioPage) => setDomainPage(page),
   }
 }
 

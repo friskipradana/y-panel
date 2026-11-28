@@ -1,12 +1,11 @@
-import { CalendarClock, LoaderCircle, Pencil, Play, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { ArrowLeft, CalendarClock, LoaderCircle, Pencil, Play, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import type { StudioSchedule } from '@/api/studio'
 import { Badge } from '@/components/ui/Badge'
-import { FilterMenu } from '@/components/ui/FilterMenu'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+import type { DocsSchedulesState } from '@/components/windows/docs/useDocsSchedules'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { formatDateID } from '@/lib/datetime'
-import type { PageStudioWindowState, StudioTopSection } from './usePageStudioWindow'
 
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
 
@@ -16,30 +15,22 @@ function statusPillOf(sc: StudioSchedule): 'running' | 'paused' | 'dead' {
   return 'paused'
 }
 
-// Automated scheduled article & Reneo documentation enricher list
-export function StudioSchedulesPanel({ st }: { st: PageStudioWindowState }) {
+// Automated scheduled Reneo documentation & article enricher list inside Docs Window
+export function StudioSchedulesPanel({ st, onBack }: { st: DocsSchedulesState; onBack: () => void }) {
   const isMobile = useIsMobileLayout()
   const {
     t,
-    section,
-    setSection,
     schedulesQ,
     schedules,
-    pages,
     refresh,
     setEditingSchedule,
     runningScheduleId,
     toggleScheduleMut,
     runScheduleMut,
     confirmDeleteSchedule,
-    setActivePageId,
   } = st
 
   const isSpinning = schedulesQ.isFetching && !schedulesQ.isLoading
-  const topItems = [
-    { key: 'pages', label: t('studio.nav.pages'), count: pages.length },
-    { key: 'schedules', label: t('studio.nav.schedules'), count: schedules.length },
-  ]
 
   const cadenceSummary = (sc: StudioSchedule) => {
     const hh = `${String(sc.runHour).padStart(2, '0')}:00`
@@ -56,12 +47,15 @@ export function StudioSchedulesPanel({ st }: { st: PageStudioWindowState }) {
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className={`docker-topbar ${isMobile ? 'docker-topbar--mobile' : ''}`}>
         <div className={isMobile ? 'docker-topbar__mobile-row' : 'docker-topbar__left'}>
-          <FilterMenu
-            label={t('studio.sections')}
-            value={section}
-            onChange={(v) => setSection(v as StudioTopSection)}
-            items={topItems}
-          />
+          <button
+            type="button"
+            className="docker-icon-btn shrink-0"
+            title={t('docs.back')}
+            aria-label={t('docs.back')}
+            onClick={onBack}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
           <button type="button" className="docker-primary-btn" onClick={() => setEditingSchedule('new')}>
             <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
             <span>{t('studio.schedule.newBtn')}</span>
@@ -162,20 +156,6 @@ export function StudioSchedulesPanel({ st }: { st: PageStudioWindowState }) {
                       <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
                     )}
                   </button>
-                  {sc.lastPageId > 0 ? (
-                    <button
-                      type="button"
-                      className="docker-act-btn"
-                      title={t('studio.schedule.openLastArticle')}
-                      aria-label={t('studio.schedule.openLastArticle')}
-                      onClick={() => {
-                        setSection('pages')
-                        setActivePageId(sc.lastPageId)
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    </button>
-                  ) : null}
                   <ToggleSwitch
                     checked={sc.enabled}
                     label={sc.name}

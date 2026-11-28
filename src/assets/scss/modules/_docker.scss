@@ -926,6 +926,10 @@
   &--devdesk-todos {
     --docker-cols: 44px minmax(0, 2.2fr) minmax(130px, 1fr) 96px 112px 52px;
   }
+
+  &--studio-pages {
+    --docker-cols: 44px minmax(0, 2fr) minmax(150px, 1.3fr) 112px 116px;
+  }
 }
 
 .docker-primary-btn {

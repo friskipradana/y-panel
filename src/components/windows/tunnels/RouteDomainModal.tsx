@@ -29,10 +29,12 @@ export interface RouteSubject {
   id: string
   /** Its name; the route and the subdomain start from it */
   name: string
-  kind: 'container' | 'project' | 'waha' | 'k8s-service'
+  kind: 'container' | 'project' | 'waha' | 'k8s-service' | 'studio-page'
   targets: RouteTarget[]
   /** A project's id, kept on the route made for it */
   projectId?: number
+  /** Already-linked custom hostname for a studio page */
+  linkedHost?: string
 }
 
 interface RouteDomainModalProps {
@@ -85,6 +87,10 @@ function DomainForm({ subject, onClose, onConnected }: RouteDomainModalProps) {
   const linked = (routes.data?.items ?? []).filter((route) => {
     // the target of the dashboard of WAHA is the panel itself, which other routes lead to as well: nothing is "linked" to it
     if (kind === 'waha') return false
+    if (kind === 'studio-page') {
+      const want = (subject?.linkedHost ?? '').trim().toLowerCase()
+      return Boolean(want) && (route.cfHostname || '').trim().toLowerCase() === want
+    }
     if (subject?.projectId && route.projectId === subject.projectId) return true
     try {
       const url = new URL(route.targetUrl)
@@ -203,7 +209,7 @@ function DomainForm({ subject, onClose, onConnected }: RouteDomainModalProps) {
             </Button>
           ) : (
             <div className="space-y-3.5">
-              <p className="text-[12.5px] text-[var(--text-secondary)]">{t(linked.length > 0 ? 'docker.domain.addHint' : kind === 'project' ? 'projects.domain.hint' : kind === 'waha' ? 'notify.waha.routeHint' : 'docker.domain.hint')}</p>
+              <p className="text-[12.5px] text-[var(--text-secondary)]">{t(linked.length > 0 ? 'docker.domain.addHint' : kind === 'project' ? 'projects.domain.hint' : kind === 'waha' ? 'notify.waha.routeHint' : kind === 'studio-page' ? 'studio.domain.hint' : 'docker.domain.hint')}</p>
 
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8.5rem]">
                 <Field label={t('docker.domain.profile')} hint={profileList.length === 0 && !profiles.isLoading ? t('docker.domain.noProfile') : undefined}>

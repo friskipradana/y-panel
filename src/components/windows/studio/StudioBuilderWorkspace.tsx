@@ -105,6 +105,7 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
         sections: draft.sections,
         markdownBody: draft.markdownBody,
         htmlCode: draft.htmlCode,
+        customDomain: draft.customDomain ?? '',
         sourcePrompt: draft.sourcePrompt,
       },
     })
@@ -362,6 +363,9 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
                 </Field>
                 <Field label={t('studio.slugLabel')} hint={`/p/${draft.slug || '...'}`}>
                   <TextInput mono value={draft.slug} onChange={(e) => patchDraft({ slug: e.target.value })} />
+                </Field>
+                <Field label={t('studio.customDomainLabel')} hint={draft.customDomain ? `https://${draft.customDomain}` : undefined}>
+                  <TextInput mono value={draft.customDomain ?? ''} placeholder={t('studio.customDomainPh')} onChange={(e) => patchDraft({ customDomain: e.target.value })} />
                 </Field>
                 <Field label={t('studio.seoDescLabel')}>
                   <Textarea rows={2} value={draft.seoDescription} onChange={(e) => patchDraft({ seoDescription: e.target.value })} />
