@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.90.0] - 2026-11-28
+
+2 perubahan, utamanya documentation is written from Reneo's real screen texts, with a feature coverage view and a better reader.
+
+### Fitur baru
+- **docs:** Documentation is written from Reneo's real screen texts, with a feature coverage view and a better reader ([`d4b4809`](https://github.com/friskipradana/y-panel/commit/d4b4809))
+
+### Perbaikan
+- **database:** A new install failed both ways, because the migrations and the agent bootstrap altered tables only the other one makes ([`da693f9`](https://github.com/friskipradana/y-panel/commit/da693f9))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.89.0...v1.90.0
+
 ## [1.89.0] - 2026-11-28
 
 2 perubahan, utamanya attach pictures to AI prompts, pick and edit elements in the preview, and a visual article editor.
