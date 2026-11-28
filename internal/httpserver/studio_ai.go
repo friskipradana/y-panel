@@ -21,10 +21,36 @@ type aiGeneratedStudioPage struct {
 	CTAURL         string                   `json:"ctaUrl"`
 	Sections       []database.StudioSection `json:"sections"`
 	MarkdownBody   string                   `json:"markdownBody"`
+	HTMLCode       string                   `json:"htmlCode"`
 }
 
 var studioSlugBadRe = regexp.MustCompile(`[^a-z0-9-]+`)
 var studioSlugDashRe = regexp.MustCompile(`-{2,}`)
+var htmlTitleRe = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+var htmlFenceRe = regexp.MustCompile("(?is)```(?:html|htm)?\\s*(.*?)\\s*```")
+
+func cleanStudioHTML(raw string) string {
+	s := strings.TrimSpace(raw)
+	if m := htmlFenceRe.FindStringSubmatch(s); len(m) > 1 {
+		s = strings.TrimSpace(m[1])
+	}
+	lower := strings.ToLower(s)
+	if idx := strings.Index(lower, "<!doctype"); idx >= 0 {
+		if idx > 0 {
+			s = strings.TrimSpace(s[idx:])
+		}
+	} else if idx := strings.Index(lower, "<html"); idx > 0 {
+		s = strings.TrimSpace(s[idx:])
+	}
+	return s
+}
+
+func extractHTMLTitle(html string) string {
+	if m := htmlTitleRe.FindStringSubmatch(html); len(m) > 1 {
+		return strings.TrimSpace(m[1])
+	}
+	return ""
+}
 
 func sanitizeStudioSlug(raw string) string {
 	s := strings.ToLower(strings.TrimSpace(raw))
@@ -70,6 +96,7 @@ func parseGeneratedStudioPage(raw string, kind string) (*aiGeneratedStudioPage, 
 		CTAURL:         strings.TrimSpace(firstStringField(root, "ctaUrl", "cta_url")),
 		Sections:       []database.StudioSection{},
 		MarkdownBody:   stripEmDash(firstStringField(root, "markdownBody", "markdown_body", "content", "markdown")),
+		HTMLCode:       cleanStudioHTML(firstStringField(root, "htmlCode", "html_code", "html")),
 	}
 	if out.ThemeTone != "blue" && out.ThemeTone != "emerald" && out.ThemeTone != "slate" && out.ThemeTone != "amber" {
 		out.ThemeTone = "blue"
@@ -155,7 +182,13 @@ func parseGeneratedStudioPage(raw string, kind string) (*aiGeneratedStudioPage, 
 		out.MarkdownBody = strings.TrimSpace(sb.String())
 	}
 
-	if out.Title == "" && len(out.Sections) == 0 && out.MarkdownBody == "" {
+	if out.Title == "" && out.HTMLCode != "" {
+		out.Title = extractHTMLTitle(out.HTMLCode)
+	}
+	if out.Slug == "" && out.Title != "" {
+		out.Slug = sanitizeStudioSlug(out.Title)
+	}
+	if out.Title == "" && len(out.Sections) == 0 && out.MarkdownBody == "" && out.HTMLCode == "" {
 		return nil, fmt.Errorf("AI tidak menghasilkan isi halaman. Coba perjelas brief atau ganti model AI.")
 	}
 	return out, nil
@@ -167,8 +200,77 @@ type studioChatAIResult struct {
 }
 
 // parseStudioChatResponse extracts both the assistant's short change summary and updated page payload.
+// Supports ---META--- / ---HTML--- delimited full-code responses, raw HTML documents, and JSON payloads.
 func parseStudioChatResponse(raw string, kind string) (*studioChatAIResult, error) {
-	cleanJSON := ai.ExtractJSONObject(raw)
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, fmt.Errorf("AI mengembalikan respons kosong")
+	}
+
+	// 1. Primary format for unrestricted web builder: ---META--- (optional JSON) + ---HTML--- (raw HTML/CSS/JS)
+	if kind != "docs" {
+		if idx := strings.Index(trimmed, "---HTML---"); idx != -1 {
+			metaPart := strings.TrimSpace(trimmed[:idx])
+			metaPart = strings.TrimPrefix(metaPart, "---META---")
+			htmlCode := cleanStudioHTML(trimmed[idx+len("---HTML---"):])
+			if htmlCode != "" {
+				page := &aiGeneratedStudioPage{ThemeTone: "blue", HTMLCode: htmlCode}
+				reply := ""
+				if cleanMeta := ai.ExtractJSONObject(metaPart); cleanMeta != "" {
+					var m map[string]any
+					if json.Unmarshal([]byte(cleanMeta), &m) == nil {
+						reply = stripEmDash(firstStringField(m, "reply", "summary", "message", "changes"))
+						page.Slug = sanitizeStudioSlug(firstStringField(m, "slug"))
+						page.Title = stripEmDash(firstStringField(m, "title", "headline"))
+						page.Subtitle = stripEmDash(firstStringField(m, "subtitle", "summary"))
+						page.BrandName = stripEmDash(firstStringField(m, "brandName", "brand_name", "brand"))
+						page.SEODescription = stripEmDash(firstStringField(m, "seoDescription", "seo_description", "metaDescription"))
+					}
+				}
+				if page.Title == "" {
+					page.Title = extractHTMLTitle(htmlCode)
+				}
+				if page.Title == "" {
+					page.Title = "Halaman Web"
+				}
+				if page.Slug == "" {
+					page.Slug = sanitizeStudioSlug(page.Title)
+				}
+				if page.SEODescription == "" {
+					page.SEODescription = page.Subtitle
+				}
+				if reply == "" {
+					reply = "Halaman telah diperbarui sesuai instruksi."
+				}
+				return &studioChatAIResult{Reply: reply, Page: page}, nil
+			}
+		}
+
+		// 2. Fallback: raw standalone HTML document (with or without ```html fence)
+		lowerTrim := strings.ToLower(trimmed)
+		if strings.Contains(lowerTrim, "<!doctype html") || (strings.Contains(lowerTrim, "<html") && strings.Contains(lowerTrim, "</html>")) {
+			// Avoid hijacking JSON that embeds <!DOCTYPE html> inside a string field
+			if !strings.HasPrefix(trimmed, "{") {
+				htmlCode := cleanStudioHTML(trimmed)
+				title := extractHTMLTitle(htmlCode)
+				if title == "" {
+					title = "Halaman Web"
+				}
+				return &studioChatAIResult{
+					Reply: "Halaman web telah dibangun sesuai instruksi.",
+					Page: &aiGeneratedStudioPage{
+						Slug:      sanitizeStudioSlug(title),
+						Title:     title,
+						ThemeTone: "blue",
+						HTMLCode:  htmlCode,
+					},
+				}, nil
+			}
+		}
+	}
+
+	// 3. JSON payload (used for docs Markdown and legacy structured pages)
+	cleanJSON := ai.ExtractJSONObject(trimmed)
 	if cleanJSON == "" {
 		return nil, fmt.Errorf("AI mengembalikan respons kosong")
 	}

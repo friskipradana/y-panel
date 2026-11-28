@@ -48,9 +48,10 @@ type StudioPageVersion struct {
 	CTAURL         string          `json:"ctaUrl"`
 	Sections       []StudioSection `json:"sections"`
 	MarkdownBody   string          `json:"markdownBody"`
+	HTMLCode       string          `json:"htmlCode,omitempty"`
 }
 
-// StudioPage represents a generated or authored landing page or documentation page.
+// StudioPage represents a generated or authored landing page, custom web app, or documentation page.
 type StudioPage struct {
 	ID             int64               `json:"id"`
 	OwnerUserID    int64               `json:"ownerUserId"`
@@ -68,6 +69,7 @@ type StudioPage struct {
 	CTAURL         string              `json:"ctaUrl"`
 	Sections       []StudioSection     `json:"sections"`
 	MarkdownBody   string              `json:"markdownBody"`
+	HTMLCode       string              `json:"htmlCode"`
 	SourcePrompt   string              `json:"sourcePrompt"`
 	ChatHistory    []StudioChatMessage `json:"chatHistory"`
 	Versions       []StudioPageVersion `json:"versions"`
@@ -78,7 +80,7 @@ type StudioPage struct {
 
 const studioPageCols = `id, owner_user_id, kind, slug, title, subtitle, status, show_in_docs,
 	linked_doc_id, brand_name, theme_tone, seo_description, cta_label, cta_url,
-	sections_json, markdown_body, source_prompt, chat_history_json, versions_json, schedule_id,
+	sections_json, markdown_body, html_code, source_prompt, chat_history_json, versions_json, schedule_id,
 	created_at, updated_at`
 
 func normalizeStudioPage(p *StudioPage) {
@@ -123,7 +125,7 @@ func scanStudioPage(scanner interface{ Scan(dest ...any) error }) (*StudioPage, 
 	err := scanner.Scan(
 		&p.ID, &p.OwnerUserID, &p.Kind, &p.Slug, &p.Title, &p.Subtitle, &p.Status, &p.ShowInDocs,
 		&p.LinkedDocID, &p.BrandName, &p.ThemeTone, &p.SEODescription, &p.CTALabel, &p.CTAURL,
-		&sectionsJSON, &p.MarkdownBody, &p.SourcePrompt, &chatJSON, &versionsJSON, &p.ScheduleID,
+		&sectionsJSON, &p.MarkdownBody, &p.HTMLCode, &p.SourcePrompt, &chatJSON, &versionsJSON, &p.ScheduleID,
 		&p.CreatedAt, &p.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -209,12 +211,12 @@ func (m *Manager) CreateStudioPage(p *StudioPage) (*StudioPage, error) {
 		INSERT INTO studio_pages (
 			owner_user_id, kind, slug, title, subtitle, status, show_in_docs,
 			linked_doc_id, brand_name, theme_tone, seo_description, cta_label, cta_url,
-			sections_json, markdown_body, source_prompt, chat_history_json, versions_json, schedule_id
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+			sections_json, markdown_body, html_code, source_prompt, chat_history_json, versions_json, schedule_id
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
 		RETURNING id, created_at, updated_at`,
 		p.OwnerUserID, p.Kind, p.Slug, p.Title, p.Subtitle, p.Status, p.ShowInDocs,
 		p.LinkedDocID, p.BrandName, p.ThemeTone, p.SEODescription, p.CTALabel, p.CTAURL,
-		string(secB), p.MarkdownBody, p.SourcePrompt, string(chatB), string(verB), p.ScheduleID,
+		string(secB), p.MarkdownBody, p.HTMLCode, p.SourcePrompt, string(chatB), string(verB), p.ScheduleID,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -235,13 +237,13 @@ func (m *Manager) UpdateStudioPage(p *StudioPage) (*StudioPage, error) {
 			kind = $2, slug = $3, title = $4, subtitle = $5, status = $6, show_in_docs = $7,
 			linked_doc_id = $8, brand_name = $9, theme_tone = $10, seo_description = $11,
 			cta_label = $12, cta_url = $13, sections_json = $14, markdown_body = $15,
-			source_prompt = $16, chat_history_json = $17, versions_json = $18,
-			schedule_id = $19, updated_at = NOW()
+			html_code = $16, source_prompt = $17, chat_history_json = $18, versions_json = $19,
+			schedule_id = $20, updated_at = NOW()
 		WHERE id = $1
 		RETURNING updated_at`,
 		p.ID, p.Kind, p.Slug, p.Title, p.Subtitle, p.Status, p.ShowInDocs,
 		p.LinkedDocID, p.BrandName, p.ThemeTone, p.SEODescription,
-		p.CTALabel, p.CTAURL, string(secB), p.MarkdownBody, p.SourcePrompt,
+		p.CTALabel, p.CTAURL, string(secB), p.MarkdownBody, p.HTMLCode, p.SourcePrompt,
 		string(chatB), string(verB), p.ScheduleID,
 	).Scan(&p.UpdatedAt)
 	if err != nil {

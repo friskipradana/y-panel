@@ -14,12 +14,12 @@ import (
 )
 
 func studioChatSystemPrompt(kind string, lang string, isCreate bool) string {
-	action := "Iteratively refine the existing page JSON based on the user's latest instruction. Preserve existing sections and details that the user did not ask to change."
-	if isCreate {
-		action = "Create a complete, polished first version of the page from the user's prompt."
-	}
 	if kind == "docs" {
-		return `You are an expert technical writer inside Reneo Page Studio (Lovable-style interactive builder).
+		action := "Iteratively refine the existing documentation JSON based on the user's latest instruction. Preserve existing sections and details that the user did not ask to change."
+		if isCreate {
+			action = "Create a complete, polished documentation guide or article from the user's prompt."
+		}
+		return `You are an expert technical writer.
 ` + action + `
 Return ONLY one valid JSON object matching this exact schema (no markdown prose outside JSON):
 {
@@ -28,7 +28,7 @@ Return ONLY one valid JSON object matching this exact schema (no markdown prose 
     "slug": "url-friendly-slug",
     "title": "Clear Documentation Guide Title",
     "subtitle": "1-2 sentence summary",
-    "brandName": "Product or organization name",
+    "brandName": "Product or organization name mentioned by the user (or leave short/relevant)",
     "themeTone": "blue",
     "seoDescription": "Concise meta description under 155 characters",
     "markdownBody": "## Pendahuluan\n\nStructured markdown guide with ## headings, ### subheadings, numbered steps, lists, and code blocks."
@@ -40,74 +40,29 @@ Rules:
 - Keep documentation practical, structured, and immediately actionable.`
 	}
 
-	return `You are a high-craft web designer and conversion copywriter inside Reneo Page Studio (Lovable-style interactive builder).
+	action := "Iteratively update the existing standalone HTML/CSS/JS document according to the user's latest instruction. Preserve existing sections, styling, and interactivity that the user did not ask to change, and return the COMPLETE updated HTML document."
+	if isCreate {
+		action = "Build a complete, original, production-ready standalone web page or interactive web application from scratch based on the user's request."
+	}
+	return `You are an unrestricted full-stack web designer and frontend engineer (like Lovable).
 ` + action + `
-Return ONLY one valid JSON object matching this exact schema (no markdown prose outside JSON):
-{
-  "reply": "1-2 concise sentences summarizing what you built or changed",
-  "page": {
-    "slug": "url-friendly-slug",
-    "title": "Concrete, benefit-focused hero headline (6-12 words)",
-    "subtitle": "2 concrete sentences explaining what the product/service does and who it helps",
-    "brandName": "Brand or business name",
-    "themeTone": "blue",
-    "seoDescription": "Concise meta description under 155 characters",
-    "ctaLabel": "Concrete action verb CTA (e.g. Hubungi via WhatsApp, Pesan Sekarang)",
-    "ctaUrl": "https://wa.me/62... or #pricing",
-    "sections": [
-      {
-        "type": "stats",
-        "heading": "Bukti Singkat",
-        "items": [
-          {"title": "500+", "description": "Klien aktif di seluruh Indonesia"}
-        ]
-      },
-      {
-        "type": "features",
-        "heading": "Keunggulan Utama",
-        "subheading": "Alasan pelanggan memilih kami",
-        "items": [
-          {"title": "Keunggulan 1", "description": "Manfaat nyata dan spesifik"}
-        ]
-      },
-      {
-        "type": "steps",
-        "heading": "Cara Kerja",
-        "items": [
-          {"title": "Langkah 1", "description": "Penjelasan ringkas"}
-        ]
-      },
-      {
-        "type": "pricing",
-        "heading": "Paket & Harga",
-        "items": [
-          {"title": "Starter", "price": "Rp 1.500.000", "description": "Cocok untuk usaha baru", "bullets": ["Poin 1", "Poin 2"], "highlight": false},
-          {"title": "Bisnis", "price": "Rp 3.500.000", "badge": "Populer", "description": "Paket lengkap siap pakai", "bullets": ["Poin 1", "Poin 2"], "highlight": true}
-        ]
-      },
-      {
-        "type": "testimonials",
-        "heading": "Kata Pelanggan",
-        "items": [
-          {"title": "Rina Putri", "badge": "Pemilik Kedai Kopi", "description": "Kutipan singkat pengalaman nyata."}
-        ]
-      },
-      {
-        "type": "faq",
-        "heading": "Pertanyaan Umum",
-        "items": [
-          {"title": "Berapa lama pengerjaan?", "description": "Jawaban konkret dan jelas."}
-        ]
-      }
-    ]
-  }
-}
-Rules:
-- Language: ` + lang + `.
-- Allowed themeTone: blue, emerald, slate, amber.
-- Allowed section types: stats, features, steps, pricing, testimonials, faq, cta.
-- Never use em dashes or empty buzzwords (seamless, cutting-edge, revolutionary, all-in-one, dengan mulus).
-- Keep customer-facing copy concrete and free of internal server jargon unless requested.`
+
+You have COMPLETE creative and technical freedom:
+- Build ANY kind of page or interactive web app the user asks for: business landing pages, restaurants, clinics, portfolios, SaaS sites, e-commerce catalogs, event/wedding invitations, dashboards, interactive calculators, booking/order forms, quizzes, pricing toggles, galleries, dark/light editorial layouts, or anything else.
+- NEVER force any specific platform brand (such as Reneo) or rigid template unless the user explicitly asks for it. Use the exact brand, tone, aesthetic, palette, typography, and layout that best fits the user's request.
+- Use complete standalone HTML5 (<!DOCTYPE html>) with responsive mobile-first design.
+- You may load Tailwind CSS Play CDN (<script src="https://cdn.tailwindcss.com"></script>) and Google Fonts (<link href="https://fonts.googleapis.com/css2?..." rel="stylesheet">) plus your own <style> block and inline <script> for rich, real working interactivity (tabs, filters, modals, calculators, mobile nav menu, smooth scroll, form handling, theme toggles, etc.).
+- Use crisp inline SVG icons where helpful. Never leave placeholder broken images; use clean styled layouts, inline SVG graphics, or reliable CSS art/visuals.
+- Write clear, natural, concrete copy in ` + lang + ` (no em dashes, no generic AI filler).
+
+Output format MUST follow these exact two markers with no extra prose before or after:
+---META---
+{"reply":"1-2 concise sentences summarizing what you built or changed","slug":"url-friendly-slug","title":"Page Title","brandName":"Brand or Project Name","seoDescription":"Concise SEO meta description under 155 chars"}
+---HTML---
+<!DOCTYPE html>
+<html lang="id">
+...complete standalone HTML document...
+</html>`
 }
 
 func snapshotStudioVersion(page *database.StudioPage, summary string) database.StudioPageVersion {
@@ -129,6 +84,7 @@ func snapshotStudioVersion(page *database.StudioPage, summary string) database.S
 		CTAURL:         page.CTAURL,
 		Sections:       secCopy,
 		MarkdownBody:   page.MarkdownBody,
+		HTMLCode:       page.HTMLCode,
 	}
 }
 
@@ -171,7 +127,11 @@ func (s *Server) handleStudioChatCreate(w http.ResponseWriter, r *http.Request) 
 		lang = "English"
 	}
 
-	raw, err := ai.Complete(r.Context(), *aiCfg, studioChatSystemPrompt(kind, lang, true), "User request:\n"+prompt)
+	maxTokens := 12288
+	if kind == "docs" {
+		maxTokens = 6144
+	}
+	raw, err := ai.CompleteWithMaxTokens(r.Context(), *aiCfg, maxTokens, studioChatSystemPrompt(kind, lang, true), "User request:\n"+prompt)
 	if err != nil {
 		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
@@ -201,6 +161,7 @@ func (s *Server) handleStudioChatCreate(w http.ResponseWriter, r *http.Request) 
 		CTAURL:         res.Page.CTAURL,
 		Sections:       res.Page.Sections,
 		MarkdownBody:   res.Page.MarkdownBody,
+		HTMLCode:       res.Page.HTMLCode,
 		SourcePrompt:   prompt,
 		ChatHistory: []database.StudioChatMessage{
 			{Role: "user", Content: prompt, CreatedAt: nowStr},
@@ -263,18 +224,6 @@ func (s *Server) handleStudioPageChat(w http.ResponseWriter, r *http.Request) {
 		lang = "English"
 	}
 
-	curJSON, _ := json.Marshal(aiGeneratedStudioPage{
-		Slug:           existing.Slug,
-		Title:          existing.Title,
-		Subtitle:       existing.Subtitle,
-		BrandName:      existing.BrandName,
-		ThemeTone:      existing.ThemeTone,
-		SEODescription: existing.SEODescription,
-		CTALabel:       existing.CTALabel,
-		CTAURL:         existing.CTAURL,
-		Sections:       existing.Sections,
-		MarkdownBody:   existing.MarkdownBody,
-	})
 	var histBuilder strings.Builder
 	startIdx := 0
 	if len(existing.ChatHistory) > 6 {
@@ -284,10 +233,40 @@ func (s *Server) handleStudioPageChat(w http.ResponseWriter, r *http.Request) {
 		histBuilder.WriteString(h.Role + ": " + h.Content + "\n")
 	}
 
-	userPrompt := fmt.Sprintf("Current page JSON:\n%s\n\nRecent conversation:\n%s\nNew instruction:\n%s",
-		string(curJSON), histBuilder.String(), msg)
+	var userPrompt string
+	maxTokens := 12288
+	if existing.Kind == "docs" {
+		maxTokens = 6144
+		curJSON, _ := json.Marshal(aiGeneratedStudioPage{
+			Slug:           existing.Slug,
+			Title:          existing.Title,
+			Subtitle:       existing.Subtitle,
+			BrandName:      existing.BrandName,
+			ThemeTone:      existing.ThemeTone,
+			SEODescription: existing.SEODescription,
+			MarkdownBody:   existing.MarkdownBody,
+		})
+		userPrompt = fmt.Sprintf("Current documentation JSON:\n%s\n\nRecent conversation:\n%s\nNew instruction:\n%s",
+			string(curJSON), histBuilder.String(), msg)
+	} else if strings.TrimSpace(existing.HTMLCode) != "" {
+		userPrompt = fmt.Sprintf("Current page metadata: title=%q, brand=%q, slug=%q\n\nCurrent HTML/CSS/JS code:\n%s\n\nRecent conversation:\n%s\nNew instruction:\n%s",
+			existing.Title, existing.BrandName, existing.Slug, existing.HTMLCode, histBuilder.String(), msg)
+	} else {
+		curJSON, _ := json.Marshal(aiGeneratedStudioPage{
+			Slug:           existing.Slug,
+			Title:          existing.Title,
+			Subtitle:       existing.Subtitle,
+			BrandName:      existing.BrandName,
+			SEODescription: existing.SEODescription,
+			CTALabel:       existing.CTALabel,
+			CTAURL:         existing.CTAURL,
+			Sections:       existing.Sections,
+		})
+		userPrompt = fmt.Sprintf("Current page draft data (convert and upgrade into complete standalone HTML/CSS/JS):\n%s\n\nRecent conversation:\n%s\nNew instruction:\n%s",
+			string(curJSON), histBuilder.String(), msg)
+	}
 
-	raw, err := ai.Complete(r.Context(), *aiCfg, studioChatSystemPrompt(existing.Kind, lang, false), userPrompt)
+	raw, err := ai.CompleteWithMaxTokens(r.Context(), *aiCfg, maxTokens, studioChatSystemPrompt(existing.Kind, lang, false), userPrompt)
 	if err != nil {
 		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
@@ -303,11 +282,15 @@ func (s *Server) handleStudioPageChat(w http.ResponseWriter, r *http.Request) {
 	if res.Page.Title != "" {
 		existing.Title = res.Page.Title
 	}
-	existing.Subtitle = res.Page.Subtitle
+	if res.Page.Subtitle != "" {
+		existing.Subtitle = res.Page.Subtitle
+	}
 	if res.Page.BrandName != "" {
 		existing.BrandName = res.Page.BrandName
 	}
-	existing.ThemeTone = res.Page.ThemeTone
+	if res.Page.ThemeTone != "" {
+		existing.ThemeTone = res.Page.ThemeTone
+	}
 	if res.Page.SEODescription != "" {
 		existing.SEODescription = res.Page.SEODescription
 	}
@@ -321,8 +304,13 @@ func (s *Server) handleStudioPageChat(w http.ResponseWriter, r *http.Request) {
 		if res.Page.MarkdownBody != "" {
 			existing.MarkdownBody = res.Page.MarkdownBody
 		}
-	} else if len(res.Page.Sections) > 0 {
-		existing.Sections = res.Page.Sections
+	} else {
+		if res.Page.HTMLCode != "" {
+			existing.HTMLCode = res.Page.HTMLCode
+		}
+		if len(res.Page.Sections) > 0 {
+			existing.Sections = res.Page.Sections
+		}
 	}
 
 	nowStr := time.Now().UTC().Format(time.RFC3339)
@@ -390,6 +378,7 @@ func (s *Server) handleStudioRestoreVersion(w http.ResponseWriter, r *http.Reque
 	existing.CTAURL = target.CTAURL
 	existing.Sections = target.Sections
 	existing.MarkdownBody = target.MarkdownBody
+	existing.HTMLCode = target.HTMLCode
 
 	updated, err := s.database.UpdateStudioPage(existing)
 	if err != nil {

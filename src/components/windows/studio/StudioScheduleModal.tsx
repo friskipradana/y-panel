@@ -22,7 +22,6 @@ export function StudioScheduleModal({ st }: { st: PageStudioWindowState }) {
   const [name, setName] = useState('')
   const [mode, setMode] = useState<StudioScheduleMode>('enrich_docs')
   const [theme, setTheme] = useState('')
-  const [brandName, setBrandName] = useState('Reneo')
   const [category, setCategory] = useState('panduan')
   const [topicsText, setTopicsText] = useState('')
   const [language, setLanguage] = useState<'id' | 'en'>('id')
@@ -39,7 +38,6 @@ export function StudioScheduleModal({ st }: { st: PageStudioWindowState }) {
       setName(editingSchedule.name)
       setMode(editingSchedule.mode)
       setTheme(editingSchedule.theme)
-      setBrandName(editingSchedule.brandName || 'Reneo')
       setCategory(editingSchedule.category || 'panduan')
       setTopicsText((editingSchedule.topics ?? []).join('\n'))
       setLanguage(editingSchedule.language === 'en' ? 'en' : 'id')
@@ -53,7 +51,6 @@ export function StudioScheduleModal({ st }: { st: PageStudioWindowState }) {
       setName('')
       setMode('enrich_docs')
       setTheme('')
-      setBrandName('Reneo')
       setCategory('panduan')
       setTopicsText('')
       setLanguage('id')
@@ -78,7 +75,7 @@ export function StudioScheduleModal({ st }: { st: PageStudioWindowState }) {
         name: name.trim(),
         mode,
         theme: theme.trim(),
-        brandName: brandName.trim() || 'Reneo',
+        brandName: 'Reneo',
         category: category.trim() || 'panduan',
         topics,
         language,
@@ -134,10 +131,7 @@ export function StudioScheduleModal({ st }: { st: PageStudioWindowState }) {
           <Textarea rows={3} value={topicsText} onChange={(e) => setTopicsText(e.target.value)} placeholder={t('studio.schedule.topicsPh')} />
         </Field>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label={t('studio.brandNameLabel')}>
-            <TextInput value={brandName} onChange={(e) => setBrandName(e.target.value)} />
-          </Field>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={t('studio.schedule.categoryLabel')}>
             <TextInput value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t('studio.schedule.categoryPh')} />
           </Field>

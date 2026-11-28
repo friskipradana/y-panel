@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowUp,
+  Copy,
+  Download,
   Eye,
   EyeOff,
   Monitor,
@@ -11,13 +13,13 @@ import {
   Smartphone,
   Tablet,
 } from 'lucide-react'
-import type { StudioPage, StudioThemeTone } from '@/api/studio'
+import { toast } from 'sonner'
+import type { StudioPage } from '@/api/studio'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, Textarea, TextInput } from '@/components/ui/Field'
 import { FilterMenu } from '@/components/ui/FilterMenu'
-import { Select } from '@/components/ui/Select'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
@@ -26,9 +28,15 @@ import { StudioLivePreview, type PreviewViewport } from './StudioLivePreview'
 import { StudioSectionsEditor } from './StudioSectionsEditor'
 import type { PageStudioWindowState } from './usePageStudioWindow'
 
-type BuilderTab = 'chat' | 'manual' | 'history' | 'settings'
+type BuilderTab = 'chat' | 'code' | 'history' | 'settings'
 
-// Lovable-style split-pane workspace: AI Chat + Manual/History/Settings left, Live Preview right
+const VIEWPORT_BTNS: Array<{ id: PreviewViewport; labelKey: string; Icon: typeof Monitor }> = [
+  { id: 'desktop', labelKey: 'studio.viewport.desktop', Icon: Monitor },
+  { id: 'tablet', labelKey: 'studio.viewport.tablet', Icon: Tablet },
+  { id: 'mobile', labelKey: 'studio.viewport.mobile', Icon: Smartphone },
+]
+
+// Lovable-style split-pane workspace: AI Chat + Code/History/Settings left, Live Preview right
 export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState; page: StudioPage }) {
   const isMobile = useIsMobileLayout()
   const {
@@ -96,15 +104,33 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
         ctaUrl: draft.ctaUrl,
         sections: draft.sections,
         markdownBody: draft.markdownBody,
+        htmlCode: draft.htmlCode,
         sourcePrompt: draft.sourcePrompt,
       },
     })
   }
 
+  const downloadHtml = () => {
+    if (!draft.htmlCode?.trim()) return
+    const blob = new Blob([draft.htmlCode], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${draft.slug || 'page'}.html`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const copyHtml = () => {
+    if (!draft.htmlCode?.trim()) return
+    void navigator.clipboard.writeText(draft.htmlCode).then(() => toast.success(t('studio.builder.codeCopied')))
+  }
+
   const isPub = page.status === 'published'
+  const isLegacyStructured = draft.kind === 'landing' && !draft.htmlCode?.trim() && draft.sections.length > 0
   const tabItems = [
     { key: 'chat', label: t('studio.builder.tabChat') },
-    { key: 'manual', label: t('studio.builder.tabManual') },
+    { key: 'code', label: draft.kind === 'docs' ? t('studio.builder.tabManual') : t('studio.builder.tabCode') },
     { key: 'history', label: t('studio.builder.tabHistory'), count: page.versions.length },
     { key: 'settings', label: t('studio.builder.tabSettings') },
   ]
@@ -112,6 +138,9 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
   const moreActions: ActionMenuItem[] = [
     { key: 'copy', label: t('studio.copyUrl'), onSelect: () => copyPublicUrl(page) },
     { key: 'open', label: t('studio.openLive'), onSelect: () => window.open(publicUrlOf(page), '_blank', 'noopener') },
+    ...(draft.kind === 'landing' && draft.htmlCode?.trim()
+      ? [{ key: 'download', label: t('studio.builder.downloadHtml'), onSelect: downloadHtml }]
+      : []),
     { key: 'domain', label: t('studio.connectDomain'), onSelect: () => openDomainRoute(page) },
     { key: 'delete', label: t('common.delete'), tone: 'danger', dividerBefore: true, onSelect: () => void confirmDeletePage(page) },
   ]
@@ -147,7 +176,7 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
           </button>
           <FilterMenu label={t('studio.builder.tabChat')} value={tab} onChange={(v) => setTab(v as BuilderTab)} items={tabItems} />
           {!isMobile ? (
-            <span className="truncate max-w-[200px] text-xs font-semibold text-[var(--win-text)]" title={draft.title}>
+            <span className="max-w-[200px] truncate text-xs font-semibold text-[var(--win-text)]" title={draft.title}>
               {draft.title}
             </span>
           ) : (
@@ -164,35 +193,18 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
 
         <div className={isMobile ? 'docker-topbar__mobile-row' : 'docker-topbar__right'}>
           {!isMobile ? (
-            <>
+            VIEWPORT_BTNS.map(({ id, labelKey, Icon }) => (
               <button
+                key={id}
                 type="button"
-                className={`docker-icon-btn ${viewport === 'desktop' ? 'border-[var(--panel-primary-border)] text-[var(--panel-primary-text)]' : ''}`}
-                title={t('studio.viewport.desktop')}
-                aria-label={t('studio.viewport.desktop')}
-                onClick={() => setViewport('desktop')}
+                className={`docker-icon-btn ${viewport === id ? 'border-[var(--panel-primary-border)] text-[var(--panel-primary-text)]' : ''}`}
+                title={t(labelKey)}
+                aria-label={t(labelKey)}
+                onClick={() => setViewport(id)}
               >
-                <Monitor className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
               </button>
-              <button
-                type="button"
-                className={`docker-icon-btn ${viewport === 'tablet' ? 'border-[var(--panel-primary-border)] text-[var(--panel-primary-text)]' : ''}`}
-                title={t('studio.viewport.tablet')}
-                aria-label={t('studio.viewport.tablet')}
-                onClick={() => setViewport('tablet')}
-              >
-                <Tablet className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </button>
-              <button
-                type="button"
-                className={`docker-icon-btn ${viewport === 'mobile' ? 'border-[var(--panel-primary-border)] text-[var(--panel-primary-text)]' : ''}`}
-                title={t('studio.viewport.mobile')}
-                aria-label={t('studio.viewport.mobile')}
-                onClick={() => setViewport('mobile')}
-              >
-                <Smartphone className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </button>
-            </>
+            ))
           ) : null}
           {dirty ? (
             <button
@@ -226,8 +238,8 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
                         key={idx}
                         className={`rounded-lg px-3 py-2 text-xs leading-relaxed ${
                           m.role === 'user'
-                            ? 'ml-6 bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] border border-[var(--panel-primary-border)]'
-                            : 'mr-4 bg-[var(--panel-surface)] text-[var(--win-text)] border border-[var(--win-border)]'
+                            ? 'ml-6 border border-[var(--panel-primary-border)] bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)]'
+                            : 'mr-4 border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)]'
                         }`}
                       >
                         {m.content}
@@ -270,48 +282,48 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
                   </div>
                 </div>
               </>
-            ) : tab === 'manual' ? (
-              <div className="flex-1 space-y-3 overflow-y-auto p-3">
-                <Field label={t('studio.titleLabel')}>
-                  <TextInput value={draft.title} onChange={(e) => patchDraft({ title: e.target.value })} />
-                </Field>
-                <Field label={t('studio.subtitleLabel')}>
-                  <Textarea rows={2} value={draft.subtitle} onChange={(e) => patchDraft({ subtitle: e.target.value })} />
-                </Field>
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label={t('studio.brandNameLabel')}>
-                    <TextInput value={draft.brandName} onChange={(e) => patchDraft({ brandName: e.target.value })} />
-                  </Field>
-                  <Field label={t('studio.themeToneLabel')}>
-                    <Select
-                      size="sm"
-                      value={draft.themeTone}
-                      onChange={(v) => patchDraft({ themeTone: v as StudioThemeTone })}
-                      options={[
-                        { value: 'blue', label: t('studio.tone.blue') },
-                        { value: 'emerald', label: t('studio.tone.emerald') },
-                        { value: 'slate', label: t('studio.tone.slate') },
-                        { value: 'amber', label: t('studio.tone.amber') },
-                      ]}
-                    />
-                  </Field>
-                </div>
-                {draft.kind === 'landing' ? (
+            ) : tab === 'code' ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-3">
+                {draft.kind === 'docs' ? (
                   <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Field label={t('studio.ctaLabel')}>
-                        <TextInput value={draft.ctaLabel} onChange={(e) => patchDraft({ ctaLabel: e.target.value })} />
-                      </Field>
-                      <Field label={t('studio.ctaUrlLabel')}>
-                        <TextInput mono value={draft.ctaUrl} onChange={(e) => patchDraft({ ctaUrl: e.target.value })} />
-                      </Field>
-                    </div>
+                    <Field label={t('studio.titleLabel')}>
+                      <TextInput value={draft.title} onChange={(e) => patchDraft({ title: e.target.value })} />
+                    </Field>
+                    <Field label={t('studio.subtitleLabel')}>
+                      <Textarea rows={2} value={draft.subtitle} onChange={(e) => patchDraft({ subtitle: e.target.value })} />
+                    </Field>
+                    <Field label={t('studio.markdownLabel')}>
+                      <Textarea rows={16} mono value={draft.markdownBody} onChange={(e) => patchDraft({ markdownBody: e.target.value })} />
+                    </Field>
+                  </>
+                ) : isLegacyStructured ? (
+                  <>
+                    <Field label={t('studio.titleLabel')}>
+                      <TextInput value={draft.title} onChange={(e) => patchDraft({ title: e.target.value })} />
+                    </Field>
                     <StudioSectionsEditor sections={draft.sections} onChange={(sections) => patchDraft({ sections })} />
                   </>
                 ) : (
-                  <Field label={t('studio.markdownLabel')}>
-                    <Textarea rows={14} mono value={draft.markdownBody} onChange={(e) => patchDraft({ markdownBody: e.target.value })} />
-                  </Field>
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-[var(--text-secondary)]">HTML / CSS / JS</span>
+                      <div className="flex items-center gap-1.5">
+                        <Button size="sm" variant="ghost" icon={<Copy className="h-3 w-3" strokeWidth={1.75} />} onClick={copyHtml}>
+                          {t('common.copy')}
+                        </Button>
+                        <Button size="sm" variant="outline" icon={<Download className="h-3 w-3" strokeWidth={1.75} />} onClick={downloadHtml}>
+                          {t('studio.builder.downloadHtml')}
+                        </Button>
+                      </div>
+                    </div>
+                    <Textarea
+                      rows={24}
+                      mono
+                      value={draft.htmlCode || ''}
+                      onChange={(e) => patchDraft({ htmlCode: e.target.value })}
+                      placeholder={t('studio.builder.codePh')}
+                    />
+                  </>
                 )}
               </div>
             ) : tab === 'history' ? (
@@ -342,6 +354,12 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
               </div>
             ) : (
               <div className="flex-1 space-y-3 overflow-y-auto p-3">
+                <Field label={t('studio.titleLabel')}>
+                  <TextInput value={draft.title} onChange={(e) => patchDraft({ title: e.target.value })} />
+                </Field>
+                <Field label={t('studio.brandNameLabel')}>
+                  <TextInput value={draft.brandName} onChange={(e) => patchDraft({ brandName: e.target.value })} />
+                </Field>
                 <Field label={t('studio.slugLabel')} hint={`/p/${draft.slug || '...'}`}>
                   <TextInput mono value={draft.slug} onChange={(e) => patchDraft({ slug: e.target.value })} />
                 </Field>

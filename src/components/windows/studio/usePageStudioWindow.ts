@@ -32,6 +32,24 @@ import { useWindowStore } from '@/store/windowStore'
 export type StudioTopSection = 'pages' | 'schedules'
 export type StudioKindFilter = 'all' | 'landing' | 'docs'
 
+const STARTER_HTML = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Halaman Baru</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+  <main class="mx-auto max-w-4xl px-6 py-24 text-center">
+    <h1 class="text-4xl font-bold tracking-tight sm:text-5xl">Mulai Bangun Halaman Anda</h1>
+    <p class="mx-auto mt-4 max-w-2xl text-base text-slate-600">
+      Gunakan Chat AI di sebelah kiri untuk merancang landing page, portofolio, kalkulator, atau aplikasi web interaktif tanpa batasan layout.
+    </p>
+  </main>
+</body>
+</html>`
+
 export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
   const { t, language } = useI18n()
   const qc = useQueryClient()
@@ -84,13 +102,14 @@ export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
         subtitle: '',
         status: 'draft',
         showInDocs: kind === 'docs',
-        brandName: 'Reneo',
+        brandName: kind === 'docs' ? 'Reneo' : '',
         themeTone: 'blue',
         seoDescription: '',
-        ctaLabel: kind === 'landing' ? t('studio.defaultCtaLabel') : '',
+        ctaLabel: '',
         ctaUrl: '',
         sections: [],
         markdownBody: kind === 'docs' ? `## ${t('studio.defaultDocHeading')}\n\n` : '',
+        htmlCode: kind === 'landing' ? STARTER_HTML : '',
         sourcePrompt: '',
       }),
     onSuccess: (page) => {

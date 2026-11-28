@@ -37,11 +37,18 @@ export function StudioLivePreview({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+      <div className="flex flex-1 overflow-y-auto p-3 sm:p-4">
         <div
-          className={`mx-auto min-h-full overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--win-content-bg)] transition-[max-width] duration-200 ${FRAME_WIDTH[viewport]}`}
+          className={`mx-auto flex min-h-full flex-col overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--win-content-bg)] transition-[max-width] duration-200 ${FRAME_WIDTH[viewport]}`}
         >
-          {page.kind === 'landing' ? (
+          {page.kind === 'landing' && page.htmlCode?.trim() ? (
+            <iframe
+              title={page.title || page.slug}
+              srcDoc={page.htmlCode}
+              sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads"
+              className="min-h-[520px] w-full flex-1 border-0 bg-[var(--win-content-bg)]"
+            />
+          ) : page.kind === 'landing' ? (
             <PublicLandingView page={page} t={t} embedded />
           ) : (
             <article className="mx-auto max-w-3xl p-5 sm:p-8">

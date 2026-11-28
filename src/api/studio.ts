@@ -41,6 +41,7 @@ export interface StudioPageVersion {
   ctaUrl: string
   sections: StudioSection[]
   markdownBody: string
+  htmlCode?: string
 }
 
 export interface StudioPage {
@@ -60,6 +61,7 @@ export interface StudioPage {
   ctaUrl: string
   sections: StudioSection[]
   markdownBody: string
+  htmlCode: string
   sourcePrompt: string
   chatHistory: StudioChatMessage[]
   versions: StudioPageVersion[]
@@ -89,6 +91,7 @@ export interface StudioPageInput {
   ctaUrl: string
   sections: StudioSection[]
   markdownBody: string
+  htmlCode?: string
   sourcePrompt: string
 }
 
@@ -103,6 +106,7 @@ export interface AIGeneratedStudioPage {
   ctaUrl: string
   sections: StudioSection[]
   markdownBody: string
+  htmlCode?: string
 }
 
 export type StudioScheduleMode = 'enrich_docs' | 'topic_series'

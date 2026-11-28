@@ -61,6 +61,16 @@ export function PublicStudioPage() {
   }
 
   if (page.kind === 'landing') {
+    if (page.htmlCode?.trim()) {
+      return (
+        <iframe
+          title={page.title || page.slug}
+          srcDoc={page.htmlCode}
+          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads"
+          className="fixed inset-0 h-screen w-screen border-0 bg-[var(--win-content-bg)]"
+        />
+      )
+    }
     return <PublicLandingView page={page} t={t} />
   }
 

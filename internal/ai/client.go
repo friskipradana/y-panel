@@ -82,15 +82,30 @@ func (c Config) resolved() (provider, baseURL, model string, temp float64, err e
 
 // Complete sends a chat completion prompt and returns the assistant text.
 func Complete(ctx context.Context, cfg Config, systemPrompt, userPrompt string) (string, error) {
+	return CompleteWithMaxTokens(ctx, cfg, 4096, systemPrompt, userPrompt)
+}
+
+// CompleteWithMaxTokens sends a chat completion prompt with an explicit output token budget.
+func CompleteWithMaxTokens(ctx context.Context, cfg Config, maxTokens int, systemPrompt, userPrompt string) (string, error) {
 	provider, baseURL, model, temp, err := cfg.resolved()
 	if err != nil {
 		return "", err
 	}
-	client := &http.Client{Timeout: 120 * time.Second}
-	if provider == "anthropic" {
-		return completeAnthropic(ctx, client, baseURL, model, cfg.APIKey, temp, systemPrompt, userPrompt)
+	if maxTokens <= 0 {
+		maxTokens = 4096
 	}
-	return completeOpenAI(ctx, client, baseURL, model, cfg.APIKey, temp, systemPrompt, userPrompt)
+	timeout := 120 * time.Second
+	if maxTokens > 4096 {
+		timeout = 180 * time.Second
+	}
+	client := &http.Client{Timeout: timeout}
+	if provider == "anthropic" {
+		if maxTokens > 8192 {
+			maxTokens = 8192
+		}
+		return completeAnthropic(ctx, client, baseURL, model, cfg.APIKey, temp, maxTokens, systemPrompt, userPrompt)
+	}
+	return completeOpenAI(ctx, client, baseURL, model, cfg.APIKey, temp, maxTokens, systemPrompt, userPrompt)
 }
 
 // TestConnection verifies credentials and model reachability with a tiny prompt.
@@ -212,7 +227,7 @@ func fetchModelsEndpoint(ctx context.Context, client *http.Client, provider, end
 	return result, nil
 }
 
-func completeOpenAI(ctx context.Context, client *http.Client, baseURL, model, apiKey string, temp float64, systemPrompt, userPrompt string) (string, error) {
+func completeOpenAI(ctx context.Context, client *http.Client, baseURL, model, apiKey string, temp float64, maxTokens int, systemPrompt, userPrompt string) (string, error) {
 	endpoint := baseURL
 	if !strings.HasSuffix(endpoint, "/chat/completions") {
 		endpoint += "/chat/completions"
@@ -220,7 +235,7 @@ func completeOpenAI(ctx context.Context, client *http.Client, baseURL, model, ap
 	payload := map[string]any{
 		"model":       model,
 		"temperature": temp,
-		"max_tokens":  4096,
+		"max_tokens":  maxTokens,
 		"stream":      false,
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
@@ -374,14 +389,14 @@ func parseOpenAISSE(body []byte) (string, error) {
 	return res, nil
 }
 
-func completeAnthropic(ctx context.Context, client *http.Client, baseURL, model, apiKey string, temp float64, systemPrompt, userPrompt string) (string, error) {
+func completeAnthropic(ctx context.Context, client *http.Client, baseURL, model, apiKey string, temp float64, maxTokens int, systemPrompt, userPrompt string) (string, error) {
 	endpoint := baseURL
 	if !strings.HasSuffix(endpoint, "/messages") {
 		endpoint += "/messages"
 	}
 	payload := map[string]any{
 		"model":       model,
-		"max_tokens":  4096,
+		"max_tokens":  maxTokens,
 		"temperature": temp,
 		"system":      systemPrompt,
 		"messages": []map[string]string{

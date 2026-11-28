@@ -50,6 +50,7 @@ type studioPagePayload struct {
 	CTAURL         string                   `json:"ctaUrl"`
 	Sections       []database.StudioSection `json:"sections"`
 	MarkdownBody   string                   `json:"markdownBody"`
+	HTMLCode       string                   `json:"htmlCode"`
 	SourcePrompt   string                   `json:"sourcePrompt"`
 }
 
@@ -116,7 +117,7 @@ func (s *Server) handleStudioCreatePage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var req studioPagePayload
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20)).Decode(&req); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<20)).Decode(&req); err != nil {
 		s.writeError(w, http.StatusBadRequest, errors.New("invalid JSON payload"))
 		return
 	}
@@ -143,6 +144,7 @@ func (s *Server) handleStudioCreatePage(w http.ResponseWriter, r *http.Request) 
 		CTAURL:         req.CTAURL,
 		Sections:       req.Sections,
 		MarkdownBody:   req.MarkdownBody,
+		HTMLCode:       req.HTMLCode,
 		SourcePrompt:   req.SourcePrompt,
 	}
 	created, err := s.database.CreateStudioPage(page)
@@ -175,7 +177,7 @@ func (s *Server) handleStudioUpdatePage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var req studioPagePayload
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20)).Decode(&req); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<20)).Decode(&req); err != nil {
 		s.writeError(w, http.StatusBadRequest, errors.New("invalid JSON payload"))
 		return
 	}
@@ -202,6 +204,7 @@ func (s *Server) handleStudioUpdatePage(w http.ResponseWriter, r *http.Request) 
 		existing.Sections = req.Sections
 	}
 	existing.MarkdownBody = req.MarkdownBody
+	existing.HTMLCode = req.HTMLCode
 	existing.SourcePrompt = req.SourcePrompt
 
 	updated, err := s.database.UpdateStudioPage(existing)
@@ -453,6 +456,7 @@ func (s *Server) handlePublicStudioPage(w http.ResponseWriter, r *http.Request) 
 			"ctaUrl":         page.CTAURL,
 			"sections":       page.Sections,
 			"markdownBody":   page.MarkdownBody,
+			"htmlCode":       page.HTMLCode,
 			"updatedAt":      page.UpdatedAt,
 		},
 	})

@@ -83,3 +83,29 @@ func TestComputeNextStudioRunAndPickTopic(t *testing.T) {
 		t.Fatalf("expected Backup Otomatis, got %q", next)
 	}
 }
+
+func TestParseStudioChatResponseUnrestrictedHTML(t *testing.T) {
+	raw := "---META---\n" +
+		`{"reply":"Halaman restoran bergaya gelap dengan filter menu interaktif telah dibuat.","slug":"bistro-senja","title":"Bistro Senja","brandName":"Bistro Senja","seoDescription":"Menu dan reservasi meja Bistro Senja"}` +
+		"\n---HTML---\n```html\n<!DOCTYPE html>\n<html lang=\"id\"><head><title>Bistro Senja</title></head><body><h1>Bistro Senja</h1></body></html>\n```"
+
+	res, err := parseStudioChatResponse(raw, "landing")
+	if err != nil {
+		t.Fatalf("expected valid HTML chat parse, got: %v", err)
+	}
+	if res.Page.Slug != "bistro-senja" || res.Page.BrandName != "Bistro Senja" {
+		t.Fatalf("unexpected meta: %+v", res.Page)
+	}
+	if res.Page.HTMLCode == "" || res.Page.HTMLCode[:15] != "<!DOCTYPE html>" {
+		t.Fatalf("unexpected cleaned HTML: %q", res.Page.HTMLCode)
+	}
+
+	rawOnlyHTML := "<!DOCTYPE html><html><head><title>Kalkulator KPR</title></head><body><main>OK</main></body></html>"
+	fallback, err := parseStudioChatResponse(rawOnlyHTML, "landing")
+	if err != nil {
+		t.Fatalf("expected raw HTML fallback to parse, got: %v", err)
+	}
+	if fallback.Page.Title != "Kalkulator KPR" || fallback.Page.Slug != "kalkulator-kpr" {
+		t.Fatalf("unexpected fallback meta: %+v", fallback.Page)
+	}
+}

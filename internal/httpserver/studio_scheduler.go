@@ -153,41 +153,43 @@ func (s *Server) executeStudioSchedule(ctx context.Context, sc *database.StudioS
 	}
 
 	nextTopic := pickNextScheduleTopic(sc.Topics, sc.UsedTopics)
-	sysPrompt := `You are an automated documentation & article author for ` + sc.BrandName + `.
+	sc.BrandName = "Reneo"
+	sysPrompt := `You are an automated documentation & article author specifically for Reneo (Desktop Linux Server Control Panel).
+Every guide or article you write MUST be specifically about Reneo: its real windows, workflows, Linux server administration features, self-hosted apps, security, backup, Docker, Cloudflare Tunnel, Database, or operational tips using Reneo.
 Return ONLY one valid JSON object matching this exact schema (no markdown prose outside JSON):
 {
   "slug": "url-friendly-slug",
-  "title": "Clear, specific article or documentation title",
-  "subtitle": "1-2 concise sentences summarizing the article",
-  "brandName": "` + sc.BrandName + `",
+  "title": "Clear, specific Reneo documentation or article title",
+  "subtitle": "1-2 concise sentences summarizing the Reneo guide or article",
+  "brandName": "Reneo",
   "themeTone": "blue",
   "seoDescription": "Concise meta description under 155 characters",
-  "markdownBody": "## Pendahuluan\n\nThorough, well-structured Markdown guide with ## headings, ### subheadings, numbered steps, practical examples, and troubleshooting tips."
+  "markdownBody": "## Pendahuluan\n\nThorough, well-structured Markdown guide with ## headings, ### subheadings, numbered steps inside Reneo, practical examples, and troubleshooting tips."
 }
 Rules:
 - Language: ` + lang + `.
 - Never use em dashes or empty marketing fluff.
-- Do NOT repeat any title or slug already in the existing documentation list.
-- Write at least 4 clear ## sections with concrete, practical details.`
+- Do NOT repeat any title or slug already in the existing Reneo documentation list.
+- Stay strictly accurate to Reneo's real features and write at least 4 clear ## sections with concrete, practical details.`
 
 	var userPrompt string
 	if sc.Mode == "enrich_docs" {
-		topicHint := "Analyze the existing Reneo documentation list and pick the single most useful MISSING documentation guide or how-to article that complements the existing docs."
+		topicHint := "Analyze the existing Reneo documentation list and pick the single most useful MISSING Reneo documentation guide or how-to article that complements the existing docs."
 		if nextTopic != "" {
-			topicHint = "Priority topic from queue: " + nextTopic
+			topicHint = "Priority Reneo documentation topic from queue: " + nextTopic
 		}
-		userPrompt = fmt.Sprintf("Mode: Enrich Existing Reneo Documentation\nCategory: %s\nTheme & writing guidance: %s\n%s\n\n%s\n\nExisting documentation already published (DO NOT duplicate these):\n%s",
+		userPrompt = fmt.Sprintf("Mode: Enrich Existing Reneo Documentation\nCategory: %s\nTheme & writing guidance: %s\n%s\n\n%s\n\nExisting Reneo documentation already published (DO NOT duplicate these):\n%s",
 			sc.Category, sc.Theme, topicHint, reneoPlatformFeatureCatalog, existingBlock)
 	} else {
-		topicHint := "Choose a fresh, practical, non-duplicate article topic that strictly fits the theme and category."
+		topicHint := "Choose a fresh, practical, non-duplicate Reneo article topic that strictly fits the theme, category, and Reneo platform capabilities."
 		if nextTopic != "" {
-			topicHint = "Write the article for this specific scheduled topic: " + nextTopic
+			topicHint = "Write a detailed Reneo article for this specific scheduled topic: " + nextTopic
 		}
-		userPrompt = fmt.Sprintf("Mode: Scheduled Thematic Article\nBrand: %s\nCategory: %s\nTheme & target audience: %s\n%s\n\nPreviously published titles (DO NOT repeat):\n%s",
-			sc.BrandName, sc.Category, sc.Theme, topicHint, existingBlock)
+		userPrompt = fmt.Sprintf("Mode: Scheduled Reneo Thematic Article\nProduct: Reneo\nCategory: %s\nTheme & target audience: %s\n%s\n\n%s\n\nPreviously published Reneo docs & articles (DO NOT repeat):\n%s",
+			sc.Category, sc.Theme, topicHint, reneoPlatformFeatureCatalog, existingBlock)
 	}
 
-	raw, err := ai.Complete(ctx, *aiCfg, sysPrompt, userPrompt)
+	raw, err := ai.CompleteWithMaxTokens(ctx, *aiCfg, 6144, sysPrompt, userPrompt)
 	if err != nil {
 		return fail(err)
 	}
@@ -299,7 +301,7 @@ func (s *Server) handleStudioCreateSchedule(w http.ResponseWriter, r *http.Reque
 		Name:        req.Name,
 		Mode:        req.Mode,
 		Theme:       req.Theme,
-		BrandName:   req.BrandName,
+		BrandName:   "Reneo",
 		Category:    req.Category,
 		Topics:      req.Topics,
 		Language:    req.Language,
@@ -350,7 +352,7 @@ func (s *Server) handleStudioUpdateSchedule(w http.ResponseWriter, r *http.Reque
 	}
 	existing.Mode = req.Mode
 	existing.Theme = req.Theme
-	existing.BrandName = req.BrandName
+	existing.BrandName = "Reneo"
 	existing.Category = req.Category
 	existing.Topics = req.Topics
 	existing.Language = req.Language
