@@ -15,8 +15,10 @@ export function DocAiRevise({
   kind,
   title,
   content,
+  feature,
   onApply,
 }: {
+  feature?: string
   kind: DocKind
   title: string
   content: string
@@ -31,6 +33,7 @@ export function DocAiRevise({
     mutationFn: () =>
       generateDocWithAI({
         kind,
+        feature,
         topic: title,
         instructions: instruction.trim() || t('docs.revise.placeImages'),
         language: language === 'en' ? 'en' : 'id',

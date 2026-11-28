@@ -125,6 +125,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/docs/images", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUploadDocImage)))
 	s.mux.Handle("GET /api/v1/docs/official", s.requireAuthV2(http.HandlerFunc(s.handleListOfficialDocs)))
 	s.mux.Handle("GET /api/v1/docs/table", s.requireAuthV2(http.HandlerFunc(s.handleDocsTable)))
+	s.mux.Handle("GET /api/v1/docs/features", s.requireAuthV2(http.HandlerFunc(s.handleDocFeatures)))
 	s.mux.Handle("GET /api/v1/docs/{id}", s.requireAuthV2(http.HandlerFunc(s.handleGetDoc)))
 	s.mux.Handle("PATCH /api/v1/docs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateDoc)))
 	s.mux.Handle("DELETE /api/v1/docs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDeleteDoc)))

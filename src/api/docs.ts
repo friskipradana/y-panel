@@ -17,6 +17,8 @@ export interface DocRecord {
   isPublic: boolean
   /** official: synced from the project repository, read-only */
   source?: 'official'
+  /** the Reneo feature the post explains */
+  featureKey?: string
   createdAt: string
   updatedAt: string
 }
@@ -43,6 +45,15 @@ export interface DocPayload {
   content: string
   status?: 'published' | 'draft' | 'archived'
   isPublic?: boolean
+  featureKey?: string
+}
+
+export interface DocFeatureCoverage {
+  key: string
+  name: string
+  description: string
+  access: 'all' | 'admin' | 'superadmin'
+  posts: Array<{ id: number; title: string; status: string }>
 }
 
 export interface DocAIGenerateInput {
@@ -54,6 +65,8 @@ export interface DocAIGenerateInput {
   publish?: boolean
   isPublic?: boolean
   images?: AIImageRef[]
+  /** the Reneo feature to write about */
+  feature?: string
   /** revise this text instead of writing a new post */
   current?: { title: string; content: string }
 }
@@ -65,6 +78,7 @@ export interface DocAIGenerateResult {
     slug: string
     excerpt: string
     content: string
+    featureKey: string
   }
   doc?: DocRecord
 }
@@ -115,6 +129,9 @@ export const listDocsTable = (query: ListQuery, page: { limit: number; offset: n
   params.set('offset', String(page.offset))
   return agentApi.get<TableResult<DocRecord>>('/api/v1/docs/table', { params }).then((r) => r.data)
 }
+
+export const listDocFeatures = (lang: string) =>
+  agentApi.get<{ features: DocFeatureCoverage[] }>('/api/v1/docs/features', { params: { lang } }).then((r) => r.data.features)
 
 export const listOfficialDocs = (refresh = false) =>
   agentApi

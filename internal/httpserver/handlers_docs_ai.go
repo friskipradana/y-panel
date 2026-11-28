@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/ai"
+	"github.com/friskipradana/panel-desktop-ui/internal/database"
 )
 
 type docAIGenerateRequest struct {
@@ -18,6 +19,8 @@ type docAIGenerateRequest struct {
 	AutoSave     bool   `json:"autoSave"`
 	Publish      bool   `json:"publish"`
 	IsPublic     bool   `json:"isPublic"`
+	// the Reneo feature to write about; "" lets the topic (or the first uncovered feature) decide
+	Feature string `json:"feature"`
 	// pictures to place in the text
 	Images []aiImageRef `json:"images"`
 	// the article as it is now: when set, the AI revises it instead of writing a new one
@@ -61,20 +64,39 @@ func (s *Server) handleGenerateDocWithAI(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Collect existing docs (local + official) so AI avoids repeating topics
-	var existingLines []string
+	var local []database.Doc
 	if s.database != nil && s.database.IsConnected() {
-		if docs, _, dErr := s.database.ListDocs("", 100, 0, true); dErr == nil {
-			for _, d := range docs {
-				existingLines = append(existingLines, fmt.Sprintf("- [%s] %s (slug: %s)", d.Kind, d.Title, d.Slug))
-			}
-		}
+		local, _ = s.allLocalDocs(true)
 	}
-	for _, d := range s.officialDocs(r.Context()) {
+	official := s.officialDocs(r.Context())
+	var existingLines []string
+	for _, d := range local {
+		existingLines = append(existingLines, fmt.Sprintf("- [%s] %s (slug: %s)", d.Kind, d.Title, d.Slug))
+	}
+	for _, d := range official {
 		existingLines = append(existingLines, fmt.Sprintf("- [doc/official] %s (slug: %s)", d.Title, d.Slug))
 	}
 	existingBlock := strings.Join(existingLines, "\n")
 	if existingBlock == "" {
 		existingBlock = "(belum ada dokumen atau artikel)"
+	}
+
+	// what the post is about: the chosen feature, else what the topic names, else the next feature nobody has written about
+	langKey := "id"
+	if lang == "English" {
+		langKey = "en"
+	}
+	var features []*docFeature
+	if f := findDocFeature(strings.TrimSpace(req.Feature)); f != nil {
+		features = []*docFeature{f}
+	} else if about := strings.TrimSpace(req.Topic + " " + req.Instructions); about != "" {
+		features = matchDocFeatures(about)
+	} else if f := firstUncoveredDocFeature(docCoverageOf(langKey, local, official)); f != nil {
+		features = []*docFeature{f}
+	}
+	featureKey := ""
+	if len(features) > 0 {
+		featureKey = features[0].Key
 	}
 
 	var roleDesc, structureGuide string
@@ -98,11 +120,13 @@ Rules:
 - Language: ` + lang + `.
 - ` + structureGuide + `
 - Never use em dashes or empty marketing fluff (seamless, cutting-edge, revolutionary, all-in-one, dengan mulus).
-- Stay strictly accurate to Reneo's real features and DO NOT duplicate an existing title or slug.`
+- Stay strictly accurate to Reneo's real features and DO NOT duplicate an existing title or slug.` + docGroundingRules
 
 	topic := strings.TrimSpace(req.Topic)
 	topicLine := "Requested topic: " + topic
-	if topic == "" {
+	if topic == "" && len(features) > 0 {
+		topicLine = "Write about the Reneo feature \"" + features[0].Name.in(langKey) + "\": what it is for and how to do its main tasks."
+	} else if topic == "" {
 		if kind == "doc" {
 			topicLine = "No topic specified: analyze the existing Reneo documentation list and pick the most important MISSING documentation guide to write."
 		} else {
@@ -115,11 +139,14 @@ Rules:
 	}
 
 	userPrompt := fmt.Sprintf("Post type: %s\n%s%s\n\n%s\n\nExisting documentation and articles (DO NOT duplicate):\n%s",
-		kind, topicLine, extraLine, reneoPlatformFeatureCatalog, existingBlock)
+		kind, topicLine, extraLine, docKnowledgeBlock(features, langKey, official), existingBlock)
 	revising := req.Current != nil && strings.TrimSpace(req.Current.Content) != ""
 	if revising {
 		userPrompt = fmt.Sprintf("Revise this %s according to the instruction. Keep everything the instruction does not ask to change, including every existing image line, and return the COMPLETE updated post.\nInstruction: %s\nCurrent title: %s\nCurrent content:\n%s",
 			kind, strings.TrimSpace(req.Instructions), req.Current.Title, req.Current.Content)
+		if len(features) > 0 {
+			userPrompt += "\n\nMaterial about the product, for anything you add:\n" + docKnowledgeBlock(features, langKey, official)
+		}
 	}
 	userPrompt += aiImagesPrompt(cleanAIImages(req.Images), true)
 
@@ -180,6 +207,7 @@ Rules:
 			s.writeError(w, http.StatusInternalServerError, cErr)
 			return
 		}
+		s.saveDocFeature(created, &featureKey)
 		s.writeJSON(w, http.StatusCreated, jsonResponse{"doc": created})
 		return
 	}
@@ -190,7 +218,8 @@ Rules:
 			"title":   parsed.Title,
 			"slug":    slug,
 			"excerpt": excerpt,
-			"content": content,
+			"content":    content,
+			"featureKey": featureKey,
 		},
 	})
 }

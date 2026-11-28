@@ -17,7 +17,7 @@ type EditorTab = 'visual' | 'write' | 'preview'
 
 // Create / edit one documentation guide or article. The form is rebuilt each time it opens.
 export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
-  const { t, editorOpen, setEditorOpen, editing, draftSeed, saveMut } = dw
+  const { t, editorOpen, setEditorOpen, editing, draftSeed, saveMut, features } = dw
   const [form, setForm] = useState<DocPayload>(emptyDocForm())
   const [tab, setTab] = useState<EditorTab>('visual')
   const contentRef = useRef<HTMLTextAreaElement>(null)
@@ -34,6 +34,7 @@ export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
         content: editing.content,
         status: editing.status,
         isPublic: editing.isPublic,
+        featureKey: editing.featureKey ?? '',
       })
     } else if (draftSeed) {
       setForm(draftSeed)
@@ -85,6 +86,15 @@ export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
           </Field>
         </div>
 
+        <Field label={t('docs.fieldFeature')} hint={t('docs.fieldFeatureHint')}>
+          <Select
+            searchable
+            value={form.featureKey ?? ''}
+            onChange={(featureKey) => patch({ featureKey })}
+            options={[{ value: '', label: t('docs.featureNone') }, ...features.map((f) => ({ value: f.key, label: f.name }))]}
+          />
+        </Field>
+
         <Field label={t('docs.fieldExcerpt')}>
           <Textarea value={form.excerpt ?? ''} rows={2} onChange={(e) => patch({ excerpt: e.target.value })} />
         </Field>
@@ -110,6 +120,7 @@ export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
                 kind={form.kind === 'doc' ? 'doc' : 'article'}
                 title={form.title}
                 content={form.content}
+                feature={form.featureKey}
                 onApply={(next) => patch(next)}
               />
             </div>

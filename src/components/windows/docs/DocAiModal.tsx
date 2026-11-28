@@ -13,9 +13,10 @@ import type { DocsWindowState } from './useDocsWindow'
 
 // Generate a Reneo documentation guide or article directly inside the Docs window
 export function DocAiModal({ dw }: { dw: DocsWindowState }) {
-  const { t, aiModalOpen, setAiModalOpen, kindFilter, aiGenMut } = dw
+  const { t, aiModalOpen, setAiModalOpen, kindFilter, aiGenMut, aiFeature, features } = dw
   const [kind, setKind] = useState<DocKind>('doc')
   const [topic, setTopic] = useState('')
+  const [feature, setFeature] = useState('')
   const [instructions, setInstructions] = useState('')
   const [autoSave, setAutoSave] = useState(false)
   const [publish, setPublish] = useState(true)
@@ -26,6 +27,7 @@ export function DocAiModal({ dw }: { dw: DocsWindowState }) {
   useEffect(() => {
     if (!aiModalOpen) return
     setKind(kindFilter === 'article' ? 'article' : 'doc')
+    setFeature(aiFeature)
     setTopic('')
     setInstructions('')
     setAutoSave(false)
@@ -39,6 +41,7 @@ export function DocAiModal({ dw }: { dw: DocsWindowState }) {
   const submit = () => {
     aiGenMut.mutate({
       kind,
+      feature,
       topic: topic.trim(),
       instructions: instructions.trim(),
       autoSave,
@@ -75,6 +78,18 @@ export function DocAiModal({ dw }: { dw: DocsWindowState }) {
             options={[
               { value: 'doc', label: t('docs.kind.doc') },
               { value: 'article', label: t('docs.kind.article') },
+            ]}
+          />
+        </Field>
+
+        <Field label={t('docs.fieldFeature')} hint={t('docs.aiFeatureHint')}>
+          <Select
+            searchable
+            value={feature}
+            onChange={setFeature}
+            options={[
+              { value: '', label: t('docs.aiFeatureAuto') },
+              ...features.map((f) => ({ value: f.key, label: f.posts.length > 0 ? f.name : `${f.name} (${t('docs.features.none')})` })),
             ]}
           />
         </Field>

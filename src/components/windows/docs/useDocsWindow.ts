@@ -5,6 +5,7 @@ import {
   createDoc,
   deleteDoc,
   generateDocWithAI,
+  listDocFeatures,
   listDocsTable,
   updateDoc,
   type DocAIGenerateInput,
@@ -22,6 +23,7 @@ import { toast } from 'sonner'
 
 export const DOCS_PAGE_SIZE = 30
 export type DocKindFilter = 'all' | DocKind
+export type DocsView = 'posts' | 'features'
 
 export function emptyDocForm(kind: DocKind = 'article'): DocPayload {
   return { kind, title: '', slug: '', excerpt: '', content: '', status: 'draft', isPublic: false }
@@ -51,6 +53,13 @@ export function useDocsWindow() {
   const [aiModalOpen, setAiModalOpen] = useState(false)
   const [editing, setEditing] = useState<DocRecord | null>(null)
   const [draftSeed, setDraftSeed] = useState<DocPayload | null>(null)
+  const [view, setView] = useState<DocsView>('posts')
+  const [aiFeature, setAiFeature] = useState('')
+
+  const lang = language === 'en' ? 'en' : 'id'
+  // every Reneo feature with the posts that explain it
+  const featuresQuery = useQuery({ queryKey: ['docs', 'features', lang], queryFn: () => listDocFeatures(lang) })
+  const features = featuresQuery.data ?? []
 
   const kindFilter: DocKindFilter =
     list.filters.kind?.length === 1 && (list.filters.kind[0] === 'doc' || list.filters.kind[0] === 'article')
@@ -117,6 +126,7 @@ export function useDocsWindow() {
           content: res.draft.content,
           status: 'draft',
           isPublic: true,
+          featureKey: res.draft.featureKey,
         })
         setEditorOpen(true)
         toast.success(t('docs.aiDraftReady'))
@@ -137,10 +147,23 @@ export function useDocsWindow() {
     onError: (e: unknown) => toast.error(t('docs.deleteFailed'), { description: apiError(e, t('docs.deleteFailed')) }),
   })
 
-  const openCreate = () => {
+  const openCreate = (featureKey = '') => {
     setEditing(null)
-    setDraftSeed(emptyDocForm(kindFilter === 'doc' ? 'doc' : 'article'))
+    setDraftSeed({ ...emptyDocForm(kindFilter === 'doc' || featureKey ? 'doc' : 'article'), featureKey })
     setEditorOpen(true)
+  }
+  const openAiFor = (featureKey = '') => {
+    setAiFeature(featureKey)
+    setAiModalOpen(true)
+  }
+  // a post picked in the feature list is searched by its title, so it is on the page shown whatever the filters were
+  const openPost = (post: { id: number; title: string }) => {
+    setView('posts')
+    setPage(1)
+    list.setFilter('kind', [])
+    list.setFilter('status', [])
+    list.setText(post.title)
+    setSelectedId(post.id)
   }
   const openEdit = (doc: DocRecord) => {
     setEditing(doc)
@@ -192,6 +215,13 @@ export function useDocsWindow() {
     aiGenMut,
     openCreate,
     openEdit,
+    openPost,
+    openAiFor,
+    aiFeature,
+    view,
+    setView,
+    features,
+    featuresQuery,
     confirmDelete,
     copyLink,
   }

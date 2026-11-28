@@ -16,17 +16,6 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 )
 
-const reneoPlatformFeatureCatalog = `Reneo Desktop Server Control Panel features:
-- Desktop UI & Windows: draggable floating desktop apps, responsive desktop widgets (CPU, RAM, Disk, Bandwidth, Ping), Light/Dark theme, MobileShell
-- Docker & Compose: container lifecycle, logs, static IP assignment on custom bridge networks, Compose stacks & templates
-- Cloudflare Tunnel & Public Routes: zero-port-forwarding custom domains, wildcard subdomains, automatic SSL
-- File Manager & Storage Cleanup: multi-tab file explorer, inline editor, upload, root access elevation, junk/cache/temp/log cleanup scanner
-- Database Manager: managed PostgreSQL/MySQL/Redis/MongoDB containers, external access IP whitelist, autostart
-- Terminal & KVM: web PTY terminal with presets, live remote desktop screen (KVM)
-- Hosting & Billing: multi-user hosting plans, quotas, subdomains, custom domains, vouchers, WhatsApp notifications
-- Security & Operations: UFW Firewall & WAF rules, Uptime & SSL monitor, Automated Backup & Restore, Cron & Systemd services
-- Developer & Content Tools: Dev Desk (client proposals/invoices/todo), Page Studio (AI landing page & docs builder), Documentation window (/articles), AI Integration & MCP Server`
-
 func computeNextStudioRun(now time.Time, cadence string, runHour int, runWeekday int) time.Time {
 	loc := now.Location()
 	if runHour < 0 || runHour > 23 {
@@ -172,6 +161,18 @@ Rules:
 - Do NOT repeat any title or slug already in the existing Reneo documentation list.
 - Stay strictly accurate to Reneo's real features and write at least 4 clear ## sections with concrete, practical details.`
 
+	// the post is written from the real screen texts of the feature the queued topic names
+	langKey := "id"
+	if sc.Language == "en" {
+		langKey = "en"
+	}
+	var features []*docFeature
+	if about := strings.TrimSpace(nextTopic + " " + sc.Theme); about != "" {
+		features = matchDocFeatures(about)
+	}
+	knowledge := docKnowledgeBlock(features, langKey, s.officialDocs(ctx))
+	sysPrompt += docGroundingRules
+
 	var userPrompt string
 	if sc.Mode == "enrich_docs" {
 		topicHint := "Analyze the existing Reneo documentation list and pick the single most useful MISSING Reneo documentation guide or how-to article that complements the existing docs."
@@ -179,14 +180,14 @@ Rules:
 			topicHint = "Priority Reneo documentation topic from queue: " + nextTopic
 		}
 		userPrompt = fmt.Sprintf("Mode: Enrich Existing Reneo Documentation\nCategory: %s\nTheme & writing guidance: %s\n%s\n\n%s\n\nExisting Reneo documentation already published (DO NOT duplicate these):\n%s",
-			sc.Category, sc.Theme, topicHint, reneoPlatformFeatureCatalog, existingBlock)
+			sc.Category, sc.Theme, topicHint, knowledge, existingBlock)
 	} else {
 		topicHint := "Choose a fresh, practical, non-duplicate Reneo article topic that strictly fits the theme, category, and Reneo platform capabilities."
 		if nextTopic != "" {
 			topicHint = "Write a detailed Reneo article for this specific scheduled topic: " + nextTopic
 		}
 		userPrompt = fmt.Sprintf("Mode: Scheduled Reneo Thematic Article\nProduct: Reneo\nCategory: %s\nTheme & target audience: %s\n%s\n\n%s\n\nPreviously published Reneo docs & articles (DO NOT repeat):\n%s",
-			sc.Category, sc.Theme, topicHint, reneoPlatformFeatureCatalog, existingBlock)
+			sc.Category, sc.Theme, topicHint, knowledge, existingBlock)
 	}
 
 	raw, err := ai.CompleteWithMaxTokens(ctx, *aiCfg, 6144, sysPrompt, userPrompt)

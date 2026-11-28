@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { ArrowLeft, BookOpen, Bot, Calendar, CalendarClock, FileText, Link2, PenSquare, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
-import type { DocRecord } from '@/api/agent'
+import { BookOpen, Bot, CalendarClock, FileText, Plus, RefreshCw, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
 import { FilterMenu } from '@/components/ui/FilterMenu'
 import { ListState, ListTable } from '@/components/ui/ListTable'
 import { Pagination } from '@/components/ui/Pagination'
@@ -10,23 +8,14 @@ import { EmptyState } from '@/components/ui/states'
 import { StudioScheduleModal } from '@/components/windows/studio/StudioScheduleModal'
 import { StudioSchedulesPanel } from '@/components/windows/studio/StudioSchedulesPanel'
 import { formatDateID } from '@/lib/datetime'
-import { Markdown } from '@/lib/markdown'
 import { DocAiModal } from './docs/DocAiModal'
+import { DocFeaturesView } from './docs/DocFeaturesView'
+import { docKind, PILL, visibility } from './docs/docMeta'
+import { DocViewer } from './docs/DocViewer'
 import { DocEditorModal } from './docs/DocEditorModal'
 import { useDocsSchedules } from './docs/useDocsSchedules'
-import { DOCS_PAGE_SIZE, useDocsWindow, type DocKindFilter, type DocsWindowState } from './docs/useDocsWindow'
+import { DOCS_PAGE_SIZE, useDocsWindow, type DocKindFilter, type DocsView, type DocsWindowState } from './docs/useDocsWindow'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
-
-// what a reader sees: the pill of each, in the classes the list windows share
-function visibility(doc: DocRecord): string {
-  if (doc.source === 'official') return 'official'
-  if (doc.status !== 'published') return doc.status
-  return doc.isPublic ? 'public' : 'private'
-}
-function docKind(doc: DocRecord): 'doc' | 'article' {
-  return doc.kind === 'doc' || doc.source === 'official' ? 'doc' : 'article'
-}
-const PILL: Record<string, string> = { official: 'running', public: 'running', private: 'exited', draft: 'paused', archived: 'exited' }
 
 function DocList({ dw }: { dw: DocsWindowState }) {
   const { t, docs, total, all, facets, narrowed, list, page, setPage, selected, setSelectedId, docsQuery } = dw
@@ -91,60 +80,12 @@ function DocList({ dw }: { dw: DocsWindowState }) {
   )
 }
 
-function DocViewer({ dw, doc }: { dw: DocsWindowState; doc: DocRecord }) {
-  const { t, isAdmin, openEdit, confirmDelete, copyLink, setSelectedId } = dw
-  const shared = doc.isPublic && doc.status === 'published'
-  const official = doc.source === 'official'
-  const vis = visibility(doc)
-  const kind = docKind(doc)
-  return (
-    <article className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4">
-      <Button variant="ghost" className="mb-3 @3xl:hidden" onClick={() => setSelectedId(null)}>
-        <ArrowLeft className="h-3.5 w-3.5" />
-        {t('docs.back')}
-      </Button>
-      <header className="space-y-2">
-        <h2 className="text-lg font-bold leading-snug">{doc.title}</h2>
-        <div className="flex flex-wrap items-center gap-2 text-[0.75rem] text-[var(--text-secondary)]">
-          <Badge tone={kind === 'doc' ? 'info' : 'neutral'}>{t(`docs.kind.${kind}`)}</Badge>
-          <Badge tone={official ? 'primary' : doc.status === 'published' ? 'success' : doc.status === 'draft' ? 'warning' : 'neutral'}>{t(`docs.visibility.${vis}`)}</Badge>
-          <span className="panel-mono">/{doc.slug}</span>
-          <span className="inline-flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
-            {formatDateID(doc.updatedAt)}
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {shared || official ? (
-            <Button variant="ghost" onClick={() => void copyLink(doc)}>
-              <Link2 className="h-3.5 w-3.5" />
-              {t('docs.copyPublicLink')}
-            </Button>
-          ) : null}
-          {isAdmin && !official ? (
-            <>
-              <Button variant="ghost" onClick={() => openEdit(doc)}>
-                <PenSquare className="h-3.5 w-3.5" />
-                {t('common.edit')}
-              </Button>
-              <Button variant="danger-soft" onClick={() => void confirmDelete(doc)}>
-                <Trash2 className="h-3.5 w-3.5" />
-                {t('common.delete')}
-              </Button>
-            </>
-          ) : null}
-        </div>
-      </header>
-      <Markdown source={doc.content} className="mt-5" />
-    </article>
-  )
-}
-
 export default function DocsWindow() {
   const isMobile = useIsMobileLayout()
   const dw = useDocsWindow()
   const [showSchedules, setShowSchedules] = useState(false)
-  const { t, isAdmin, docsQuery, all, facets, list, kindFilter, setKindFilter, selected, openCreate, setAiModalOpen, setPage } = dw
+  const { t, isAdmin, docsQuery, featuresQuery, all, facets, list, kindFilter, setKindFilter, selected, openCreate, openAiFor, setPage, view, setView, features } = dw
+  const onFeatures = view === 'features'
   const schedulesState = useDocsSchedules(isAdmin && showSchedules)
 
   if (isAdmin && showSchedules) {
@@ -167,18 +108,29 @@ export default function DocsWindow() {
       <div className={`docker-topbar ${isMobile ? 'docker-topbar--mobile' : ''}`}>
         <div className={isMobile ? 'docker-topbar__mobile-row' : 'docker-topbar__left'}>
           <FilterMenu
-            label={t('docs.fieldKind')}
-            value={kindFilter}
-            onChange={(v) => setKindFilter(v as DocKindFilter)}
-            items={kindItems}
+            label={t('docs.view')}
+            value={view}
+            onChange={(v) => setView(v as DocsView)}
+            items={[
+              { key: 'posts', label: t('docs.viewPosts'), count: all },
+              { key: 'features', label: t('docs.viewFeatures'), count: features.length },
+            ]}
           />
+          {onFeatures ? null : (
+            <FilterMenu
+              label={t('docs.fieldKind')}
+              value={kindFilter}
+              onChange={(v) => setKindFilter(v as DocKindFilter)}
+              items={kindItems}
+            />
+          )}
           {isAdmin ? (
             <>
-              <button type="button" className="docker-primary-btn" onClick={openCreate}>
+              <button type="button" className="docker-primary-btn" onClick={() => openCreate()}>
                 <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
                 <span>{t('docs.newArticle')}</span>
               </button>
-              <button type="button" className="docker-secondary-btn" onClick={() => setAiModalOpen(true)}>
+              <button type="button" className="docker-secondary-btn" onClick={() => openAiFor()}>
                 <Bot className="h-3.5 w-3.5" strokeWidth={1.75} />
                 <span className="docker-secondary-btn__text">{t('docs.aiGenerateBtn')}</span>
               </button>
@@ -197,8 +149,8 @@ export default function DocsWindow() {
               id="docs-search-input"
               type="search"
               className={`docker-search-input ${isMobile ? 'docker-search-input--mobile' : ''}`}
-              aria-label={t('docs.searchShort')}
-              placeholder={t('docs.searchShort')}
+              aria-label={t(onFeatures ? 'docs.features.search' : 'docs.searchShort')}
+              placeholder={t(onFeatures ? 'docs.features.search' : 'docs.searchShort')}
               value={list.text}
               onChange={(e) => {
                 setPage(1)
@@ -211,15 +163,19 @@ export default function DocsWindow() {
             className={`docker-icon-btn ${isMobile ? 'docker-icon-btn--mobile' : ''}`}
             title={t('docs.refresh')}
             aria-label={t('docs.refresh')}
-            onClick={() => void docsQuery.refetch()}
+            onClick={() => {
+              void docsQuery.refetch()
+              void featuresQuery.refetch()
+            }}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${docsQuery.isFetching && !docsQuery.isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
           </button>
-          {!isMobile ? <div className="docker-badge-running">{t('docs.count', { count: all })}</div> : null}
+          {!isMobile && !onFeatures ? <div className="docker-badge-running">{t('docs.count', { count: all })}</div> : null}
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-3 p-3 @3xl:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)]">
+      {onFeatures ? <DocFeaturesView dw={dw} /> : null}
+      <div className={`min-h-0 flex-1 gap-3 p-3 @3xl:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] ${onFeatures ? 'hidden' : 'grid'}`}>
         <div className={`flex min-h-0 flex-col ${selected ? '@max-3xl:hidden' : ''}`}>
           <DocList dw={dw} />
         </div>

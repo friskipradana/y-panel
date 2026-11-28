@@ -2590,6 +2590,22 @@ type docPayload struct {
 	Content  string `json:"content"`
 	Status   string `json:"status"`
 	IsPublic bool   `json:"isPublic"`
+	// the Reneo feature explained; nil keeps what the post has
+	FeatureKey *string `json:"featureKey"`
+}
+
+// saveDocFeature stores the chosen feature; an unknown key means none
+func (s *Server) saveDocFeature(doc *database.Doc, key *string) {
+	if doc == nil || key == nil {
+		return
+	}
+	clean := ""
+	if f := findDocFeature(*key); f != nil {
+		clean = f.Key
+	}
+	if err := s.database.SetDocFeature(doc.ID, clean); err == nil {
+		doc.FeatureKey = clean
+	}
 }
 
 const maxDocContentBytes = 200 << 10
@@ -2694,6 +2710,7 @@ func (s *Server) handleCreateDoc(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.saveDocFeature(doc, req.FeatureKey)
 	s.notifyUserAction(u.ID, "Artikel dibuat", fmt.Sprintf("Artikel '%s' dibuat.", doc.Title), "success")
 	s.writeJSON(w, http.StatusCreated, doc)
 }
@@ -2724,6 +2741,7 @@ func (s *Server) handleUpdateDoc(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "doc not found"})
 		return
 	}
+	s.saveDocFeature(doc, req.FeatureKey)
 	s.notifyUserAction(u.ID, "Artikel diperbarui", fmt.Sprintf("Artikel '%s' diperbarui.", doc.Title), "info")
 	s.writeJSON(w, http.StatusOK, doc)
 }
