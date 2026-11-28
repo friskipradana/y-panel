@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.101] - 2026-11-28
+
+Streamline cleanup toolbar to design system, align checkboxes, and add column sorting.
+
+### Perbaikan
+- **files:** Streamline cleanup toolbar to design system, align checkboxes, and add column sorting ([`65edb1d`](https://github.com/friskipradana/y-panel/commit/65edb1d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.100...v1.88.101
+
 ## [1.88.100] - 2026-11-27
 
 Compact file manager toolbar and add junk file detector with selective and bulk cleanup.
