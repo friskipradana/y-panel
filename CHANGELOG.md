@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.103] - 2026-11-28
+
+Unrestricted HTML/CSS/JS Lovable page builder and Reneo-specific scheduled articles.
+
+### Fitur baru
+- **studio:** Unrestricted HTML/CSS/JS Lovable page builder and Reneo-specific scheduled articles ([`27dc3fa`](https://github.com/friskipradana/y-panel/commit/27dc3fa))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.102...v1.88.103
+
 ## [1.88.102] - 2026-11-28
 
 Upgrade Page Studio to Lovable-style live chat builder and add scheduled auto-article & Reneo docs enricher.
