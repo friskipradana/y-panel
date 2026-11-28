@@ -31,10 +31,18 @@ func docVisibility(d docTableRow) string {
 	return "private"
 }
 
+func docKindOf(d docTableRow) string {
+	if strings.ToLower(strings.TrimSpace(d.Kind)) == "doc" || d.Source == "official" {
+		return "doc"
+	}
+	return "article"
+}
+
 func docSpec() listquery.Spec[docTableRow] {
 	return listquery.Spec[docTableRow]{
 		Columns: []listquery.Column[docTableRow]{
 			{Key: "title", Value: func(d docTableRow) string { return d.Title }},
+			{Key: "kind", Value: docKindOf},
 			// what a reader sees: official, public, private (published but not shared), draft, archived
 			{Key: "status", Value: docVisibility},
 			{Key: "updated", Value: func(d docTableRow) string { return d.UpdatedAt.Format("2006-01") }, Compare: func(a, b docTableRow) int {

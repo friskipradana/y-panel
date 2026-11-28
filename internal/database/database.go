@@ -496,6 +496,7 @@ func (m *Manager) ensureSchema() error {
 		`CREATE TABLE IF NOT EXISTS docs (
 			id             BIGSERIAL PRIMARY KEY,
 			author_user_id BIGINT       REFERENCES users(id) ON DELETE SET NULL,
+			kind           VARCHAR(16)  NOT NULL DEFAULT 'article',
 			title          VARCHAR(190) NOT NULL,
 			slug           VARCHAR(120) NOT NULL UNIQUE,
 			excerpt        TEXT         NOT NULL DEFAULT '',
@@ -505,6 +506,7 @@ func (m *Manager) ensureSchema() error {
 			updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 		)`,
 		`ALTER TABLE docs ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT false`,
+		`ALTER TABLE docs ADD COLUMN IF NOT EXISTS kind VARCHAR(16) NOT NULL DEFAULT 'article'`,
 		`CREATE INDEX IF NOT EXISTS idx_docs_status_created ON docs(status, created_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_docs_author_id      ON docs(author_user_id)`,
 
@@ -2422,6 +2424,7 @@ type Doc struct {
 	ID           int64     `json:"id"`
 	AuthorUserID *int64    `json:"authorUserId"`
 	Title        string    `json:"title"`
+	Kind         string    `json:"kind"` // doc | article
 	Slug         string    `json:"slug"`
 	Excerpt      string    `json:"excerpt"`
 	Content      string    `json:"content"`
@@ -2430,6 +2433,15 @@ type Doc struct {
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
+
+func normalizeDocKind(kind string) string {
+	if strings.ToLower(strings.TrimSpace(kind)) == "doc" {
+		return "doc"
+	}
+	return "article"
+}
+
+const docSelectCols = `id, author_user_id, COALESCE(NULLIF(kind,''),'article'), title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at`
 
 func (m *Manager) ListDocs(query string, limit, offset int, includeDrafts bool) ([]Doc, int64, error) {
 	if !m.IsConnected() || m.db == nil {
@@ -2461,13 +2473,13 @@ func (m *Manager) ListDocs(query string, limit, offset int, includeDrafts bool) 
 		return nil, 0, err
 	}
 	listQuery := fmt.Sprintf(`
-		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
+		SELECT %s
 		FROM docs
 		WHERE (%s)
 		  AND ($1 = '' OR LOWER(title) LIKE $2 OR LOWER(slug) LIKE $2 OR LOWER(excerpt) LIKE $2 OR LOWER(content) LIKE $2)
 		ORDER BY updated_at DESC, id DESC
 		LIMIT $3 OFFSET $4
-	`, statusFilter)
+	`, docSelectCols, statusFilter)
 	rows, err := m.db.Query(listQuery, query, search, limit, offset)
 	if err != nil {
 		return nil, 0, err
@@ -2481,9 +2493,7 @@ func (m *Manager) GetDocByID(id int64, includeDrafts bool) (*Doc, error) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, fmt.Errorf("database not connected")
 	}
-	query := `
-		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
-		FROM docs WHERE id = $1`
+	query := `SELECT ` + docSelectCols + ` FROM docs WHERE id = $1`
 	if !includeDrafts {
 		query += ` AND status = 'published'`
 	}
@@ -2495,9 +2505,7 @@ func (m *Manager) GetDocBySlug(slug string, includeDrafts bool) (*Doc, error) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, fmt.Errorf("database not connected")
 	}
-	query := `
-		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
-		FROM docs WHERE slug = $1`
+	query := `SELECT ` + docSelectCols + ` FROM docs WHERE slug = $1`
 	if !includeDrafts {
 		query += ` AND status = 'published'`
 	}
@@ -2505,33 +2513,35 @@ func (m *Manager) GetDocBySlug(slug string, includeDrafts bool) (*Doc, error) {
 	return scanDoc(row)
 }
 
-func (m *Manager) CreateDoc(authorUserID *int64, title, slug, excerpt, content, status string, isPublic bool) (*Doc, error) {
+func (m *Manager) CreateDoc(authorUserID *int64, kind, title, slug, excerpt, content, status string, isPublic bool) (*Doc, error) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, fmt.Errorf("database not connected")
 	}
+	kind = normalizeDocKind(kind)
 	var doc Doc
 	err := m.db.QueryRow(`
-		INSERT INTO docs (author_user_id, title, slug, excerpt, content, status, is_public)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
-	`, authorUserID, title, slug, excerpt, content, status, isPublic).Scan(
-		&doc.ID, &doc.AuthorUserID, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.IsPublic, &doc.CreatedAt, &doc.UpdatedAt,
+		INSERT INTO docs (author_user_id, kind, title, slug, excerpt, content, status, is_public)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING `+docSelectCols+`
+	`, authorUserID, kind, title, slug, excerpt, content, status, isPublic).Scan(
+		&doc.ID, &doc.AuthorUserID, &doc.Kind, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.IsPublic, &doc.CreatedAt, &doc.UpdatedAt,
 	)
 	return &doc, err
 }
 
-func (m *Manager) UpdateDoc(id int64, title, slug, excerpt, content, status string, isPublic bool) (*Doc, error) {
+func (m *Manager) UpdateDoc(id int64, kind, title, slug, excerpt, content, status string, isPublic bool) (*Doc, error) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, fmt.Errorf("database not connected")
 	}
+	kind = normalizeDocKind(kind)
 	var doc Doc
 	err := m.db.QueryRow(`
 		UPDATE docs
-		SET title = $1, slug = $2, excerpt = $3, content = $4, status = $5, is_public = $6, updated_at = NOW()
-		WHERE id = $7
-		RETURNING id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
-	`, title, slug, excerpt, content, status, isPublic, id).Scan(
-		&doc.ID, &doc.AuthorUserID, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.IsPublic, &doc.CreatedAt, &doc.UpdatedAt,
+		SET kind = $1, title = $2, slug = $3, excerpt = $4, content = $5, status = $6, is_public = $7, updated_at = NOW()
+		WHERE id = $8
+		RETURNING `+docSelectCols+`
+	`, kind, title, slug, excerpt, content, status, isPublic, id).Scan(
+		&doc.ID, &doc.AuthorUserID, &doc.Kind, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.IsPublic, &doc.CreatedAt, &doc.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -2548,7 +2558,7 @@ func (m *Manager) DeleteDoc(id int64) error {
 }
 
 
-// ListPublicDocs returns articles that are published and marked public, newest first.
+// ListPublicDocs returns articles and docs that are published and marked public, newest first.
 func (m *Manager) ListPublicDocs(limit int) ([]Doc, error) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, fmt.Errorf("database not connected")
@@ -2557,7 +2567,7 @@ func (m *Manager) ListPublicDocs(limit int) ([]Doc, error) {
 		limit = 100
 	}
 	rows, err := m.db.Query(`
-		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), '', status, is_public, created_at, updated_at
+		SELECT `+docSelectCols+`
 		FROM docs
 		WHERE status = 'published' AND is_public = true
 		ORDER BY updated_at DESC, id DESC
@@ -2570,13 +2580,13 @@ func (m *Manager) ListPublicDocs(limit int) ([]Doc, error) {
 	return scanDocs(rows)
 }
 
-// GetPublicDocBySlug returns one public, published article (nil when it is not public).
+// GetPublicDocBySlug returns one public, published article or doc (nil when it is not public).
 func (m *Manager) GetPublicDocBySlug(slug string) (*Doc, error) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, fmt.Errorf("database not connected")
 	}
 	row := m.db.QueryRow(`
-		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at
+		SELECT `+docSelectCols+`
 		FROM docs WHERE slug = $1 AND status = 'published' AND is_public = true
 	`, slug)
 	return scanDoc(row)
@@ -2686,20 +2696,25 @@ func scanTunnels(rows *sql.Rows) ([]Tunnel, error) {
 
 func scanDoc(row rowScanner) (*Doc, error) {
 	var d Doc
-	err := row.Scan(&d.ID, &d.AuthorUserID, &d.Title, &d.Slug, &d.Excerpt, &d.Content, &d.Status, &d.CreatedAt, &d.UpdatedAt)
+	err := row.Scan(&d.ID, &d.AuthorUserID, &d.Kind, &d.Title, &d.Slug, &d.Excerpt, &d.Content, &d.Status, &d.IsPublic, &d.CreatedAt, &d.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
-	return &d, err
+	if err != nil {
+		return nil, err
+	}
+	d.Kind = normalizeDocKind(d.Kind)
+	return &d, nil
 }
 
 func scanDocs(rows *sql.Rows) ([]Doc, error) {
 	result := make([]Doc, 0)
 	for rows.Next() {
 		var d Doc
-		if err := rows.Scan(&d.ID, &d.AuthorUserID, &d.Title, &d.Slug, &d.Excerpt, &d.Content, &d.Status, &d.CreatedAt, &d.UpdatedAt); err != nil {
+		if err := rows.Scan(&d.ID, &d.AuthorUserID, &d.Kind, &d.Title, &d.Slug, &d.Excerpt, &d.Content, &d.Status, &d.IsPublic, &d.CreatedAt, &d.UpdatedAt); err != nil {
 			return nil, err
 		}
+		d.Kind = normalizeDocKind(d.Kind)
 		result = append(result, d)
 	}
 	return result, rows.Err()

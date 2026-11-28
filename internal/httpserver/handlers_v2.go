@@ -2583,6 +2583,7 @@ func (s *Server) handleMarkAllNotificationsRead(w http.ResponseWriter, r *http.R
 }
 
 type docPayload struct {
+	Kind     string `json:"kind"`
 	Title    string `json:"title"`
 	Slug     string `json:"slug"`
 	Excerpt  string `json:"excerpt"`
@@ -2594,6 +2595,11 @@ type docPayload struct {
 const maxDocContentBytes = 200 << 10
 
 func normalizeDocPayload(req *docPayload) error {
+	if strings.ToLower(strings.TrimSpace(req.Kind)) == "doc" {
+		req.Kind = "doc"
+	} else {
+		req.Kind = "article"
+	}
 	req.Title = strings.TrimSpace(req.Title)
 	req.Slug = slugify(req.Slug)
 	if req.Slug == "" {
@@ -2679,7 +2685,7 @@ func (s *Server) handleCreateDoc(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	doc, err := s.database.CreateDoc(&u.ID, req.Title, req.Slug, req.Excerpt, req.Content, req.Status, req.IsPublic)
+	doc, err := s.database.CreateDoc(&u.ID, req.Kind, req.Title, req.Slug, req.Excerpt, req.Content, req.Status, req.IsPublic)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "an article with this slug already exists"})
@@ -2705,7 +2711,7 @@ func (s *Server) handleUpdateDoc(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	doc, err := s.database.UpdateDoc(id, req.Title, req.Slug, req.Excerpt, req.Content, req.Status, req.IsPublic)
+	doc, err := s.database.UpdateDoc(id, req.Kind, req.Title, req.Slug, req.Excerpt, req.Content, req.Status, req.IsPublic)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "an article with this slug already exists"})

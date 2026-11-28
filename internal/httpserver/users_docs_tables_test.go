@@ -32,9 +32,9 @@ func TestUserTableFiltersByRoleAndOrdersByExpiry(t *testing.T) {
 func TestDocTableMergesVisibilityAndSearchesContent(t *testing.T) {
 	now := time.Now()
 	rows := []docTableRow{
-		{Doc: database.Doc{ID: 1, Title: "Catatan", Status: "draft", UpdatedAt: now}, Source: "local"},
-		{Doc: database.Doc{ID: 2, Title: "Publik", Status: "published", IsPublic: true, UpdatedAt: now.Add(-time.Hour)}, Source: "local"},
-		{Doc: database.Doc{ID: -1, Title: "Memasang Reneo", Content: "pasang database", Status: "published", IsPublic: true, UpdatedAt: now.Add(-2 * time.Hour)}, Source: "official"},
+		{Doc: database.Doc{ID: 1, Kind: "article", Title: "Catatan", Status: "draft", UpdatedAt: now}, Source: "local"},
+		{Doc: database.Doc{ID: 2, Kind: "doc", Title: "Publik", Status: "published", IsPublic: true, UpdatedAt: now.Add(-time.Hour)}, Source: "local"},
+		{Doc: database.Doc{ID: -1, Kind: "doc", Title: "Memasang Reneo", Content: "pasang database", Status: "published", IsPublic: true, UpdatedAt: now.Add(-2 * time.Hour)}, Source: "official"},
 	}
 	res := tableResponse(rows, docSpec(), url.Values{"q": {"database"}})
 	if res.Total != 1 || res.Items[0].ID != -1 {
@@ -43,6 +43,13 @@ func TestDocTableMergesVisibilityAndSearchesContent(t *testing.T) {
 	all := tableResponse(rows, docSpec(), url.Values{})
 	if all.Facets["status"]["draft"] != 1 || all.Facets["status"]["public"] != 1 || all.Facets["status"]["official"] != 1 {
 		t.Fatalf("status facets: %v", all.Facets["status"])
+	}
+	if all.Facets["kind"]["doc"] != 2 || all.Facets["kind"]["article"] != 1 {
+		t.Fatalf("kind facets: %v", all.Facets["kind"])
+	}
+	onlyDocs := tableResponse(rows, docSpec(), url.Values{"f.kind": {"doc"}})
+	if onlyDocs.Total != 2 {
+		t.Fatalf("expected 2 docs, got %d", onlyDocs.Total)
 	}
 	if all.Items[0].ID != 1 {
 		t.Fatal("newest first by default")

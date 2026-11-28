@@ -13,6 +13,7 @@ import (
 var publicSlugRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,118}$`)
 
 type publicDocSummary struct {
+	Kind      string    `json:"kind"`
 	Title     string    `json:"title"`
 	Slug      string    `json:"slug"`
 	Excerpt   string    `json:"excerpt"`
@@ -30,11 +31,18 @@ func firstImageURL(content string) string {
 	return ""
 }
 
+func publicDocKind(kind string) string {
+	if strings.ToLower(strings.TrimSpace(kind)) == "doc" {
+		return "doc"
+	}
+	return "article"
+}
+
 func (s *Server) handlePublicDocsList(w http.ResponseWriter, _ *http.Request) {
 	docs := s.publicArticles()
 	items := make([]publicDocSummary, 0, len(docs))
 	for _, d := range docs {
-		items = append(items, publicDocSummary{Title: d.Title, Slug: d.Slug, Excerpt: d.Excerpt, Cover: firstImageURL(d.Content), UpdatedAt: d.UpdatedAt})
+		items = append(items, publicDocSummary{Kind: publicDocKind(d.Kind), Title: d.Title, Slug: d.Slug, Excerpt: d.Excerpt, Cover: firstImageURL(d.Content), UpdatedAt: d.UpdatedAt})
 	}
 	w.Header().Set("Cache-Control", "public, max-age=60")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"items": items})
@@ -54,6 +62,7 @@ func (s *Server) handlePublicDocGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=60")
 	// the author's account id and internal fields stay out of the public payload
 	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"kind":      publicDocKind(doc.Kind),
 		"title":     doc.Title,
 		"slug":      doc.Slug,
 		"excerpt":   doc.Excerpt,

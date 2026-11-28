@@ -120,6 +120,7 @@ func (s *Server) routes() {
 	// ── Docs ──────────────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/docs", s.requireAuthV2(http.HandlerFunc(s.handleListDocs)))
 	s.mux.Handle("POST /api/v1/docs", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCreateDoc)))
+	s.mux.Handle("POST /api/v1/docs/ai-generate", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGenerateDocWithAI)))
 	s.mux.Handle("POST /api/v1/docs/images", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUploadDocImage)))
 	s.mux.Handle("GET /api/v1/docs/official", s.requireAuthV2(http.HandlerFunc(s.handleListOfficialDocs)))
 	s.mux.Handle("GET /api/v1/docs/table", s.requireAuthV2(http.HandlerFunc(s.handleDocsTable)))

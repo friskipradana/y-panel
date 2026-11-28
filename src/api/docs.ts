@@ -2,9 +2,12 @@ import { agentApi } from './client'
 import { listParams, type ListQuery, type TableResult } from '@/lib/listQuery'
 import type { PaginatedResponse, PaginationParams } from '@/types'
 
+export type DocKind = 'doc' | 'article'
+
 export interface DocRecord {
   id: number
   authorUserId: number | null
+  kind: DocKind
   title: string
   slug: string
   excerpt: string
@@ -18,6 +21,7 @@ export interface DocRecord {
 }
 
 export interface PublicDocSummary {
+  kind: DocKind
   title: string
   slug: string
   excerpt: string
@@ -31,12 +35,34 @@ export interface PublicDoc extends PublicDocSummary {
 }
 
 export interface DocPayload {
+  kind?: DocKind
   title: string
   slug?: string
   excerpt?: string
   content: string
   status?: 'published' | 'draft' | 'archived'
   isPublic?: boolean
+}
+
+export interface DocAIGenerateInput {
+  kind: DocKind
+  topic: string
+  instructions?: string
+  language: 'id' | 'en'
+  autoSave?: boolean
+  publish?: boolean
+  isPublic?: boolean
+}
+
+export interface DocAIGenerateResult {
+  draft?: {
+    kind: DocKind
+    title: string
+    slug: string
+    excerpt: string
+    content: string
+  }
+  doc?: DocRecord
 }
 
 export interface DocListParams extends PaginationParams {
@@ -66,6 +92,9 @@ export const updateDoc = (id: number, payload: DocPayload) =>
 
 export const deleteDoc = (id: number) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/docs/${id}`).then((r) => r.data)
+
+export const generateDocWithAI = (payload: DocAIGenerateInput) =>
+  agentApi.post<DocAIGenerateResult>('/api/v1/docs/ai-generate', payload).then((r) => r.data)
 
 // Readable without a session: only published articles marked public
 export const listPublicDocs = () =>

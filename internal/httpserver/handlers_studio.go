@@ -70,13 +70,19 @@ func (s *Server) ensureUniqueStudioSlug(base string, excludeID int64) string {
 	return fmt.Sprintf("%s-%d", slug, excludeID+1)
 }
 
-// syncStudioPageToDocsWindow mirrors published documentation pages into the `docs` table so they
-// automatically appear in Reneo's Documentation window and /articles/:slug.
+// syncStudioPageToDocsWindow mirrors published documentation/article pages into the `docs` table so they
+// automatically appear in Reneo's Documentation window and /articles/:slug with the right kind (doc vs article).
 func (s *Server) syncStudioPageToDocsWindow(ownerID int64, page *database.StudioPage) {
 	if page == nil || s.database == nil || !s.database.IsConnected() {
 		return
 	}
 	shouldPublish := page.Kind == "docs" && page.ShowInDocs && page.Status == "published"
+	docKind := "doc"
+	if page.ScheduleID > 0 {
+		if sc, sErr := s.database.GetStudioSchedule(page.ScheduleID); sErr == nil && sc != nil && sc.Mode == "topic_series" {
+			docKind = "article"
+		}
+	}
 	excerpt := page.Subtitle
 	if excerpt == "" {
 		excerpt = page.SEODescription
@@ -87,26 +93,26 @@ func (s *Server) syncStudioPageToDocsWindow(ownerID int64, page *database.Studio
 	}
 	if shouldPublish {
 		if page.LinkedDocID > 0 {
-			if updated, err := s.database.UpdateDoc(page.LinkedDocID, page.Title, page.Slug, excerpt, content, "published", true); err == nil && updated != nil {
+			if updated, err := s.database.UpdateDoc(page.LinkedDocID, docKind, page.Title, page.Slug, excerpt, content, "published", true); err == nil && updated != nil {
 				return
 			}
 		}
 		if existing, err := s.database.GetDocBySlug(page.Slug, true); err == nil && existing != nil {
-			if updated, uErr := s.database.UpdateDoc(existing.ID, page.Title, page.Slug, excerpt, content, "published", true); uErr == nil && updated != nil {
+			if updated, uErr := s.database.UpdateDoc(existing.ID, docKind, page.Title, page.Slug, excerpt, content, "published", true); uErr == nil && updated != nil {
 				page.LinkedDocID = updated.ID
 				_, _ = s.database.UpdateStudioPage(page)
 				return
 			}
 		}
 		author := ownerID
-		if created, err := s.database.CreateDoc(&author, page.Title, page.Slug, excerpt, content, "published", true); err == nil && created != nil {
+		if created, err := s.database.CreateDoc(&author, docKind, page.Title, page.Slug, excerpt, content, "published", true); err == nil && created != nil {
 			page.LinkedDocID = created.ID
 			_, _ = s.database.UpdateStudioPage(page)
 		}
 		return
 	}
 	if page.LinkedDocID > 0 {
-		_, _ = s.database.UpdateDoc(page.LinkedDocID, page.Title, page.Slug, excerpt, content, "draft", false)
+		_, _ = s.database.UpdateDoc(page.LinkedDocID, docKind, page.Title, page.Slug, excerpt, content, "draft", false)
 	}
 }
 

@@ -1,0 +1,180 @@
+package httpserver
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/ai"
+)
+
+type docAIGenerateRequest struct {
+	Kind         string `json:"kind"` // doc | article
+	Topic        string `json:"topic"`
+	Instructions string `json:"instructions"`
+	Language     string `json:"language"`
+	AutoSave     bool   `json:"autoSave"`
+	Publish      bool   `json:"publish"`
+	IsPublic     bool   `json:"isPublic"`
+}
+
+// handleGenerateDocWithAI uses the configured AI provider to draft either a Reneo documentation
+// guide ("doc") or a Reneo article ("article"), avoiding duplicates of existing docs.
+func (s *Server) handleGenerateDocWithAI(w http.ResponseWriter, r *http.Request) {
+	u := s.currentUserRecord(r)
+	if !canAccessDevDesk(u) {
+		s.writeError(w, http.StatusForbidden, errors.New("admin access required"))
+		return
+	}
+	aiCfg, err := s.loadAIConfigForUser(u.ID, true)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if aiCfg == nil || !aiCfg.Enabled {
+		s.writeError(w, http.StatusPreconditionRequired, errors.New("AI integration is not configured or disabled in Settings > AI Integration"))
+		return
+	}
+	var req docAIGenerateRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("invalid JSON payload"))
+		return
+	}
+	kind := "article"
+	if strings.ToLower(strings.TrimSpace(req.Kind)) == "doc" {
+		kind = "doc"
+	}
+	lang := "Bahasa Indonesia"
+	if strings.ToLower(strings.TrimSpace(req.Language)) == "en" {
+		lang = "English"
+	}
+
+	// Collect existing docs (local + official) so AI avoids repeating topics
+	var existingLines []string
+	if s.database != nil && s.database.IsConnected() {
+		if docs, _, dErr := s.database.ListDocs("", 100, 0, true); dErr == nil {
+			for _, d := range docs {
+				existingLines = append(existingLines, fmt.Sprintf("- [%s] %s (slug: %s)", d.Kind, d.Title, d.Slug))
+			}
+		}
+	}
+	for _, d := range s.officialDocs(r.Context()) {
+		existingLines = append(existingLines, fmt.Sprintf("- [doc/official] %s (slug: %s)", d.Title, d.Slug))
+	}
+	existingBlock := strings.Join(existingLines, "\n")
+	if existingBlock == "" {
+		existingBlock = "(belum ada dokumen atau artikel)"
+	}
+
+	var roleDesc, structureGuide string
+	if kind == "doc" {
+		roleDesc = "You are a technical documentation author for Reneo (Desktop Linux Server Control Panel). Write a clear, structured operator documentation guide."
+		structureGuide = "Use ## headings, ### subheadings, prerequisites, numbered step-by-step instructions inside Reneo, exact field/command examples in fenced code blocks, and a Troubleshooting section."
+	} else {
+		roleDesc = "You are a practical blog & article author for Reneo (Desktop Linux Server Control Panel). Write an insightful, actionable article about server operations, workflows, or use cases with Reneo."
+		structureGuide = "Write an engaging introduction, 4+ well-structured ## sections with concrete real-world examples, best practices, and a clear takeaway conclusion."
+	}
+
+	sysPrompt := roleDesc + `
+Return ONLY one valid JSON object matching this exact schema (no markdown prose outside JSON):
+{
+  "title": "Clear, concrete title",
+  "slug": "url-friendly-slug",
+  "excerpt": "1-2 concise sentences summarizing this post (under 180 chars)",
+  "content": "## Pendahuluan\n\nFull Markdown content..."
+}
+Rules:
+- Language: ` + lang + `.
+- ` + structureGuide + `
+- Never use em dashes or empty marketing fluff (seamless, cutting-edge, revolutionary, all-in-one, dengan mulus).
+- Stay strictly accurate to Reneo's real features and DO NOT duplicate an existing title or slug.`
+
+	topic := strings.TrimSpace(req.Topic)
+	topicLine := "Requested topic: " + topic
+	if topic == "" {
+		if kind == "doc" {
+			topicLine = "No topic specified: analyze the existing Reneo documentation list and pick the most important MISSING documentation guide to write."
+		} else {
+			topicLine = "No topic specified: pick a fresh, high-value Reneo article topic not yet covered in the existing list."
+		}
+	}
+	extraLine := ""
+	if instr := strings.TrimSpace(req.Instructions); instr != "" {
+		extraLine = "\nAdditional instructions: " + instr
+	}
+
+	userPrompt := fmt.Sprintf("Post type: %s\n%s%s\n\n%s\n\nExisting documentation and articles (DO NOT duplicate):\n%s",
+		kind, topicLine, extraLine, reneoPlatformFeatureCatalog, existingBlock)
+
+	raw, err := ai.CompleteWithMaxTokens(r.Context(), *aiCfg, 6144, sysPrompt, userPrompt)
+	if err != nil {
+		s.writeError(w, http.StatusUnprocessableEntity, err)
+		return
+	}
+	parsed, err := parseGeneratedStudioPage(raw, "docs")
+	if err != nil {
+		s.writeError(w, http.StatusUnprocessableEntity, err)
+		return
+	}
+	content := strings.TrimSpace(parsed.MarkdownBody)
+	if content == "" {
+		s.writeError(w, http.StatusUnprocessableEntity, errors.New("AI tidak menghasilkan isi konten Markdown"))
+		return
+	}
+	slug := slugify(parsed.Slug)
+	if slug == "" {
+		slug = slugify(parsed.Title)
+	}
+	excerpt := strings.TrimSpace(parsed.Subtitle)
+	if excerpt == "" {
+		excerpt = strings.TrimSpace(parsed.SEODescription)
+	}
+
+	if req.AutoSave {
+		status := "draft"
+		if req.Publish {
+			status = "published"
+		}
+		// Ensure unique slug in docs table
+		uniqueSlug := slug
+		for n := 2; n <= 50; n++ {
+			ex, gErr := s.database.GetDocBySlug(uniqueSlug, true)
+			if gErr != nil || ex == nil {
+				break
+			}
+			uniqueSlug = fmt.Sprintf("%s-%d", slug, n)
+		}
+		payload := docPayload{
+			Kind:     kind,
+			Title:    parsed.Title,
+			Slug:     uniqueSlug,
+			Excerpt:  excerpt,
+			Content:  content,
+			Status:   status,
+			IsPublic: req.IsPublic,
+		}
+		if err := normalizeDocPayload(&payload); err != nil {
+			s.writeError(w, http.StatusUnprocessableEntity, err)
+			return
+		}
+		created, cErr := s.database.CreateDoc(&u.ID, payload.Kind, payload.Title, payload.Slug, payload.Excerpt, payload.Content, payload.Status, payload.IsPublic)
+		if cErr != nil {
+			s.writeError(w, http.StatusInternalServerError, cErr)
+			return
+		}
+		s.writeJSON(w, http.StatusCreated, jsonResponse{"doc": created})
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"draft": jsonResponse{
+			"kind":    kind,
+			"title":   parsed.Title,
+			"slug":    slug,
+			"excerpt": excerpt,
+			"content": content,
+		},
+	})
+}

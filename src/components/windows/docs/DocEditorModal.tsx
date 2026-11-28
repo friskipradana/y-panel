@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Save } from 'lucide-react'
-import type { DocPayload } from '@/api/agent'
+import type { DocKind, DocPayload } from '@/api/agent'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput, Textarea } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
@@ -13,9 +13,9 @@ import { emptyDocForm, publicLink, type DocsWindowState } from './useDocsWindow'
 
 type EditorTab = 'write' | 'preview'
 
-// Create / edit one article. The form is rebuilt from the edited doc each time it opens.
+// Create / edit one documentation guide or article. The form is rebuilt each time it opens.
 export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
-  const { t, editorOpen, setEditorOpen, editing, saveMut } = dw
+  const { t, editorOpen, setEditorOpen, editing, draftSeed, saveMut } = dw
   const [form, setForm] = useState<DocPayload>(emptyDocForm())
   const [tab, setTab] = useState<EditorTab>('write')
   const contentRef = useRef<HTMLTextAreaElement>(null)
@@ -23,19 +23,22 @@ export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
   useEffect(() => {
     if (!editorOpen) return
     setTab('write')
-    setForm(
-      editing
-        ? {
-            title: editing.title,
-            slug: editing.slug,
-            excerpt: editing.excerpt,
-            content: editing.content,
-            status: editing.status,
-            isPublic: editing.isPublic,
-          }
-        : emptyDocForm(),
-    )
-  }, [editorOpen, editing])
+    if (editing) {
+      setForm({
+        kind: editing.kind === 'doc' ? 'doc' : 'article',
+        title: editing.title,
+        slug: editing.slug,
+        excerpt: editing.excerpt,
+        content: editing.content,
+        status: editing.status,
+        isPublic: editing.isPublic,
+      })
+    } else if (draftSeed) {
+      setForm(draftSeed)
+    } else {
+      setForm(emptyDocForm())
+    }
+  }, [editorOpen, editing, draftSeed])
 
   const patch = (next: Partial<DocPayload>) => setForm((prev) => ({ ...prev, ...next }))
   const ready = !!form.title.trim() && !!form.content.trim()
@@ -61,7 +64,17 @@ export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
       }
     >
       <div className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label={t('docs.fieldKind')}>
+            <Select
+              value={form.kind ?? 'article'}
+              onChange={(value) => patch({ kind: value as DocKind })}
+              options={[
+                { value: 'doc', label: t('docs.kind.doc') },
+                { value: 'article', label: t('docs.kind.article') },
+              ]}
+            />
+          </Field>
           <Field label={t('docs.fieldTitle')}>
             <TextInput value={form.title} onChange={(e) => patch({ title: e.target.value })} />
           </Field>

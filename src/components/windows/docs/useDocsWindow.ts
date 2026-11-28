@@ -1,6 +1,17 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { copyTextToClipboard, createDoc, deleteDoc, listDocsTable, updateDoc, type DocPayload, type DocRecord } from '@/api/agent'
+import {
+  copyTextToClipboard,
+  createDoc,
+  deleteDoc,
+  generateDocWithAI,
+  listDocsTable,
+  updateDoc,
+  type DocAIGenerateInput,
+  type DocKind,
+  type DocPayload,
+  type DocRecord,
+} from '@/api/agent'
 import { useListQuery } from '@/hooks/useListQuery'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { listQueryKey } from '@/lib/listQuery'
@@ -10,9 +21,10 @@ import { useAuthStore } from '@/store/authStore'
 import { toast } from 'sonner'
 
 export const DOCS_PAGE_SIZE = 30
+export type DocKindFilter = 'all' | DocKind
 
-export function emptyDocForm(): DocPayload {
-  return { title: '', slug: '', excerpt: '', content: '', status: 'draft', isPublic: false }
+export function emptyDocForm(kind: DocKind = 'article'): DocPayload {
+  return { kind, title: '', slug: '', excerpt: '', content: '', status: 'draft', isPublic: false }
 }
 
 function apiError(error: unknown, fallback: string): string {
@@ -25,7 +37,7 @@ export function publicLink(slug: string): string {
 
 // State, queries and handlers of the docs window; the components only render.
 export function useDocsWindow() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const qc = useQueryClient()
   const pollingActive = useWindowPollingActive()
   const role = useAuthStore((s) => s.user?.role)
@@ -36,7 +48,19 @@ export function useDocsWindow() {
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
+  const [aiModalOpen, setAiModalOpen] = useState(false)
   const [editing, setEditing] = useState<DocRecord | null>(null)
+  const [draftSeed, setDraftSeed] = useState<DocPayload | null>(null)
+
+  const kindFilter: DocKindFilter =
+    list.filters.kind?.length === 1 && (list.filters.kind[0] === 'doc' || list.filters.kind[0] === 'article')
+      ? list.filters.kind[0]
+      : 'all'
+
+  const setKindFilter = (next: DocKindFilter) => {
+    setPage(1)
+    list.setFilter('kind', next === 'all' ? [] : [next])
+  }
 
   const docsQuery = useQuery({
     queryKey: ['docs', listQueryKey(list.query), page, isAdmin],
@@ -63,11 +87,43 @@ export function useDocsWindow() {
       done()
       setEditorOpen(false)
       setEditing(null)
+      setDraftSeed(null)
       setSelectedId(doc.id)
     },
     onError: (e: unknown) => {
       const status = (e as { response?: { status?: number } })?.response?.status
       toast.error(t('docs.saveFailed'), { description: status === 409 ? t('docs.slugTaken') : apiError(e, t('docs.saveFailed')) })
+    },
+  })
+
+  const aiGenMut = useMutation({
+    mutationFn: (payload: Omit<DocAIGenerateInput, 'language'>) =>
+      generateDocWithAI({ ...payload, language: language === 'en' ? 'en' : 'id' }),
+    onSuccess: (res) => {
+      setAiModalOpen(false)
+      if (res.doc) {
+        toast.success(t('docs.aiCreated'), { description: res.doc.title })
+        done()
+        setSelectedId(res.doc.id)
+        return
+      }
+      if (res.draft) {
+        setEditing(null)
+        setDraftSeed({
+          kind: res.draft.kind,
+          title: res.draft.title,
+          slug: res.draft.slug,
+          excerpt: res.draft.excerpt,
+          content: res.draft.content,
+          status: 'draft',
+          isPublic: true,
+        })
+        setEditorOpen(true)
+        toast.success(t('docs.aiDraftReady'))
+      }
+    },
+    onError: (e: unknown) => {
+      toast.error(t('docs.aiFailed'), { description: apiError(e, t('docs.aiFailed')) })
     },
   })
 
@@ -83,10 +139,12 @@ export function useDocsWindow() {
 
   const openCreate = () => {
     setEditing(null)
+    setDraftSeed(emptyDocForm(kindFilter === 'doc' ? 'doc' : 'article'))
     setEditorOpen(true)
   }
   const openEdit = (doc: DocRecord) => {
     setEditing(doc)
+    setDraftSeed(null)
     setEditorOpen(true)
   }
   const confirmDelete = async (doc: DocRecord) => {
@@ -118,14 +176,20 @@ export function useDocsWindow() {
     facets,
     narrowed,
     list,
+    kindFilter,
+    setKindFilter,
     page,
     setPage,
     selected,
     setSelectedId,
     editorOpen,
     setEditorOpen,
+    aiModalOpen,
+    setAiModalOpen,
     editing,
+    draftSeed,
     saveMut,
+    aiGenMut,
     openCreate,
     openEdit,
     confirmDelete,

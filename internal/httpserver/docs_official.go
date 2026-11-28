@@ -22,6 +22,7 @@ func (s *Server) officialDocs(ctx context.Context) []database.Doc {
 	docs := make([]database.Doc, 0, len(items))
 	for _, a := range items {
 		docs = append(docs, database.Doc{
+			Kind:      "doc",
 			Title:     a.Title,
 			Slug:      a.Slug,
 			Excerpt:   a.Excerpt,
