@@ -11,11 +11,13 @@ import {
   Settings,
 } from 'lucide-react'
 import type { WindowState } from '@/types'
+import { ImageChips, ImagePickButton } from '@/components/common/ImageAttach'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { RouteDomainModal } from '@/components/windows/tunnels/RouteDomainModal'
+import { imageFilesOf, useImageAttachments } from '@/hooks/useImageAttachments'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { StudioBuilderWorkspace } from './studio/StudioBuilderWorkspace'
 import { usePageStudioWindow } from './studio/usePageStudioWindow'
@@ -29,6 +31,7 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
   const isMobile = useIsMobileLayout()
   const st = usePageStudioWindow(win, authenticated)
   const [quickPrompt, setQuickPrompt] = useState('')
+  const attach = useImageAttachments()
 
   const {
     t,
@@ -85,12 +88,20 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
 
   const submitQuickBuild = () => {
     const trimmed = quickPrompt.trim()
-    if (!trimmed || chatCreateMut.isPending) return
+    if (!trimmed || chatCreateMut.isPending || attach.uploading) return
     if (!aiReady) {
       openAiSettings()
       return
     }
-    chatCreateMut.mutate(trimmed, { onSuccess: () => setQuickPrompt('') })
+    chatCreateMut.mutate(
+      { prompt: trimmed, images: attach.images.length > 0 ? attach.images : undefined },
+      {
+        onSuccess: () => {
+          setQuickPrompt('')
+          attach.clear()
+        },
+      },
+    )
   }
 
   return (
@@ -141,14 +152,22 @@ export function PageStudioWindow({ win, authenticated }: PageStudioWindowProps) 
       </div>
 
       {/* Lovable-style quick prompt bar */}
-      <div className="border-b border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-2.5">
+      <div className="space-y-2 border-b border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-2.5">
+        <ImageChips attach={attach} />
         <div className="flex flex-wrap items-center gap-2">
+          <ImagePickButton label={t('attach.add')} busy={attach.uploading} disabled={chatCreateMut.isPending} onFiles={(f) => void attach.add(f)} />
           <div className="min-w-[200px] flex-1">
             <TextInput
               value={quickPrompt}
               onChange={(e) => setQuickPrompt(e.target.value)}
               placeholder={t('studio.quickBuildPh')}
               disabled={chatCreateMut.isPending}
+              onPaste={(e) => {
+                const files = imageFilesOf(e.clipboardData.files)
+                if (files.length === 0) return
+                e.preventDefault()
+                void attach.add(files)
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') submitQuickBuild()
               }}

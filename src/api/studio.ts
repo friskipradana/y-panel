@@ -26,6 +26,21 @@ export interface StudioChatMessage {
   role: 'user' | 'assistant'
   content: string
   createdAt: string
+  images?: string[]
+}
+
+// A picture attached to a prompt, already stored on the panel
+export interface AIImageRef {
+  url: string
+  name: string
+  width: number
+  height: number
+}
+
+// The element picked in the preview, sent along with an instruction
+export interface StudioElementRef {
+  selector: string
+  html: string
 }
 
 export interface StudioPageVersion {
@@ -176,10 +191,10 @@ export const toggleStudioPagePublish = (id: number, published: boolean) =>
 export const deleteStudioPage = (id: number) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/studio/pages/${id}`).then((r) => r.data)
 
-export const createStudioPageFromChat = (payload: { kind: StudioPageKind; prompt: string; language: string }) =>
+export const createStudioPageFromChat = (payload: { kind: StudioPageKind; prompt: string; language: string; images?: AIImageRef[] }) =>
   agentApi.post<{ page: StudioPage; reply: string }>('/api/v1/studio/chat-create', payload).then((r) => r.data)
 
-export const chatRefineStudioPage = (id: number, payload: { message: string; language: string }) =>
+export const chatRefineStudioPage = (id: number, payload: { message: string; language: string; images?: AIImageRef[]; element?: StudioElementRef }) =>
   agentApi.post<{ page: StudioPage; reply: string }>(`/api/v1/studio/pages/${id}/chat`, payload).then((r) => r.data)
 
 export const restoreStudioPageVersion = (id: number, versionId: string) =>

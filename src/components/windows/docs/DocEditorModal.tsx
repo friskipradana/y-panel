@@ -8,21 +8,23 @@ import { Select } from '@/components/ui/Select'
 import { Tabs } from '@/components/ui/Tabs'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { Markdown } from '@/lib/markdown'
+import { BlockEditor } from './BlockEditor'
+import { DocAiRevise } from './DocAiRevise'
 import { MarkdownToolbar } from './MarkdownToolbar'
 import { emptyDocForm, publicLink, type DocsWindowState } from './useDocsWindow'
 
-type EditorTab = 'write' | 'preview'
+type EditorTab = 'visual' | 'write' | 'preview'
 
 // Create / edit one documentation guide or article. The form is rebuilt each time it opens.
 export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
   const { t, editorOpen, setEditorOpen, editing, draftSeed, saveMut } = dw
   const [form, setForm] = useState<DocPayload>(emptyDocForm())
-  const [tab, setTab] = useState<EditorTab>('write')
+  const [tab, setTab] = useState<EditorTab>('visual')
   const contentRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (!editorOpen) return
-    setTab('write')
+    setTab('visual')
     if (editing) {
       setForm({
         kind: editing.kind === 'doc' ? 'doc' : 'article',
@@ -50,7 +52,7 @@ export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
       onClose={() => setEditorOpen(false)}
       title={editing ? t('docs.editArticle') : t('docs.newArticle')}
       subtitle={t('docs.editorSubtitle')}
-      size="lg"
+      size="xl"
       footer={
         <>
           <Button variant="ghost" onClick={() => setEditorOpen(false)}>
@@ -95,12 +97,26 @@ export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
               value={tab}
               onChange={setTab}
               items={[
+                { key: 'visual', label: t('docs.visual') },
                 { key: 'write', label: t('docs.write') },
                 { key: 'preview', label: t('docs.preview') },
               ]}
             />
           </div>
-          {tab === 'write' ? (
+          {editorOpen ? (
+            <div className="mb-2">
+              <DocAiRevise
+                key={editing?.id ?? 'new'}
+                kind={form.kind === 'doc' ? 'doc' : 'article'}
+                title={form.title}
+                content={form.content}
+                onApply={(next) => patch(next)}
+              />
+            </div>
+          ) : null}
+          {tab === 'visual' ? (
+            <BlockEditor key={editing?.id ?? 'new'} value={form.content} onChange={(content) => patch({ content })} t={t} />
+          ) : tab === 'write' ? (
             <>
               <div className="mb-1.5">
                 <MarkdownToolbar textareaRef={contentRef} value={form.content} onChange={(content) => patch({ content })} />

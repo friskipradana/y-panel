@@ -1,4 +1,5 @@
 import { agentApi } from './client'
+import type { AIImageRef } from './studio'
 import { listParams, type ListQuery, type TableResult } from '@/lib/listQuery'
 import type { PaginatedResponse, PaginationParams } from '@/types'
 
@@ -52,6 +53,9 @@ export interface DocAIGenerateInput {
   autoSave?: boolean
   publish?: boolean
   isPublic?: boolean
+  images?: AIImageRef[]
+  /** revise this text instead of writing a new post */
+  current?: { title: string; content: string }
 }
 
 export interface DocAIGenerateResult {

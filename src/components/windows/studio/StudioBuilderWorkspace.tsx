@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
-  ArrowUp,
   Copy,
   Download,
   Eye,
@@ -12,6 +11,7 @@ import {
   Send,
   Smartphone,
   Tablet,
+  Undo2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { StudioPage } from '@/api/studio'
@@ -24,6 +24,8 @@ import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { formatDateID } from '@/lib/datetime'
+import { applyElementEdit, type ElementEdit, type PickedElement } from './previewBridge'
+import { StudioChatPanel, type ChatSend } from './StudioChatPanel'
 import { StudioLivePreview, type PreviewViewport } from './StudioLivePreview'
 import { StudioSectionsEditor } from './StudioSectionsEditor'
 import type { PageStudioWindowState } from './usePageStudioWindow'
@@ -59,61 +61,82 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
   const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor')
   const [draft, setDraft] = useState<StudioPage>(page)
   const [dirty, setDirty] = useState(false)
-  const [prompt, setPrompt] = useState('')
-  const chatEndRef = useRef<HTMLDivElement>(null)
+  const [picking, setPicking] = useState(false)
+  const [picked, setPicked] = useState<PickedElement | null>(null)
 
   useEffect(() => {
     setDraft(page)
     setDirty(false)
+    setPicked(null)
   }, [page])
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [page.chatHistory.length, chatRefineMut.isPending])
 
   const patchDraft = (patch: Partial<StudioPage>) => {
     setDraft((prev) => ({ ...prev, ...patch }))
     setDirty(true)
   }
 
-  const handleSendChat = (text?: string) => {
-    const msg = (text ?? prompt).trim()
-    if (!msg || chatRefineMut.isPending) return
+  const savePayload = () => ({
+    id: page.id,
+    payload: {
+      kind: draft.kind,
+      slug: draft.slug,
+      title: draft.title,
+      subtitle: draft.subtitle,
+      status: draft.status,
+      showInDocs: draft.showInDocs,
+      brandName: draft.brandName,
+      themeTone: draft.themeTone,
+      seoDescription: draft.seoDescription,
+      ctaLabel: draft.ctaLabel,
+      ctaUrl: draft.ctaUrl,
+      sections: draft.sections,
+      markdownBody: draft.markdownBody,
+      htmlCode: draft.htmlCode,
+      customDomain: draft.customDomain ?? '',
+      sourcePrompt: draft.sourcePrompt,
+    },
+  })
+
+  const handleSaveManual = () => savePageMut.mutate(savePayload())
+
+  // The AI works from the saved page, so unsaved edits are saved first instead of being thrown away by its answer
+  const handleSendChat = async (send: ChatSend, done: () => void) => {
+    if (chatRefineMut.isPending) return
     if (!aiReady) {
       openAiSettings()
       return
     }
-    setPrompt('')
-    chatRefineMut.mutate({ id: page.id, message: msg })
+    if (dirty) {
+      try {
+        await savePageMut.mutateAsync(savePayload())
+      } catch {
+        return
+      }
+    }
+    chatRefineMut.mutate({ id: page.id, ...send }, { onSuccess: done })
   }
 
-  const handleSaveManual = () => {
-    savePageMut.mutate({
-      id: page.id,
-      payload: {
-        kind: draft.kind,
-        slug: draft.slug,
-        title: draft.title,
-        subtitle: draft.subtitle,
-        status: draft.status,
-        showInDocs: draft.showInDocs,
-        brandName: draft.brandName,
-        themeTone: draft.themeTone,
-        seoDescription: draft.seoDescription,
-        ctaLabel: draft.ctaLabel,
-        ctaUrl: draft.ctaUrl,
-        sections: draft.sections,
-        markdownBody: draft.markdownBody,
-        htmlCode: draft.htmlCode,
-        customDomain: draft.customDomain ?? '',
-        sourcePrompt: draft.sourcePrompt,
-      },
-    })
+  const handleElementEdit = (edit: ElementEdit) => {
+    const next = picked ? applyElementEdit(draft.htmlCode ?? '', picked, edit) : null
+    if (next === null) {
+      toast.error(t('studio.pick.cannot'))
+      return
+    }
+    patchDraft({ htmlCode: next })
+    setPicked(null)
   }
 
+  const handlePick = (element: PickedElement) => {
+    setPicked(element)
+    setTab('chat')
+    setMobileView('editor')
+  }
+
+  // A downloaded file is opened elsewhere, so stored pictures get the full address of this panel
   const downloadHtml = () => {
     if (!draft.htmlCode?.trim()) return
-    const blob = new Blob([draft.htmlCode], { type: 'text/html;charset=utf-8' })
+    const portable = draft.htmlCode.split('/api/v1/public/doc-images/').join(`${window.location.origin}/api/v1/public/doc-images/`)
+    const blob = new Blob([portable], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -145,10 +168,6 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
     { key: 'domain', label: t('studio.connectDomain'), onSelect: () => openDomainRoute(page) },
     { key: 'delete', label: t('common.delete'), tone: 'danger', dividerBefore: true, onSelect: () => void confirmDeletePage(page) },
   ]
-
-  const quickPrompts = page.kind === 'docs'
-    ? [t('studio.quickDoc1'), t('studio.quickDoc2'), t('studio.quickDoc3')]
-    : [t('studio.quickLand1'), t('studio.quickLand2'), t('studio.quickLand3'), t('studio.quickLand4')]
 
   const publishBtn = (
     <button
@@ -210,6 +229,21 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
           {dirty ? (
             <button
               type="button"
+              className="docker-icon-btn"
+              title={t('studio.builder.discard')}
+              aria-label={t('studio.builder.discard')}
+              onClick={() => {
+                setDraft(page)
+                setDirty(false)
+                setPicked(null)
+              }}
+            >
+              <Undo2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+          ) : null}
+          {dirty ? (
+            <button
+              type="button"
               className="docker-primary-btn"
               disabled={savePageMut.isPending}
               onClick={handleSaveManual}
@@ -227,62 +261,16 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
         {!isMobile || mobileView === 'editor' ? (
           <aside className={`${isMobile ? 'w-full' : 'w-[360px] shrink-0 border-r border-[var(--win-border)]'} flex min-h-0 flex-col bg-[var(--win-bar)]`}>
             {tab === 'chat' ? (
-              <>
-                <div className="flex-1 space-y-2.5 overflow-y-auto p-3">
-                  {page.chatHistory.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-[var(--win-border)] p-3 text-xs text-[var(--text-secondary)]">
-                      {t('studio.builder.chatEmpty')}
-                    </div>
-                  ) : (
-                    page.chatHistory.map((m, idx) => (
-                      <div
-                        key={idx}
-                        className={`rounded-lg px-3 py-2 text-xs leading-relaxed ${
-                          m.role === 'user'
-                            ? 'ml-6 border border-[var(--panel-primary-border)] bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)]'
-                            : 'mr-4 border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)]'
-                        }`}
-                      >
-                        {m.content}
-                      </div>
-                    ))
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-
-                <div className="space-y-2 border-t border-[var(--win-border)] p-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {quickPrompts.map((qp) => (
-                      <Button key={qp} size="sm" variant="ghost" disabled={chatRefineMut.isPending} onClick={() => handleSendChat(qp)}>
-                        {qp}
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="flex items-end gap-2">
-                    <Textarea
-                      rows={2}
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      placeholder={t('studio.builder.chatPh')}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleSendChat()
-                        }
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      loading={chatRefineMut.isPending}
-                      disabled={!prompt.trim()}
-                      icon={<ArrowUp className="h-3.5 w-3.5" strokeWidth={2} />}
-                      aria-label={t('studio.builder.sendPrompt')}
-                      onClick={() => handleSendChat()}
-                    />
-                  </div>
-                </div>
-              </>
+              <StudioChatPanel
+                page={page}
+                pending={chatRefineMut.isPending ? (chatRefineMut.variables?.message ?? null) : null}
+                busy={chatRefineMut.isPending || savePageMut.isPending}
+                picked={picked}
+                onElementEdit={handleElementEdit}
+                onClearPicked={() => setPicked(null)}
+                onSend={(send, done) => void handleSendChat(send, done)}
+                t={t}
+              />
             ) : tab === 'code' ? (
               <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-3">
                 {draft.kind === 'docs' ? (
@@ -386,7 +374,18 @@ export function StudioBuilderWorkspace({ st, page }: { st: PageStudioWindowState
         ) : null}
 
         {!isMobile || mobileView === 'preview' ? (
-          <StudioLivePreview page={draft} viewport={isMobile ? 'mobile' : viewport} busy={chatRefineMut.isPending} t={t} />
+          <StudioLivePreview
+            page={draft}
+            viewport={isMobile ? 'mobile' : viewport}
+            busy={chatRefineMut.isPending}
+            picking={picking}
+            onPickingChange={(on) => {
+              setPicking(on)
+              if (!on) setPicked(null)
+            }}
+            onPick={handlePick}
+            t={t}
+          />
         ) : null}
       </div>
     </div>

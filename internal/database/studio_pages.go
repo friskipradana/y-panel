@@ -32,6 +32,8 @@ type StudioChatMessage struct {
 	Role      string `json:"role"` // user | assistant
 	Content   string `json:"content"`
 	CreatedAt string `json:"createdAt"`
+	// pictures attached to this instruction
+	Images []string `json:"images,omitempty"`
 }
 
 // StudioPageVersion captures a restorable snapshot before an AI iteration.

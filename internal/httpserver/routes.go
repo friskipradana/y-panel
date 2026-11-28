@@ -25,7 +25,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/public/contributors", s.requireLanding(s.handlePublicContributors))
 	s.mux.HandleFunc("GET /api/v1/public/docs", s.requireLanding(s.handlePublicDocsList))
 	s.mux.HandleFunc("GET /api/v1/public/docs/{slug}", s.requireLanding(s.handlePublicDocGet))
-	s.mux.HandleFunc("GET /api/v1/public/doc-images/{name}", s.requireLanding(s.handlePublicDocImage))
+	// not behind the landing switch: published /p/ pages stay public without the landing page and show these pictures
+	s.mux.HandleFunc("GET /api/v1/public/doc-images/{name}", s.handlePublicDocImage)
 	s.mux.Handle("GET /api/v1/settings/wallpaper", s.requireAuthV2(http.HandlerFunc(s.handleGetWallpaper)))
 	s.mux.Handle("POST /api/v1/settings/wallpaper", s.requireAuthV2(http.HandlerFunc(s.handleUpdateWallpaper)))
 

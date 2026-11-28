@@ -18,6 +18,15 @@ type docAIGenerateRequest struct {
 	AutoSave     bool   `json:"autoSave"`
 	Publish      bool   `json:"publish"`
 	IsPublic     bool   `json:"isPublic"`
+	// pictures to place in the text
+	Images []aiImageRef `json:"images"`
+	// the article as it is now: when set, the AI revises it instead of writing a new one
+	Current *docCurrentDraft `json:"current"`
+}
+
+type docCurrentDraft struct {
+	Title   string `json:"title"`
+	Content string `json:"content"`
 }
 
 // handleGenerateDocWithAI uses the configured AI provider to draft either a Reneo documentation
@@ -107,6 +116,12 @@ Rules:
 
 	userPrompt := fmt.Sprintf("Post type: %s\n%s%s\n\n%s\n\nExisting documentation and articles (DO NOT duplicate):\n%s",
 		kind, topicLine, extraLine, reneoPlatformFeatureCatalog, existingBlock)
+	revising := req.Current != nil && strings.TrimSpace(req.Current.Content) != ""
+	if revising {
+		userPrompt = fmt.Sprintf("Revise this %s according to the instruction. Keep everything the instruction does not ask to change, including every existing image line, and return the COMPLETE updated post.\nInstruction: %s\nCurrent title: %s\nCurrent content:\n%s",
+			kind, strings.TrimSpace(req.Instructions), req.Current.Title, req.Current.Content)
+	}
+	userPrompt += aiImagesPrompt(cleanAIImages(req.Images), true)
 
 	raw, err := ai.CompleteWithMaxTokens(r.Context(), *aiCfg, 6144, sysPrompt, userPrompt)
 	if err != nil {
@@ -132,7 +147,8 @@ Rules:
 		excerpt = strings.TrimSpace(parsed.SEODescription)
 	}
 
-	if req.AutoSave {
+	// a revision goes back to the editor; the author decides whether to save it
+	if req.AutoSave && !revising {
 		status := "draft"
 		if req.Publish {
 			status = "published"

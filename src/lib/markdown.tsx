@@ -237,8 +237,20 @@ export function Markdown({
           }
           case 'rule':
             return <hr key={key} className="border-[var(--win-border)]" />
-          default:
+          default: {
+            // a picture alone in its paragraph is a figure, with its description as the caption
+            const alone = /^!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(block.text)
+            const src = alone ? resolveImageSrc(alone[2]) : null
+            if (alone && src && !compact) {
+              return (
+                <figure key={key} className="my-5 space-y-2">
+                  <img src={src} alt={alone[1]} loading="lazy" decoding="async" className="mx-auto block h-auto max-w-full rounded-xl border border-[var(--win-border)]" />
+                  {alone[1] ? <figcaption className="text-center text-[0.75rem] text-[var(--text-secondary)]">{alone[1]}</figcaption> : null}
+                </figure>
+              )
+            }
             return <p key={key}>{renderInline(block.text, key)}</p>
+          }
         }
       })}
     </div>

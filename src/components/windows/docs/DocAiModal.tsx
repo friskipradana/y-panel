@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Bot } from 'lucide-react'
 import type { DocKind } from '@/api/agent'
+import { ImageChips, ImagePickButton } from '@/components/common/ImageAttach'
 import { Button } from '@/components/ui/Button'
 import { Field, Textarea, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+import { useImageAttachments } from '@/hooks/useImageAttachments'
 import type { DocsWindowState } from './useDocsWindow'
 
 // Generate a Reneo documentation guide or article directly inside the Docs window
@@ -18,6 +20,8 @@ export function DocAiModal({ dw }: { dw: DocsWindowState }) {
   const [autoSave, setAutoSave] = useState(false)
   const [publish, setPublish] = useState(true)
   const [isPublic, setIsPublic] = useState(true)
+  const attach = useImageAttachments()
+  const { clear } = attach
 
   useEffect(() => {
     if (!aiModalOpen) return
@@ -27,6 +31,9 @@ export function DocAiModal({ dw }: { dw: DocsWindowState }) {
     setAutoSave(false)
     setPublish(true)
     setIsPublic(true)
+    clear()
+    // clear is a new function on every render; the form resets only when the dialog opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiModalOpen, kindFilter])
 
   const submit = () => {
@@ -37,6 +44,7 @@ export function DocAiModal({ dw }: { dw: DocsWindowState }) {
       autoSave,
       publish,
       isPublic,
+      images: attach.images.length > 0 ? attach.images : undefined,
     })
   }
 
@@ -53,7 +61,7 @@ export function DocAiModal({ dw }: { dw: DocsWindowState }) {
           <Button variant="ghost" onClick={() => setAiModalOpen(false)}>
             {t('common.cancel')}
           </Button>
-          <Button variant="primary" loading={aiGenMut.isPending} onClick={submit}>
+          <Button variant="primary" loading={aiGenMut.isPending} disabled={attach.uploading} onClick={submit}>
             {aiGenMut.isPending ? t('docs.aiGenerating') : t('docs.aiGenerateRun')}
           </Button>
         </>
@@ -87,6 +95,14 @@ export function DocAiModal({ dw }: { dw: DocsWindowState }) {
             placeholder={t('docs.aiInstructionsPh')}
           />
         </Field>
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <ImagePickButton label={t('attach.add')} busy={attach.uploading} onFiles={(f) => void attach.add(f)} />
+            <span className="text-[0.75rem] text-[var(--text-secondary)]">{t('docs.aiImagesHint')}</span>
+          </div>
+          <ImageChips attach={attach} />
+        </div>
 
         <SettingRow
           title={t('docs.aiAutoSaveTitle')}

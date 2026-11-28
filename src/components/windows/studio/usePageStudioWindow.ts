@@ -11,6 +11,8 @@ import {
   restoreStudioPageVersion,
   toggleStudioPagePublish,
   updateStudioPage,
+  type AIImageRef,
+  type StudioElementRef,
   type StudioPage,
   type StudioPageInput,
 } from '@/api/studio'
@@ -99,7 +101,7 @@ export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
   })
 
   const chatCreateMut = useMutation({
-    mutationFn: (prompt: string) => createStudioPageFromChat({ kind: 'landing', prompt, language }),
+    mutationFn: ({ prompt, images }: { prompt: string; images?: AIImageRef[] }) => createStudioPageFromChat({ kind: 'landing', prompt, language, images }),
     onSuccess: ({ page }) => {
       upsertPageInCache(page)
       setActivePageId(page.id)
@@ -110,8 +112,8 @@ export function usePageStudioWindow(win: WindowState, authenticated: boolean) {
   })
 
   const chatRefineMut = useMutation({
-    mutationFn: ({ id, message }: { id: number; message: string }) =>
-      chatRefineStudioPage(id, { message, language }),
+    mutationFn: ({ id, message, images, element }: { id: number; message: string; images?: AIImageRef[]; element?: StudioElementRef }) =>
+      chatRefineStudioPage(id, { message, language, images, element }),
     onSuccess: ({ page }) => {
       upsertPageInCache(page)
       refresh()

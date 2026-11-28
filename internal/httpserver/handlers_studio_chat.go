@@ -52,7 +52,9 @@ You have COMPLETE creative and technical freedom:
 - NEVER force any specific platform brand (such as Reneo) or rigid template unless the user explicitly asks for it. Use the exact brand, tone, aesthetic, palette, typography, and layout that best fits the user's request.
 - Use complete standalone HTML5 (<!DOCTYPE html>) with responsive mobile-first design.
 - You may load Tailwind CSS Play CDN (<script src="https://cdn.tailwindcss.com"></script>) and Google Fonts (<link href="https://fonts.googleapis.com/css2?..." rel="stylesheet">) plus your own <style> block and inline <script> for rich, real working interactivity (tabs, filters, modals, calculators, mobile nav menu, smooth scroll, form handling, theme toggles, etc.).
-- Use crisp inline SVG icons where helpful. Never leave placeholder broken images; use clean styled layouts, inline SVG graphics, or reliable CSS art/visuals.
+- Use crisp inline SVG icons where helpful. When the user attached images, use them (hero, gallery, cards) with their exact src. Never invent image addresses: without an attached or user-given image, use clean styled layouts, inline SVG graphics, or CSS visuals. Keep existing <img> sources unless asked to change them.
+- Make it genuinely interactive and alive: working navigation, buttons and forms that give feedback, tasteful transitions and scroll reveals. No walls of plain text; do not lay the page out like a rendered markdown document.
+- Keep the code compact enough to finish: the document must end with </html>.
 - Write clear, natural, concrete copy in ` + lang + ` (no em dashes, no generic AI filler).
 
 Output format MUST follow these exact two markers with no extra prose before or after:
@@ -105,9 +107,10 @@ func (s *Server) handleStudioChatCreate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var req struct {
-		Kind     string `json:"kind"`
-		Prompt   string `json:"prompt"`
-		Language string `json:"language"`
+		Kind     string       `json:"kind"`
+		Prompt   string       `json:"prompt"`
+		Language string       `json:"language"`
+		Images   []aiImageRef `json:"images"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
 		s.writeError(w, http.StatusBadRequest, errors.New("invalid JSON payload"))
@@ -131,13 +134,18 @@ func (s *Server) handleStudioChatCreate(w http.ResponseWriter, r *http.Request) 
 	if kind == "docs" {
 		maxTokens = 6144
 	}
-	raw, err := ai.CompleteWithMaxTokens(r.Context(), *aiCfg, maxTokens, studioChatSystemPrompt(kind, lang, true), "User request:\n"+prompt)
+	images := cleanAIImages(req.Images)
+	raw, err := ai.CompleteWithMaxTokens(r.Context(), *aiCfg, maxTokens, studioChatSystemPrompt(kind, lang, true), "User request:\n"+prompt+aiImagesPrompt(images, kind == "docs"))
 	if err != nil {
 		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
 	}
 	res, err := parseStudioChatResponse(raw, kind)
 	if err != nil {
+		s.writeError(w, http.StatusUnprocessableEntity, err)
+		return
+	}
+	if err := ensureCompleteHTML(res.Page.HTMLCode); err != nil {
 		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
 	}
@@ -164,7 +172,7 @@ func (s *Server) handleStudioChatCreate(w http.ResponseWriter, r *http.Request) 
 		HTMLCode:       res.Page.HTMLCode,
 		SourcePrompt:   prompt,
 		ChatHistory: []database.StudioChatMessage{
-			{Role: "user", Content: prompt, CreatedAt: nowStr},
+			{Role: "user", Content: prompt, CreatedAt: nowStr, Images: aiImageURLs(images)},
 			{Role: "assistant", Content: res.Reply, CreatedAt: nowStr},
 		},
 	}
@@ -207,8 +215,10 @@ func (s *Server) handleStudioPageChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Message  string `json:"message"`
-		Language string `json:"language"`
+		Message  string            `json:"message"`
+		Language string            `json:"language"`
+		Images   []aiImageRef      `json:"images"`
+		Element  *studioElementRef `json:"element"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
 		s.writeError(w, http.StatusBadRequest, errors.New("invalid JSON payload"))
@@ -266,6 +276,9 @@ func (s *Server) handleStudioPageChat(w http.ResponseWriter, r *http.Request) {
 			string(curJSON), histBuilder.String(), msg)
 	}
 
+	images := cleanAIImages(req.Images)
+	userPrompt += studioElementPrompt(req.Element) + aiImagesPrompt(images, existing.Kind == "docs")
+
 	raw, err := ai.CompleteWithMaxTokens(r.Context(), *aiCfg, maxTokens, studioChatSystemPrompt(existing.Kind, lang, false), userPrompt)
 	if err != nil {
 		s.writeError(w, http.StatusUnprocessableEntity, err)
@@ -275,6 +288,12 @@ func (s *Server) handleStudioPageChat(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
+	}
+	if existing.Kind != "docs" {
+		if err := ensureCompleteHTML(res.Page.HTMLCode); err != nil {
+			s.writeError(w, http.StatusUnprocessableEntity, err)
+			return
+		}
 	}
 
 	// Snapshot current page before applying edits so user can restore any version
@@ -315,7 +334,7 @@ func (s *Server) handleStudioPageChat(w http.ResponseWriter, r *http.Request) {
 
 	nowStr := time.Now().UTC().Format(time.RFC3339)
 	existing.ChatHistory = append(existing.ChatHistory,
-		database.StudioChatMessage{Role: "user", Content: msg, CreatedAt: nowStr},
+		database.StudioChatMessage{Role: "user", Content: msg, CreatedAt: nowStr, Images: aiImageURLs(images)},
 		database.StudioChatMessage{Role: "assistant", Content: res.Reply, CreatedAt: nowStr},
 	)
 

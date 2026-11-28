@@ -27,7 +27,7 @@ export function emptyDocForm(kind: DocKind = 'article'): DocPayload {
   return { kind, title: '', slug: '', excerpt: '', content: '', status: 'draft', isPublic: false }
 }
 
-function apiError(error: unknown, fallback: string): string {
+export function apiError(error: unknown, fallback: string): string {
   return (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 }
 
