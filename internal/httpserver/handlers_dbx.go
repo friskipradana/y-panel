@@ -76,6 +76,9 @@ func (s *Server) retireOpenDbx() {
 	if baseCtx == nil {
 		baseCtx = context.Background()
 	}
+	if baseCtx.Err() != nil {
+		return
+	}
 	ctx, cancel := context.WithTimeout(baseCtx, 30*time.Second)
 	defer cancel()
 	setup, err := dockerOutput(ctx, "inspect", "-f", `{{index .Config.Labels "`+dbxSetupLabel+`"}}`, dbxContainer)

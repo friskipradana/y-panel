@@ -340,11 +340,21 @@ func (c *procCollector) collectOnce() {
 			go func() {
 				defer wg.Done()
 				for idx := range jobs {
+					select {
+					case <-c.stopCh:
+						return
+					default:
+					}
 					results[idx] = c.scanOnePID(pids[idx], checkCgroup)
 				}
 			}()
 		}
 		wg.Wait()
+		select {
+		case <-c.stopCh:
+			return
+		default:
+		}
 
 		for _, res := range results {
 			if res.err != nil {
@@ -404,6 +414,11 @@ func (c *procCollector) collectOnce() {
 	slices := make(map[string]sliceSnapshot, len(sliceCandidateSet))
 	if v2Root != "" && (mode == CgroupModeV2 || mode == CgroupModeHybrid) {
 		for relPath := range sliceCandidateSet {
+			select {
+			case <-c.stopCh:
+				return
+			default:
+			}
 			fullDir := filepath.Join(v2Root, filepath.FromSlash(strings.TrimPrefix(relPath, "/")))
 			metrics, err := ReadCgroupV2Stats(fullDir)
 			if err != nil || !metrics.Available {

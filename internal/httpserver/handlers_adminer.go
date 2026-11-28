@@ -38,7 +38,12 @@ func adminerPort() int {
 }
 
 func dockerOutput(ctx context.Context, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, "docker", args...).CombinedOutput()
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd.WaitDelay = 500 * time.Millisecond
+	out, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(out)), err
 }
 

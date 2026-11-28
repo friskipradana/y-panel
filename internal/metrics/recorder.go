@@ -83,6 +83,10 @@ func (r *Recorder) persist() {
 		return
 	}
 	r.mu.RLock()
+	if len(r.series) == 0 {
+		r.mu.RUnlock()
+		return
+	}
 	data, err := json.Marshal(r.series)
 	r.mu.RUnlock()
 	if err != nil {
@@ -162,18 +166,37 @@ func (r *Recorder) Run() {
 	defer tick.Stop()
 	defer save.Stop()
 
+	stopping := func() bool {
+		select {
+		case <-r.stop:
+			return true
+		default:
+			return false
+		}
+	}
+
 	collect := func() {
-		if r.sample == nil {
+		if r.sample == nil || stopping() {
 			return
 		}
 		values, counters := r.sample()
+		if stopping() || (len(values) == 0 && len(counters) == 0) {
+			return
+		}
 		r.Record(values, counters, time.Now())
 	}
+
+	initialDelay := time.NewTimer(15 * time.Millisecond)
 	select {
 	case <-r.stop:
+		initialDelay.Stop()
 		r.persist()
 		return
-	case <-time.After(15 * time.Millisecond):
+	case <-initialDelay.C:
+	}
+	if stopping() {
+		r.persist()
+		return
 	}
 	collect()
 	for {
@@ -189,8 +212,19 @@ func (r *Recorder) Run() {
 	}
 }
 
-func (r *Recorder) Stop() {
+// SignalStop notifies the recorder loop to exit without waiting for completion.
+func (r *Recorder) SignalStop() {
+	if r == nil {
+		return
+	}
 	r.stopOnce.Do(func() { close(r.stop) })
+}
+
+func (r *Recorder) Stop() {
+	if r == nil {
+		return
+	}
+	r.SignalStop()
 	select {
 	case <-r.done:
 	case <-time.After(2 * time.Second):

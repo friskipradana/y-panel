@@ -8,14 +8,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/accountusage"
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/system"
 )
 
 // The live socket pushes the summary and the installed revision on connect, and a new revision
 // when the frontend is redeployed, so a page never has to ask for them.
 func TestPushLiveStateSendsSummaryAndRevision(t *testing.T) {
+	t.Cleanup(func() {
+		system.ShutdownCollector()
+		accountusage.Shutdown()
+	})
 	dir := t.TempDir()
 	index := filepath.Join(dir, "index.html")
 	if err := os.WriteFile(index, []byte("<html></html>"), 0o644); err != nil {

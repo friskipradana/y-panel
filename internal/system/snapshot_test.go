@@ -110,3 +110,12 @@ func TestCollectorConcurrentRefreshRaceSafe(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestPingDockerSocketHonorsCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	reachable, decided := pingDockerSocket(ctx)
+	if reachable || !decided {
+		t.Fatalf("expected cancelled context to short-circuit probe (reachable=%v decided=%v)", reachable, decided)
+	}
+}

@@ -35,3 +35,21 @@ func TestRecordTrimsOldAndCapsPoints(t *testing.T) {
 		t.Fatalf("points = %d exceeds cap %d", n, maxPoints)
 	}
 }
+
+func TestRecorderSignalStopBeforeSampleExitsPromptly(t *testing.T) {
+	called := make(chan struct{}, 1)
+	r := New(t.TempDir(), func() (map[string]float64, map[string]uint64) {
+		select {
+		case called <- struct{}{}:
+		default:
+		}
+		return map[string]float64{"cpu": 1}, nil
+	})
+	go r.Run()
+	r.SignalStop()
+	start := time.Now()
+	r.Stop()
+	if time.Since(start) > time.Second {
+		t.Fatalf("Stop() took too long: %s", time.Since(start))
+	}
+}

@@ -2,6 +2,8 @@ package system
 
 import (
 	"context"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -353,15 +355,28 @@ func (c *Collector) refreshDockerHealth(ctx context.Context) {
 	state := DockerHealthUnavailable
 
 	if installed {
-		cmd := exec.CommandContext(ctx, "docker", "info")
-		cmd.WaitDelay = 500 * time.Millisecond
-		if err := cmd.Run(); err == nil {
-			reachable = true
-			state = DockerHealthAvailable
-		} else if ctx.Err() != nil {
+		if ctx.Err() != nil {
 			state = DockerHealthDegraded
+		} else if ok, decided := pingDockerSocket(ctx); decided {
+			if ok {
+				reachable = true
+				state = DockerHealthAvailable
+			} else if ctx.Err() != nil {
+				state = DockerHealthDegraded
+			} else {
+				state = DockerHealthUnavailable
+			}
 		} else {
-			state = DockerHealthUnavailable
+			cmd := exec.CommandContext(ctx, "docker", "info")
+			cmd.WaitDelay = 500 * time.Millisecond
+			if err := cmd.Run(); err == nil {
+				reachable = true
+				state = DockerHealthAvailable
+			} else if ctx.Err() != nil {
+				state = DockerHealthDegraded
+			} else {
+				state = DockerHealthUnavailable
+			}
 		}
 	}
 
@@ -378,3 +393,49 @@ func (c *Collector) refreshDockerHealth(ctx context.Context) {
 	c.snapshot.DockerSeenAt = now
 }
 
+// pingDockerSocket checks Docker Engine reachability via HTTP /_ping over the local Unix socket
+// so background health polling avoids spawning a heavy `docker info` subprocess and cancels instantly.
+// Returns (reachable, true) when the probe definitively answered or ctx was cancelled, or (false, false)
+// to let the caller fall back to `docker info` (e.g. non-standard DOCKER_HOST or Windows named pipes).
+func pingDockerSocket(ctx context.Context) (reachable bool, decided bool) {
+	if ctx.Err() != nil {
+		return false, true
+	}
+	sockPath := "/var/run/docker.sock"
+	if host := strings.TrimSpace(os.Getenv("DOCKER_HOST")); host != "" {
+		if !strings.HasPrefix(host, "unix://") {
+			return false, false
+		}
+		sockPath = strings.TrimPrefix(host, "unix://")
+	}
+	if _, err := os.Stat(sockPath); err != nil {
+		return false, false
+	}
+
+	transport := &http.Transport{
+		DialContext: func(dialCtx context.Context, _, _ string) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(dialCtx, "unix", sockPath)
+		},
+		DisableKeepAlives: true,
+	}
+	defer transport.CloseIdleConnections()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://docker/_ping", nil)
+	if err != nil {
+		return false, false
+	}
+	client := &http.Client{Transport: transport}
+	resp, err := client.Do(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return false, true
+		}
+		return false, false
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		return true, true
+	}
+	return false, false
+}

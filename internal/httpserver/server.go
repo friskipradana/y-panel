@@ -1,10 +1,10 @@
 package httpserver
 
 import (
-	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"html"
 	"log"
 	"net"
@@ -22,15 +22,15 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/docker"
-	"github.com/friskipradana/panel-desktop-ui/internal/notify"
 	"github.com/friskipradana/panel-desktop-ui/internal/docsync"
 	"github.com/friskipradana/panel-desktop-ui/internal/metrics"
+	"github.com/friskipradana/panel-desktop-ui/internal/notify"
 	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 	"github.com/friskipradana/panel-desktop-ui/internal/projects"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
+	"github.com/friskipradana/panel-desktop-ui/internal/terminal"
 	"github.com/friskipradana/panel-desktop-ui/internal/updater"
 	"github.com/friskipradana/panel-desktop-ui/internal/webserver"
-	"github.com/friskipradana/panel-desktop-ui/internal/terminal"
 	"github.com/gorilla/websocket"
 )
 
@@ -487,6 +487,9 @@ func (s *Server) RestoreAsync() {
 func (s *Server) Close() error {
 	if s.bgCancel != nil {
 		s.bgCancel()
+	}
+	if s.metrics != nil {
+		s.metrics.SignalStop()
 	}
 	if s.reconcileStop != nil {
 		s.reconcileStopOnce.Do(func() {
