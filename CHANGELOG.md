@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.91.0] - 2026-11-28
+
+The window is called Dokumentasi & Artikel, and generated guides carry a screenshot of the feature.
+
+### Fitur baru
+- **docs:** The window is called Dokumentasi & Artikel, and generated guides carry a screenshot of the feature ([`4ab07d3`](https://github.com/friskipradana/y-panel/commit/4ab07d3))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.90.0...v1.91.0
+
 ## [1.90.0] - 2026-11-28
 
 2 perubahan, utamanya documentation is written from Reneo's real screen texts, with a feature coverage view and a better reader.
