@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.102] - 2026-11-28
+
+Upgrade Page Studio to Lovable-style live chat builder and add scheduled auto-article & Reneo docs enricher.
+
+### Fitur baru
+- **studio:** Upgrade Page Studio to Lovable-style live chat builder and add scheduled auto-article & Reneo docs enricher ([`3cf8695`](https://github.com/friskipradana/y-panel/commit/3cf8695))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.101...v1.88.102
+
 ## [1.88.101] - 2026-11-28
 
 Streamline cleanup toolbar to design system, align checkboxes, and add column sorting.
