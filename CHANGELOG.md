@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.104] - 2026-11-28
+
+Separate documentation vs article post types and add built-in AI generator.
+
+### Fitur baru
+- **docs:** Separate documentation vs article post types and add built-in AI generator ([`03f80d7`](https://github.com/friskipradana/y-panel/commit/03f80d7))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.103...v1.88.104
+
 ## [1.88.103] - 2026-11-28
 
 Unrestricted HTML/CSS/JS Lovable page builder and Reneo-specific scheduled articles.
