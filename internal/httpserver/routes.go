@@ -411,8 +411,17 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/studio/pages", s.requireAuthV2(http.HandlerFunc(s.handleStudioCreatePage)))
 	s.mux.Handle("PUT /api/v1/studio/pages/{id}", s.requireAuthV2(http.HandlerFunc(s.handleStudioUpdatePage)))
 	s.mux.Handle("POST /api/v1/studio/pages/{id}/publish", s.requireAuthV2(http.HandlerFunc(s.handleStudioTogglePublish)))
+	s.mux.Handle("POST /api/v1/studio/pages/{id}/chat", s.requireAuthV2(http.HandlerFunc(s.handleStudioPageChat)))
+	s.mux.Handle("POST /api/v1/studio/pages/{id}/restore", s.requireAuthV2(http.HandlerFunc(s.handleStudioRestoreVersion)))
 	s.mux.Handle("DELETE /api/v1/studio/pages/{id}", s.requireAuthV2(http.HandlerFunc(s.handleStudioDeletePage)))
 	s.mux.Handle("POST /api/v1/studio/ai-generate", s.requireAuthV2(http.HandlerFunc(s.handleStudioAIGenerate)))
+	s.mux.Handle("POST /api/v1/studio/chat-create", s.requireAuthV2(http.HandlerFunc(s.handleStudioChatCreate)))
+	s.mux.Handle("GET /api/v1/studio/schedules", s.requireAuthV2(http.HandlerFunc(s.handleStudioListSchedules)))
+	s.mux.Handle("POST /api/v1/studio/schedules", s.requireAuthV2(http.HandlerFunc(s.handleStudioCreateSchedule)))
+	s.mux.Handle("PUT /api/v1/studio/schedules/{id}", s.requireAuthV2(http.HandlerFunc(s.handleStudioUpdateSchedule)))
+	s.mux.Handle("POST /api/v1/studio/schedules/{id}/toggle", s.requireAuthV2(http.HandlerFunc(s.handleStudioToggleSchedule)))
+	s.mux.Handle("POST /api/v1/studio/schedules/{id}/run", s.requireAuthV2(http.HandlerFunc(s.handleStudioRunScheduleNow)))
+	s.mux.Handle("DELETE /api/v1/studio/schedules/{id}", s.requireAuthV2(http.HandlerFunc(s.handleStudioDeleteSchedule)))
 	s.mux.HandleFunc("GET /api/v1/public/pages/{slug}", s.handlePublicStudioPage)
 
 	// ── Payment Gateway Settings ─────────────────────────────────────────────

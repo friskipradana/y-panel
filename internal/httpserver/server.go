@@ -244,6 +244,11 @@ func New(cfg config.Config) *Server {
 		defer s.recoveryWG.Done()
 		s.runUptimeMonitorLoop(30*time.Second, reconcileStop)
 	}()
+	s.recoveryWG.Add(1)
+	go func() {
+		defer s.recoveryWG.Done()
+		s.runStudioSchedulerLoop(1*time.Minute, reconcileStop)
+	}()
 	return s
 }
 

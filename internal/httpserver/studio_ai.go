@@ -83,7 +83,7 @@ func parseGeneratedStudioPage(raw string, kind string) (*aiGeneratedStudioPage, 
 			}
 			secType := strings.ToLower(firstStringField(m, "type", "kind"))
 			switch secType {
-			case "features", "pricing", "steps", "faq", "cta":
+			case "features", "pricing", "steps", "testimonials", "stats", "faq", "cta":
 			default:
 				secType = "features"
 			}
@@ -159,4 +159,36 @@ func parseGeneratedStudioPage(raw string, kind string) (*aiGeneratedStudioPage, 
 		return nil, fmt.Errorf("AI tidak menghasilkan isi halaman. Coba perjelas brief atau ganti model AI.")
 	}
 	return out, nil
+}
+
+type studioChatAIResult struct {
+	Reply string
+	Page  *aiGeneratedStudioPage
+}
+
+// parseStudioChatResponse extracts both the assistant's short change summary and updated page payload.
+func parseStudioChatResponse(raw string, kind string) (*studioChatAIResult, error) {
+	cleanJSON := ai.ExtractJSONObject(raw)
+	if cleanJSON == "" {
+		return nil, fmt.Errorf("AI mengembalikan respons kosong")
+	}
+	var root map[string]any
+	if err := json.Unmarshal([]byte(cleanJSON), &root); err != nil {
+		return nil, fmt.Errorf("format JSON chat AI tidak valid: %v", err)
+	}
+	reply := stripEmDash(firstStringField(root, "reply", "summary", "message", "changes"))
+	pageJSON := cleanJSON
+	if inner, ok := root["page"].(map[string]any); ok {
+		if b, err := json.Marshal(inner); err == nil {
+			pageJSON = string(b)
+		}
+	}
+	page, err := parseGeneratedStudioPage(pageJSON, kind)
+	if err != nil {
+		return nil, err
+	}
+	if reply == "" {
+		reply = "Halaman telah diperbarui sesuai instruksi."
+	}
+	return &studioChatAIResult{Reply: reply, Page: page}, nil
 }

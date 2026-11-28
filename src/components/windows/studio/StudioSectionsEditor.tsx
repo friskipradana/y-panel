@@ -1,150 +1,162 @@
-import { Plus, Trash2 } from 'lucide-react'
-import type { StudioSection, StudioSectionItem, StudioSectionType } from '@/api/studio'
+import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
+import type { StudioSection, StudioSectionType } from '@/api/studio'
 import { Button } from '@/components/ui/Button'
 import { TextInput, Textarea } from '@/components/ui/Field'
 import { IconButton } from '@/components/ui/IconButton'
 import { Select } from '@/components/ui/Select'
+import { useI18n } from '@/lib/i18n'
 
 interface StudioSectionsEditorProps {
   sections: StudioSection[]
   onChange: (next: StudioSection[]) => void
-  t: (key: string) => string
 }
 
-const EMPTY_ITEM: StudioSectionItem = { title: '', description: '' }
+export function StudioSectionsEditor({ sections, onChange }: StudioSectionsEditorProps) {
+  const { t } = useI18n()
 
-export function StudioSectionsEditor({ sections, onChange, t }: StudioSectionsEditorProps) {
-  const addSection = (type: StudioSectionType = 'features') => {
+  const typeOptions: Array<{ value: StudioSectionType; label: string }> = [
+    { value: 'features', label: t('studio.sectionType.features') },
+    { value: 'steps', label: t('studio.sectionType.steps') },
+    { value: 'pricing', label: t('studio.sectionType.pricing') },
+    { value: 'stats', label: t('studio.sectionType.stats') },
+    { value: 'testimonials', label: t('studio.sectionType.testimonials') },
+    { value: 'faq', label: t('studio.sectionType.faq') },
+    { value: 'cta', label: t('studio.sectionType.cta') },
+  ]
+
+  const addSection = () => {
     onChange([
       ...sections,
-      { id: `sec-${Date.now()}`, type, heading: '', subheading: '', items: [{ ...EMPTY_ITEM }] },
+      {
+        id: `sec-${Date.now()}`,
+        type: 'features',
+        heading: t('studio.newSectionHeading'),
+        subheading: '',
+        items: [{ title: t('studio.newItemTitle'), description: '' }],
+      },
     ])
   }
 
-  const updateSection = (idx: number, patch: Partial<StudioSection>) => {
+  const updateSec = (idx: number, patch: Partial<StudioSection>) => {
     onChange(sections.map((s, i) => (i === idx ? { ...s, ...patch } : s)))
   }
 
-  const updateItem = (secIdx: number, itemIdx: number, patch: Partial<StudioSectionItem>) => {
+  const moveSec = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir
+    if (target < 0 || target >= sections.length) return
+    const next = [...sections]
+    const [item] = next.splice(idx, 1)
+    next.splice(target, 0, item)
+    onChange(next)
+  }
+
+  const removeSec = (idx: number) => {
+    onChange(sections.filter((_, i) => i !== idx))
+  }
+
+  const updateItem = (secIdx: number, itemIdx: number, patch: Partial<StudioSection['items'][number]>) => {
     const sec = sections[secIdx]
     const nextItems = sec.items.map((it, i) => (i === itemIdx ? { ...it, ...patch } : it))
-    updateSection(secIdx, { items: nextItems })
+    updateSec(secIdx, { items: nextItems })
+  }
+
+  const addItem = (secIdx: number) => {
+    const sec = sections[secIdx]
+    updateSec(secIdx, { items: [...sec.items, { title: '', description: '' }] })
+  }
+
+  const removeItem = (secIdx: number, itemIdx: number) => {
+    const sec = sections[secIdx]
+    updateSec(secIdx, { items: sec.items.filter((_, i) => i !== itemIdx) })
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[0.75rem] font-semibold text-[var(--win-text)]">{t('studio.sectionsHeading')}</span>
-        <Button type="button" size="sm" variant="outline" icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.75} />} onClick={() => addSection('features')}>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-[var(--win-text)]">
+          {t('studio.sectionsLabel')} ({sections.length})
+        </span>
+        <Button size="sm" variant="outline" icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.75} />} onClick={addSection}>
           {t('studio.addSection')}
         </Button>
       </div>
 
       {sections.length === 0 ? (
-        <p className="text-[0.75rem] text-[var(--text-secondary)]">{t('studio.noSectionsHint')}</p>
-      ) : null}
+        <div className="rounded-lg border border-dashed border-[var(--win-border)] p-3 text-center text-xs text-[var(--text-secondary)]">
+          {t('studio.noSectionsHint')}
+        </div>
+      ) : (
+        sections.map((sec, sIdx) => (
+          <div key={sec.id} className="space-y-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] p-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <div className="w-32 shrink-0">
+                <Select
+                  size="sm"
+                  value={sec.type}
+                  onChange={(v) => updateSec(sIdx, { type: v as StudioSectionType })}
+                  options={typeOptions}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <TextInput
+                  value={sec.heading}
+                  onChange={(e) => updateSec(sIdx, { heading: e.target.value })}
+                  placeholder={t('studio.sectionHeadingPh')}
+                />
+              </div>
+              <IconButton label={t('studio.moveUp')} size="sm" disabled={sIdx === 0} onClick={() => moveSec(sIdx, -1)}>
+                <ArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </IconButton>
+              <IconButton label={t('studio.moveDown')} size="sm" disabled={sIdx === sections.length - 1} onClick={() => moveSec(sIdx, 1)}>
+                <ArrowDown className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </IconButton>
+              <IconButton label={t('common.delete')} size="sm" tone="danger" onClick={() => removeSec(sIdx)}>
+                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </IconButton>
+            </div>
 
-      {sections.map((sec, sIdx) => (
-        <div key={sec.id || sIdx} className="space-y-2.5 rounded-md border border-[var(--win-border)] bg-[var(--win-bar)] p-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[140px_minmax(0,1fr)_auto]">
-            <Select
-              size="sm"
-              value={sec.type}
-              onChange={(v) => updateSection(sIdx, { type: v as StudioSectionType })}
-              options={[
-                { value: 'features', label: t('studio.secType.features') },
-                { value: 'steps', label: t('studio.secType.steps') },
-                { value: 'pricing', label: t('studio.secType.pricing') },
-                { value: 'faq', label: t('studio.secType.faq') },
-                { value: 'cta', label: t('studio.secType.cta') },
-              ]}
-            />
             <TextInput
-              value={sec.heading}
-              onChange={(e) => updateSection(sIdx, { heading: e.target.value })}
-              placeholder={t('studio.sectionHeadingPh')}
+              value={sec.subheading ?? ''}
+              onChange={(e) => updateSec(sIdx, { subheading: e.target.value })}
+              placeholder={t('studio.sectionSubheadingPh')}
             />
-            <IconButton
-              size="sm"
-              variant="ghost"
-              tone="danger"
-              label={t('common.delete')}
-              onClick={() => onChange(sections.filter((_, i) => i !== sIdx))}
-            >
-              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </IconButton>
-          </div>
 
-          <TextInput
-            value={sec.subheading ?? ''}
-            onChange={(e) => updateSection(sIdx, { subheading: e.target.value })}
-            placeholder={t('studio.sectionSubheadingPh')}
-          />
-
-          <div className="space-y-2">
-            {sec.items.map((item, iIdx) => (
-              <div key={iIdx} className="grid grid-cols-1 gap-1.5 rounded border border-[var(--win-border)] bg-[var(--panel-surface)] p-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <div className="space-y-1.5">
-                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            <div className="space-y-2 border-t border-[var(--win-border)] pt-2">
+              {sec.items.map((it, iIdx) => (
+                <div key={iIdx} className="space-y-1.5 rounded-md border border-[var(--win-border)] bg-[var(--win-bar)] p-2">
+                  <div className="flex items-center gap-1.5">
                     <TextInput
-                      value={item.title}
+                      value={it.title}
                       onChange={(e) => updateItem(sIdx, iIdx, { title: e.target.value })}
-                      placeholder={sec.type === 'faq' ? t('studio.faqQuestionPh') : t('studio.itemTitlePh')}
+                      placeholder={t('studio.itemTitlePh')}
                     />
                     {sec.type === 'pricing' ? (
                       <TextInput
                         mono
-                        value={item.price ?? ''}
+                        value={it.price ?? ''}
                         onChange={(e) => updateItem(sIdx, iIdx, { price: e.target.value })}
                         placeholder={t('studio.itemPricePh')}
                       />
                     ) : null}
+                    <IconButton label={t('common.delete')} size="sm" tone="danger" onClick={() => removeItem(sIdx, iIdx)}>
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </IconButton>
                   </div>
                   <Textarea
                     rows={2}
-                    value={item.description}
+                    value={it.description}
                     onChange={(e) => updateItem(sIdx, iIdx, { description: e.target.value })}
-                    placeholder={sec.type === 'faq' ? t('studio.faqAnswerPh') : t('studio.itemDescPh')}
+                    placeholder={t('studio.itemDescPh')}
                   />
-                  {sec.type === 'pricing' ? (
-                    <Textarea
-                      rows={2}
-                      value={(item.bullets ?? []).join('\n')}
-                      onChange={(e) =>
-                        updateItem(sIdx, iIdx, {
-                          bullets: e.target.value
-                            .split('\n')
-                            .map((l) => l.trim())
-                            .filter(Boolean),
-                        })
-                      }
-                      placeholder={t('studio.itemBulletsPh')}
-                    />
-                  ) : null}
                 </div>
-                <IconButton
-                  size="sm"
-                  variant="ghost"
-                  tone="danger"
-                  label={t('common.delete')}
-                  onClick={() => updateSection(sIdx, { items: sec.items.filter((_, idx) => idx !== iIdx) })}
-                >
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </IconButton>
-              </div>
-            ))}
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.75} />}
-              onClick={() => updateSection(sIdx, { items: [...sec.items, { ...EMPTY_ITEM }] })}
-            >
-              {t('studio.addCard')}
-            </Button>
+              ))}
+              <Button size="sm" variant="ghost" icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.75} />} onClick={() => addItem(sIdx)}>
+                {t('studio.addItem')}
+              </Button>
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   )
 }
