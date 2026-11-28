@@ -507,6 +507,7 @@ func (m *Manager) ensureSchema() error {
 		)`,
 		`ALTER TABLE docs ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT false`,
 		`ALTER TABLE docs ADD COLUMN IF NOT EXISTS kind VARCHAR(16) NOT NULL DEFAULT 'article'`,
+		`ALTER TABLE docs ADD COLUMN IF NOT EXISTS feature_key VARCHAR(40) NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_docs_status_created ON docs(status, created_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_docs_author_id      ON docs(author_user_id)`,
 
@@ -591,7 +592,7 @@ func (m *Manager) ensureSchema() error {
 		`CREATE INDEX IF NOT EXISTS idx_email_messages_received ON email_messages(received_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_email_messages_to_addr ON email_messages(to_addr)`,
 		`ALTER TABLE user_quotas ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 3`,
-		`ALTER TABLE hosting_plans ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 2`,
+		`ALTER TABLE IF EXISTS hosting_plans ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 2`,
 		`CREATE TABLE IF NOT EXISTS app_licenses (
 			id           BIGSERIAL    PRIMARY KEY,
 			user_id      BIGINT       NOT NULL DEFAULT 1,
@@ -2432,6 +2433,7 @@ type Doc struct {
 	Content      string    `json:"content"`
 	Status       string    `json:"status"`
 	IsPublic     bool      `json:"isPublic"`
+	FeatureKey   string    `json:"featureKey"` // the Reneo feature the post explains, "" when none
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
@@ -2443,7 +2445,7 @@ func normalizeDocKind(kind string) string {
 	return "article"
 }
 
-const docSelectCols = `id, author_user_id, COALESCE(NULLIF(kind,''),'article'), title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, created_at, updated_at`
+const docSelectCols = `id, author_user_id, COALESCE(NULLIF(kind,''),'article'), title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, is_public, COALESCE(feature_key,''), created_at, updated_at`
 
 func (m *Manager) ListDocs(query string, limit, offset int, includeDrafts bool) ([]Doc, int64, error) {
 	if !m.IsConnected() || m.db == nil {
@@ -2526,7 +2528,7 @@ func (m *Manager) CreateDoc(authorUserID *int64, kind, title, slug, excerpt, con
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING `+docSelectCols+`
 	`, authorUserID, kind, title, slug, excerpt, content, status, isPublic).Scan(
-		&doc.ID, &doc.AuthorUserID, &doc.Kind, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.IsPublic, &doc.CreatedAt, &doc.UpdatedAt,
+		&doc.ID, &doc.AuthorUserID, &doc.Kind, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.IsPublic, &doc.FeatureKey, &doc.CreatedAt, &doc.UpdatedAt,
 	)
 	return &doc, err
 }
@@ -2543,12 +2545,21 @@ func (m *Manager) UpdateDoc(id int64, kind, title, slug, excerpt, content, statu
 		WHERE id = $8
 		RETURNING `+docSelectCols+`
 	`, kind, title, slug, excerpt, content, status, isPublic, id).Scan(
-		&doc.ID, &doc.AuthorUserID, &doc.Kind, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.IsPublic, &doc.CreatedAt, &doc.UpdatedAt,
+		&doc.ID, &doc.AuthorUserID, &doc.Kind, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.IsPublic, &doc.FeatureKey, &doc.CreatedAt, &doc.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	return &doc, err
+}
+
+// SetDocFeature records which Reneo feature a post explains.
+func (m *Manager) SetDocFeature(id int64, featureKey string) error {
+	if !m.IsConnected() || m.db == nil {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`UPDATE docs SET feature_key = $1 WHERE id = $2`, featureKey, id)
+	return err
 }
 
 func (m *Manager) DeleteDoc(id int64) error {
@@ -2698,7 +2709,7 @@ func scanTunnels(rows *sql.Rows) ([]Tunnel, error) {
 
 func scanDoc(row rowScanner) (*Doc, error) {
 	var d Doc
-	err := row.Scan(&d.ID, &d.AuthorUserID, &d.Kind, &d.Title, &d.Slug, &d.Excerpt, &d.Content, &d.Status, &d.IsPublic, &d.CreatedAt, &d.UpdatedAt)
+	err := row.Scan(&d.ID, &d.AuthorUserID, &d.Kind, &d.Title, &d.Slug, &d.Excerpt, &d.Content, &d.Status, &d.IsPublic, &d.FeatureKey, &d.CreatedAt, &d.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -2713,7 +2724,7 @@ func scanDocs(rows *sql.Rows) ([]Doc, error) {
 	result := make([]Doc, 0)
 	for rows.Next() {
 		var d Doc
-		if err := rows.Scan(&d.ID, &d.AuthorUserID, &d.Kind, &d.Title, &d.Slug, &d.Excerpt, &d.Content, &d.Status, &d.IsPublic, &d.CreatedAt, &d.UpdatedAt); err != nil {
+		if err := rows.Scan(&d.ID, &d.AuthorUserID, &d.Kind, &d.Title, &d.Slug, &d.Excerpt, &d.Content, &d.Status, &d.IsPublic, &d.FeatureKey, &d.CreatedAt, &d.UpdatedAt); err != nil {
 			return nil, err
 		}
 		d.Kind = normalizeDocKind(d.Kind)

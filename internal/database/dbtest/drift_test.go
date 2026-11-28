@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/database/migrations"
 )
 
@@ -25,19 +26,25 @@ func columns(t *testing.T, db *sql.DB) map[string]string {
 		if err := rows.Scan(&tbl, &col, &typ, &nullable); err != nil {
 			t.Fatal(err)
 		}
+		// text and varchar behave the same here; which one a table got depends on who made it first
+		if typ == "character varying" {
+			typ = "text"
+		}
 		out[tbl+"."+col] = typ + "/" + nullable
 	}
 	return out
 }
 
-// A new install runs the migrations before the agent ever starts, so the migrations alone must build every table and column that the
-// agent's own schema bootstrap (ensureSchema) would have made. Anything listed here exists only in the bootstrap.
-func TestMigrationsAloneBuildTheWholeSchema(t *testing.T) {
+// A new install runs the migrations before the agent ever starts (the installer). The schema is made partly by the migrations and
+// partly by the agent bootstrap (ensureSchema), so neither may depend on something only the other makes: both orders must work and
+// end with the same schema.
+func TestBothStartOrdersBuildTheSameSchema(t *testing.T) {
 	admin := os.Getenv("REN_TEST_DATABASE_URL")
 	if admin == "" {
 		t.Skip("REN_TEST_DATABASE_URL is not set")
 	}
-	withBootstrap := New(t).DB()
+	// agent bootstrap first, then the migrations
+	agentFirst := New(t).DB()
 
 	adminDB, err := sql.Open("postgres", admin)
 	if err != nil {
@@ -51,32 +58,36 @@ func TestMigrationsAloneBuildTheWholeSchema(t *testing.T) {
 	defer adminDB.Exec(`DROP DATABASE IF EXISTS ` + name + ` WITH (FORCE)`)
 	u, _ := url.Parse(admin)
 	u.Path = "/" + name
-	migOnly, err := migrations.Open(u.String())
+
+	// the installer order: migrations on the empty database, then the agent starts
+	migrate, err := migrations.Open(u.String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer migOnly.Close()
-	if err := migrations.Up(migOnly); err != nil {
+	defer migrate.Close()
+	if err := migrations.Up(migrate); err != nil {
 		t.Fatalf("migrations on an empty database: %v", err)
 	}
+	m := database.New(database.Config{Enabled: true, DSN: u.String()})
+	defer m.Close()
+	if !m.IsConnected() || m.Status().LastError != "" {
+		t.Fatalf("agent start on a migrated database: %+v", m.Status())
+	}
 
-	want, got := columns(t, withBootstrap), columns(t, migOnly)
-	var missing, differ []string
+	want, got := columns(t, agentFirst), columns(t, m.DB())
+	var differ []string
 	for k, v := range want {
-		g, ok := got[k]
-		switch {
-		case !ok:
-			missing = append(missing, k)
-		case g != v:
-			differ = append(differ, k+" migrations="+g+" bootstrap="+v)
+		if got[k] != v {
+			differ = append(differ, fmt.Sprintf("%s agentFirst=%s installer=%s", k, v, got[k]))
 		}
 	}
-	sort.Strings(missing)
-	sort.Strings(differ)
-	if len(missing) > 0 {
-		t.Errorf("missing after migrations only (%d): %v", len(missing), missing)
+	for k, v := range got {
+		if _, ok := want[k]; !ok {
+			differ = append(differ, fmt.Sprintf("%s only after installer order (%s)", k, v))
+		}
 	}
+	sort.Strings(differ)
 	if len(differ) > 0 {
-		t.Errorf("different after migrations only (%d): %v", len(differ), differ)
+		t.Errorf("schemas differ (%d): %v", len(differ), differ)
 	}
 }
