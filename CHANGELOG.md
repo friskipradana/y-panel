@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.89.0] - 2026-11-28
+
+2 perubahan, utamanya attach pictures to AI prompts, pick and edit elements in the preview, and a visual article editor.
+
+### Fitur baru
+- **studio,docs:** Attach pictures to AI prompts, pick and edit elements in the preview, and a visual article editor ([`0455c79`](https://github.com/friskipradana/y-panel/commit/0455c79))
+
+### Perbaikan
+- **shutdown:** Eliminate Server.Close hang and slow docker CLI probes in CI ([`a19db47`](https://github.com/friskipradana/y-panel/commit/a19db47))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.105...v1.89.0
+
 ## [1.88.105] - 2026-11-28
 
 Pages-only UI, Docker-style actions & tunnel domain modal, fix delete, move schedules to Docs.
