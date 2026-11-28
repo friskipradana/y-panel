@@ -840,11 +840,23 @@
   }
 
   &--files {
-    --docker-cols: 40px minmax(0, 2.4fr) minmax(72px, 0.6fr) minmax(76px, 0.6fr) 96px minmax(120px, 0.9fr) 36px;
+    --docker-cols: 40px minmax(0, 2.4fr) minmax(72px, 0.6fr) minmax(76px, 0.6fr) 96px minmax(120px, 0.9fr) 40px;
+
+    .docker-col-header > :first-child {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
 
   &--files-cleanup {
     --docker-cols: 40px minmax(0, 2.6fr) 96px 88px 96px 76px;
+
+    .docker-col-header > :first-child {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
 
   &--services-systemd {
@@ -1276,6 +1288,10 @@
 
 .docker-row--files {
   cursor: pointer;
+
+  > .docker-act-btn {
+    justify-self: end;
+  }
 }
 
 .docker-row--selected {

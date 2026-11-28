@@ -1,5 +1,6 @@
 import { CheckSquare, Copy, Scissors, Trash2, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Button } from '@/components/ui/Button'
 import { formatSize } from './fileManagerConfig'
 import type { FileManagerState } from './useFileManager'
 
@@ -35,15 +36,15 @@ export function BulkActionsBar({ fm }: { fm: FileManagerState }) {
           <button type="button" className="docker-act-btn" title={t('common.copy')} aria-label={t('common.copy')} onClick={() => setClipboardBulk('copy')}>
             <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
-          <button
-            type="button"
-            className="panel-btn panel-btn--danger !h-7 !px-2.5 text-[11px]"
-            disabled={modalLoading}
+          <Button
+            size="sm"
+            variant="danger"
+            icon={<Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
+            loading={modalLoading}
             onClick={() => void handleBulkDelete()}
           >
-            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('fileManager.deleteSelectedShort', { count: selectedPaths.size })}</span>
-          </button>
+            {t('fileManager.deleteSelectedShort', { count: selectedPaths.size })}
+          </Button>
           <button type="button" className="docker-act-btn" title={t('common.cancel')} aria-label={t('common.cancel')} onClick={() => setSelectedPaths(new Set())}>
             <X className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>

@@ -2,20 +2,18 @@ import { useRef } from 'react'
 import {
   ClipboardPaste,
   CornerLeftUp,
-  Eraser,
-  FolderOpen,
   Key,
-  LoaderCircle,
   RefreshCw,
   Search,
   Upload,
 } from 'lucide-react'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
+import { FilterMenu } from '@/components/ui/FilterMenu'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { FileManagerState } from './useFileManager'
 import type { FileUpload } from './useFileUpload'
 
-// Compact workstation toolbar: Browse/Cleanup switch, Up + Path, Search, Paste, Upload, + Menu, Refresh
+// Standard single-line Reneo toolbar for Browse mode
 export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: FileUpload }) {
   const isMobile = useIsMobileLayout()
   const picker = useRef<HTMLInputElement>(null)
@@ -41,15 +39,24 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
     handlePasteClipboard,
   } = fm
 
+  const modeItems = [
+    { key: 'browse', label: t('fileManager.modeBrowse') },
+    { key: 'cleanup', label: t('fileManager.modeCleanup') },
+  ]
+
   const moreActions: ActionMenuItem[] = [
     { key: 'touch', label: t('fileManager.newFile'), onSelect: () => openModal({ type: 'touch' }) },
     { key: 'mkdir', label: t('fileManager.newFolder'), onSelect: () => openModal({ type: 'mkdir' }) },
-    {
-      key: 'upload',
-      label: t('fileManager.uploadTitle'),
-      disabled: !!upload.upload,
-      onSelect: () => picker.current?.click(),
-    },
+    ...(isMobile
+      ? [
+          {
+            key: 'upload',
+            label: t('fileManager.uploadTitle'),
+            disabled: !!upload.upload,
+            onSelect: () => picker.current?.click(),
+          },
+        ]
+      : []),
     {
       key: 'terminal',
       label: t('fileManager.openTerminalTitle'),
@@ -75,6 +82,8 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
       : []),
   ]
 
+  const isSpinning = activeTab.loading && !!activeTab.data
+
   const fileInput = (
     <input
       ref={picker}
@@ -90,19 +99,22 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
 
   if (isMobile) {
     return (
-      <div className="docker-topbar docker-topbar--path flex flex-col gap-2 p-2.5">
+      <div className="docker-topbar docker-topbar--mobile">
         {fileInput}
-        <div className="flex w-full items-center gap-1.5">
+        <div className="docker-topbar__mobile-row">
+          <FilterMenu
+            label={t('fileManager.modeBrowse')}
+            value={viewMode}
+            onChange={(v) => setViewMode(v as 'browse' | 'cleanup')}
+            items={modeItems}
+          />
           <button
             type="button"
             className="docker-icon-btn shrink-0"
             title={t('fileManager.parentDirectory')}
             aria-label={t('fileManager.parentDirectory')}
             disabled={!activeTab.data?.parent}
-            onClick={() => {
-              setViewMode('browse')
-              if (activeTab.data?.parent) setCurrentPath(activeTab.data.parent)
-            }}
+            onClick={() => activeTab.data?.parent && setCurrentPath(activeTab.data.parent)}
           >
             <CornerLeftUp className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
@@ -116,58 +128,13 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
               onChange={(e) => setInputPath(e.target.value)}
               onBlur={() => setCurrentPath(activeTab.inputPath)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setViewMode('browse')
-                  setCurrentPath(activeTab.inputPath)
-                }
+                if (e.key === 'Enter') setCurrentPath(activeTab.inputPath)
               }}
             />
           </label>
         </div>
 
-        <div className="flex w-full items-center gap-1.5">
-          <button
-            type="button"
-            className={`panel-btn !h-7 !px-2.5 text-[11px] shrink-0 ${viewMode === 'browse' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
-            onClick={() => setViewMode('browse')}
-          >
-            <FolderOpen className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('fileManager.modeBrowse')}</span>
-          </button>
-          <button
-            type="button"
-            className={`panel-btn !h-7 !px-2.5 text-[11px] shrink-0 ${viewMode === 'cleanup' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
-            onClick={() => setViewMode('cleanup')}
-          >
-            <Eraser className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('fileManager.modeCleanup')}</span>
-          </button>
-          {clipboard && clipboard.items.length > 0 ? (
-            <button
-              type="button"
-              className="docker-secondary-btn shrink-0"
-              title={t('fileManager.pasteHere')}
-              aria-label={t('fileManager.pasteHere')}
-              onClick={() => void handlePasteClipboard(activeTab.currentPath)}
-            >
-              <ClipboardPaste className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-          ) : null}
-          <div className="ml-auto flex items-center gap-1.5">
-            <ActionMenu label={t('fileManager.quickActions')} items={moreActions} compact />
-            <button
-              type="button"
-              className="docker-icon-btn shrink-0"
-              title={t('common.refresh')}
-              aria-label={t('common.refresh')}
-              onClick={() => void loadDirectory(activeTab.currentPath, activeTabId)}
-            >
-              {activeTab.loading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />}
-            </button>
-          </div>
-        </div>
-
-        {viewMode === 'browse' ? (
+        <div className="docker-topbar__mobile-search">
           <div className="docker-search-wrap docker-search-wrap--mobile">
             <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
             <input
@@ -180,7 +147,28 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
               onChange={(e) => setSearchText(e.target.value)}
             />
           </div>
-        ) : null}
+          {clipboard && clipboard.items.length > 0 ? (
+            <button
+              type="button"
+              className="docker-icon-btn shrink-0"
+              title={t('fileManager.pasteHere')}
+              aria-label={t('fileManager.pasteHere')}
+              onClick={() => void handlePasteClipboard(activeTab.currentPath)}
+            >
+              <ClipboardPaste className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+          ) : null}
+          <ActionMenu label={t('fileManager.quickActions')} items={moreActions} size="md" variant="outline" />
+          <button
+            type="button"
+            className="docker-icon-btn docker-icon-btn--mobile shrink-0"
+            title={t('common.refresh')}
+            aria-label={t('common.refresh')}
+            onClick={() => void loadDirectory(activeTab.currentPath, activeTabId)}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isSpinning ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+          </button>
+        </div>
       </div>
     )
   }
@@ -189,24 +177,12 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
     <div className="docker-topbar docker-topbar--path">
       {fileInput}
       <div className="docker-topbar__left">
-        <div className="flex items-center gap-1 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] p-0.5 shrink-0">
-          <button
-            type="button"
-            className={`panel-btn !h-7 !px-2.5 text-[11px] ${viewMode === 'browse' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
-            onClick={() => setViewMode('browse')}
-          >
-            <FolderOpen className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('fileManager.modeBrowse')}</span>
-          </button>
-          <button
-            type="button"
-            className={`panel-btn !h-7 !px-2.5 text-[11px] ${viewMode === 'cleanup' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
-            onClick={() => setViewMode('cleanup')}
-          >
-            <Eraser className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('fileManager.modeCleanup')}</span>
-          </button>
-        </div>
+        <FilterMenu
+          label={t('fileManager.modeBrowse')}
+          value={viewMode}
+          onChange={(v) => setViewMode(v as 'browse' | 'cleanup')}
+          items={modeItems}
+        />
 
         <button
           type="button"
@@ -214,10 +190,7 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
           title={t('fileManager.parentDirectory')}
           aria-label={t('fileManager.parentDirectory')}
           disabled={!activeTab.data?.parent}
-          onClick={() => {
-            setViewMode('browse')
-            if (activeTab.data?.parent) setCurrentPath(activeTab.data.parent)
-          }}
+          onClick={() => activeTab.data?.parent && setCurrentPath(activeTab.data.parent)}
         >
           <CornerLeftUp className="h-3.5 w-3.5" strokeWidth={1.75} />
         </button>
@@ -232,32 +205,27 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
             onChange={(e) => setInputPath(e.target.value)}
             onBlur={() => setCurrentPath(activeTab.inputPath)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                setViewMode('browse')
-                setCurrentPath(activeTab.inputPath)
-              }
+              if (e.key === 'Enter') setCurrentPath(activeTab.inputPath)
             }}
           />
         </label>
       </div>
 
       <div className="docker-topbar__right">
-        {viewMode === 'browse' ? (
-          <div className="docker-search-wrap">
-            <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
-            <input
-              id="file-manager-search-input"
-              type="search"
-              className="docker-search-input"
-              aria-label={t('fileManager.searchFiles')}
-              placeholder={t('fileManager.searchFiles')}
-              value={activeTab.searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-            />
-          </div>
-        ) : null}
+        <div className="docker-search-wrap">
+          <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
+          <input
+            id="file-manager-search-input"
+            type="search"
+            className="docker-search-input"
+            aria-label={t('fileManager.searchFiles')}
+            placeholder={t('fileManager.searchFiles')}
+            value={activeTab.searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
 
-        {clipboard && clipboard.items.length > 0 && viewMode === 'browse' ? (
+        {clipboard && clipboard.items.length > 0 ? (
           <button
             type="button"
             className="docker-secondary-btn"
@@ -286,21 +254,19 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
           </button>
         ) : null}
 
-        {viewMode === 'browse' ? (
-          <button
-            type="button"
-            className="docker-secondary-btn"
-            title={t('fileManager.uploadTitle')}
-            aria-label={t('fileManager.uploadTitle')}
-            disabled={!!upload.upload}
-            onClick={() => picker.current?.click()}
-          >
-            <Upload className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span className="docker-secondary-btn__text">{t('fileManager.upload')}</span>
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="docker-secondary-btn"
+          title={t('fileManager.uploadTitle')}
+          aria-label={t('fileManager.uploadTitle')}
+          disabled={!!upload.upload}
+          onClick={() => picker.current?.click()}
+        >
+          <Upload className="h-3.5 w-3.5" strokeWidth={1.75} />
+          <span className="docker-secondary-btn__text">{t('fileManager.upload')}</span>
+        </button>
 
-        <ActionMenu label={t('fileManager.quickActions')} items={moreActions} />
+        <ActionMenu label={t('fileManager.quickActions')} items={moreActions} size="md" variant="outline" />
 
         <button
           type="button"
@@ -309,7 +275,7 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
           aria-label={t('common.refresh')}
           onClick={() => void loadDirectory(activeTab.currentPath, activeTabId)}
         >
-          {activeTab.loading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />}
+          <RefreshCw className={`h-3.5 w-3.5 ${isSpinning ? 'animate-spin' : ''}`} strokeWidth={1.75} />
         </button>
       </div>
     </div>

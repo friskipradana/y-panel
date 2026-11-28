@@ -66,6 +66,10 @@ var (
 		".pyc":        "Bytecode Python (.pyc)",
 		".pyo":        "Bytecode Python (.pyo)",
 	}
+	skipScanDirs = map[string]bool{
+		".git": true, ".reneo": true, ".bun": true, ".nvm": true,
+		".rustup": true, ".cargo": true, ".venv": true, "venv": true,
+	}
 	protectedCleanupDirs = map[string]bool{
 		"/": true, "/bin": true, "/boot": true, "/dev": true, "/etc": true,
 		"/home": true, "/lib": true, "/lib64": true, "/opt": true, "/proc": true,
@@ -150,7 +154,7 @@ func scanCleanupDir(root string, visited *int, truncated *bool, items *[]cleanup
 		}
 		name := d.Name()
 		lower := strings.ToLower(name)
-		if d.IsDir() && (name == ".git" || name == "proc" && p == "/proc" || pathBlockedByPolicy(p)) {
+		if d.IsDir() && (skipScanDirs[lower] || (name == "proc" && p == "/proc") || pathBlockedByPolicy(p)) {
 			return filepath.SkipDir
 		}
 

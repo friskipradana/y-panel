@@ -53,11 +53,11 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       }}
     >
       <FileTabsStrip fm={fm} />
-      <FileToolbar fm={fm} upload={upload} />
       {fm.viewMode === 'cleanup' ? (
         <FileCleanupPanel fm={fm} />
       ) : (
         <>
+          <FileToolbar fm={fm} upload={upload} />
           <FileList fm={fm} />
           <FileUploadBar upload={upload} />
           <FileStatusBar fm={fm} />
