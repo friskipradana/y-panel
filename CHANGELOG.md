@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.105] - 2026-11-28
+
+Pages-only UI, Docker-style actions & tunnel domain modal, fix delete, move schedules to Docs.
+
+### Perbaikan
+- **studio:** Pages-only UI, Docker-style actions & tunnel domain modal, fix delete, move schedules to Docs ([`20e8394`](https://github.com/friskipradana/y-panel/commit/20e8394))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.104...v1.88.105
+
 ## [1.88.104] - 2026-11-28
 
 Separate documentation vs article post types and add built-in AI generator.
